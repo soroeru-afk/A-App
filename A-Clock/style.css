@@ -1,0 +1,56 @@
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: #050505;
+    background: radial-gradient(circle at center, #151515 0%, #020202 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-family: 'Share Tech Mono', monospace;
+    overflow: hidden;
+}
+
+.clock-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    /* Move slightly up to center visually with reflection */
+    transform: translateY(-5%); 
+}
+
+.clock {
+    font-size: 10vw;
+    font-size: clamp(4rem, 10vw, 12rem);
+    color: #e8e8e8;
+    line-height: 1;
+    letter-spacing: 0.05em;
+    text-shadow: 0 0 20px rgba(232, 232, 232, 0.4), 0 0 50px rgba(232, 232, 232, 0.15);
+    z-index: 2;
+    position: relative;
+}
+
+.reflection {
+    font-size: 10vw;
+    font-size: clamp(4rem, 10vw, 12rem);
+    color: #e8e8e8;
+    line-height: 1;
+    letter-spacing: 0.05em;
+    transform: scaleY(-1);
+    opacity: 0.35;
+    filter: blur(6px);
+    /* Create the fading reflection effect */
+    -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 65%);
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 65%);
+    margin-top: 0;
+    z-index: 1;
+    user-select: none;
+    pointer-events: none;
+}
