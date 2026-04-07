@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPACE-ROBOTMAN WORLD | BASE COMMAND</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap');
+
+        :root {
+            --bg-deep: #050505;
+            --panel-gray: #333333;
+            --panel-light: #444444;
+            --panel-dark: #1a1a1a;
+            --cyan-primary: #00c49a;
+            --cyan-dim: #00765d;
+            --cyan-glow: rgba(0, 196, 154, 0.4);
+            --text-main: #e0ede8;
+            --shadow-deep: rgba(0, 0, 0, 0.9);
+            --shadow-light: rgba(255, 255, 255, 0.08);
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            font-family: 'Share Tech Mono', monospace;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* ── GLOBAL NOISE & LINES ── */
+        body::after {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background: 
+                repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(0, 196, 154, 0.02) 1px, rgba(0, 196, 154, 0.02) 2px),
+                radial-gradient(circle at 50% 50%, transparent 0%, rgba(0,0,0,0.5) 100%);
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        /* ── MAIN TERMINAL CHASSIS ── */
+        .terminal-wrap {
+            width: 1000px;
+            height: 680px;
+            background: #252525;
+            position: relative;
+            display: grid;
+            grid-template-rows: 40px 1fr 30px;
+            grid-template-columns: 180px 1fr;
+            border: 1px solid #000;
+            /* OUTER CHASSIS BEVEL */
+            box-shadow: 
+                -1px -1px 0px #444,
+                1px 1px 0px #000,
+                0 30px 60px rgba(0,0,0,0.8);
+            filter: url(#metal-texture);
+        }
+
+        /* ── HEADER ── */
+        .header {
+            grid-column: 1 / span 2;
+            background: linear-gradient(180deg, #3a3a3a 0%, #222 100%);
+            border-bottom: 2px solid #111;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
+        }
+
+        .header-logo {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.25em;
+            color: var(--cyan-primary);
+            text-shadow: 0 0 5px var(--cyan-glow);
+        }
+
+        .header-status {
+            margin-left: auto;
+            font-size: 9px;
+            color: var(--cyan-dim);
+            letter-spacing: 0.1em;
+        }
+
+        /* ── SIDEBAR (MECHANICAL NAV) ── */
+        .sidebar {
+            background: #1e1e1e;
+            border-right: 2px solid #111;
+            padding: 30px 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: inset -5px 0 15px rgba(0,0,0,0.4);
+        }
+
+        .nav-button {
+            width: 100%;
+            height: 38px;
+            background: #333;
+            border: none;
+            position: relative;
+            cursor: pointer;
+            outline: none;
+            display: flex;
+            align-items: center;
+            padding-left: 12px;
+            /* BUTTON BEVEL */
+            box-shadow: 
+                -1px -1px 0 #444, 
+                1px 1px 0 #000,
+                0 4px 6px rgba(0,0,0,0.3);
+            transition: all 0.1s;
+        }
+
+        .nav-button::before {
+            content: "";
+            position: absolute;
+            inset: 2px;
+            background: linear-gradient(135deg, #3d3d3d 0%, #1a1a1a 100%);
+        }
+
+        .nav-button:hover { transform: translateY(-1px); }
+        .nav-button:active { 
+            transform: translateY(1.5px); 
+            box-shadow: inset 1px 1px 4px #000;
+        }
+
+        .nav-label {
+            position: relative;
+            z-index: 2;
+            font-size: 10px;
+            color: #888;
+            letter-spacing: 0.12em;
+            transition: color 0.2s;
+        }
+
+        .nav-button:hover .nav-label { color: var(--cyan-primary); }
+
+        .led {
+            width: 4px; height: 4px;
+            background: #111;
+            margin-right: 10px;
+            z-index: 2;
+            box-shadow: inset 0 0 2px #000;
+        }
+
+        .nav-button:hover .led {
+            background: var(--cyan-primary);
+            box-shadow: 0 0 6px var(--cyan-primary);
+        }
+
+        /* ── MAIN DISPLAY AREA ── */
+        .main-display {
+            background: #0d0d0d;
+            position: relative;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            /* MONITOR RECESS EFFECT */
+            box-shadow: 
+                inset 15px 15px 30px rgba(0,0,0,0.8),
+                inset -2px -2px 5px rgba(255,255,255,0.02);
+        }
+
+        .monitor-frame {
+            flex: 1;
+            border: 1px solid #222;
+            background: #080808;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .monitor-frame::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 50%, rgba(0,0,0,0.1) 100%);
+            pointer-events: none;
+        }
+
+        .char-info-panel {
+            height: 110px;
+            background: #151515;
+            border: 1px solid #222;
+            padding: 15px;
+            display: grid;
+            grid-template-columns: 80px 1fr;
+            gap: 20px;
+            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.5);
+            border-radius: 2px;
+        }
+
+        .info-tag { font-size: 8px; color: var(--cyan-dim); margin-bottom: 5px; }
+        .info-title { font-family: 'Orbitron', sans-serif; font-size: 15px; color: #fff; letter-spacing: 0.2em; }
+
+        /* ── FOOTER ── */
+        .footer {
+            grid-column: 1 / span 2;
+            background: #111;
+            border-top: 1px solid #222;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            font-size: 8px;
+            color: #383838;
+            letter-spacing: 0.2em;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="terminal-wrap">
+        <!-- HEADER -->
+        <header class="header">
+            <div class="header-logo">SPACE-ROBOTMAN WORLD</div>
+            <div class="header-status">SYSTEM ACTIVE // MODE: NARRATIVE ARCHIVE</div>
+        </header>
+
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <button class="nav-button"><div class="led"></div><span class="nav-label">INITIALIZE</span></button>
+            <button class="nav-button"><div class="led"></div><span class="nav-label">CHARACTERS</span></button>
+            <button class="nav-button"><div class="led"></div><span class="nav-label">STORY LOG</span></button>
+            <button class="nav-button"><div class="led"></div><span class="nav-label">MISSION</span></button>
+            <button class="nav-button"><div class="led"></div><span class="nav-label">PROFILE</span></button>
+        </aside>
+
+        <!-- MAIN MONITOR -->
+        <main class="main-display">
+            <section class="monitor-frame">
+                <!-- DATA LINK EFFECT -->
+                <div style="font-size: 10px; color: #1a3a2a; letter-spacing: 0.8em; animation: blink 1.5s infinite;">WAITING FOR DATA LINK...</div>
+                <div style="width: 200px; height: 1px; background: #1a3a2a; margin-top: 20px; opacity: 0.3;"></div>
+            </section>
+
+            <section class="char-info-panel">
+                <div style="border-right: 1px solid #222; display: flex; align-items: center; justify-content: center;">
+                    <svg width="34" height="34" viewBox="0 0 40 40">
+                        <circle cx="20" cy="20" r="18" stroke="#1a3a2a" stroke-width="1" fill="none"/>
+                        <path d="M10 20 L30 20 M20 10 L20 30" stroke="#1a3a2a" stroke-width="1"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="info-tag">SYSTEM LOG // ENCRYPTION: ACTIVE</div>
+                    <div class="info-title">NO DATA SELECTED</div>
+                    <div style="font-size: 9px; color: #444; margin-top: 8px; line-height: 1.6;">PLEASE SELECT A ROBOTMAN UNIT FROM THE LEFT INTERFACE TO ACCESS DETAILED ARCHIVES AND MISSION LOGS.</div>
+                </div>
+            </section>
+        </main>
+
+        <!-- FOOTER -->
+        <footer class="footer">
+            GRAPHIC SPACE © 2026 // RETRO-FUTURE REBUILD // ID:SRW-PH01
+        </footer>
+    </div>
+
+    <!-- ── SVG NOISE FILTER ── -->
+    <svg style="position: absolute; width: 0; height: 0;">
+        <filter id="metal-texture">
+            <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="4" result="noise" />
+            <feColorMatrix in="noise" type="saturate" values="0" result="destaturatedNoise" />
+            <feComponentTransfer in="destaturatedNoise" result="subtleNoise">
+                <feFuncR type="linear" slope="0.04" />
+                <feFuncG type="linear" slope="0.04" />
+                <feFuncB type="linear" slope="0.04" />
+            </feComponentTransfer>
+            <feBlend in="SourceGraphic" in2="subtleNoise" mode="soft-light" />
+        </filter>
+    </svg>
+
+    <style>
+        @keyframes blink { 50% { opacity: 0.2; } }
+    </style>
+
+</body>
+</html>
