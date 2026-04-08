@@ -9,7 +9,7 @@
 - **お名前**: カオルさま
 - **使用言語**: 日本語（常に日本語で会話すること）
 - **OS**: Windows
-- **ワークスペース**: `c:\Users\soroe\A-App`
+- **ワークスペース**: `c:\Users\soroe\Documents\A-App`
 
 ---
 
@@ -20,7 +20,8 @@
 | A-Clock | `A-App/A-Clock/` | 開発中 |
 | A-WebSite | `A-App/A-WebSite/` | 詳細未確認 |
 | K-Navigator Pro | `A-App/` | 開発中 |
-| SPACE-ROBOTMAN WORLD | `A-App/space-robotman-world/` | **新規プロジェクト始動** |
+| SPACE-ROBOTMAN WORLD | `A-App/space-robotman-world/` | 開発中 |
+| calculator_app | `A-App/calculator_app/` | **このPC（事務所）で開発中** |
 
 ---
 
@@ -56,6 +57,20 @@
 - [x] **メカニカルUIプロトタイプ**: CSS Bevel/EmbossとSVGフィルタによる「実在感」のあるボタンと筐体の実装。
 - [x] **リサーチ**: 2002/2003年当時の動画2本、およびGoogle Slideキャラクター資料の詳細解析。
 - [x] **GitHub同期**: 全データの同期完了。
+
+---
+
+## calculator_app 開発ログ
+
+### プロジェクト概要
+- **目的**: customtkinterを用いたモダンな電卓アプリケーションの作成
+- **ファイル構成**:
+  - `calculator_app/calculator.py` — アプリケーション本体
+
+### 現在の状況（2026-04-07）
+- [x] ダークモード・ブルーテーマのUI実装
+- [x] 基本的な四則演算・DEL・クリア機能の実装
+- [x] evalを用いた計算処理の実装
 
 ---
 
