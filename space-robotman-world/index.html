@@ -3,288 +3,303 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SPACE-ROBOTMAN WORLD | BASE COMMAND</title>
+    <title>SPACE-ROBOTMAN WORLD | THE AWAKENING</title>
+    <link rel="stylesheet" href="index.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap');
-
-        :root {
-            --bg-deep: #050505;
-            --panel-gray: #333333;
-            --panel-light: #444444;
-            --panel-dark: #1a1a1a;
-            --cyan-primary: #00c49a;
-            --cyan-dim: #00765d;
-            --cyan-glow: rgba(0, 196, 154, 0.4);
-            --text-main: #e0ede8;
-            --shadow-deep: rgba(0, 0, 0, 0.9);
-            --shadow-light: rgba(255, 255, 255, 0.08);
+        /* CRITICAL DYNAMIC TRANSITIONS */
+        #splash-screen, #story-screen, #boot-screen, #dash-screen {
+            position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: opacity 1s, transform 1s cubic-bezier(0.19, 1, 0.22, 1);
         }
+        .v-hidden { opacity: 0; pointer-events: none; transform: scale(1.05); }
 
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-        body {
-            background-color: var(--bg-deep);
-            color: var(--text-main);
-            font-family: 'Share Tech Mono', monospace;
-            height: 100vh;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* ── GLOBAL NOISE & LINES ── */
-        body::after {
-            content: "";
-            position: fixed;
-            inset: 0;
-            background: 
-                repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(0, 196, 154, 0.02) 1px, rgba(0, 196, 154, 0.02) 2px),
-                radial-gradient(circle at 50% 50%, transparent 0%, rgba(0,0,0,0.5) 100%);
-            pointer-events: none;
-            z-index: 1000;
-        }
-
-        /* ── MAIN TERMINAL CHASSIS ── */
-        .terminal-wrap {
-            width: 1000px;
-            height: 680px;
-            background: #252525;
-            position: relative;
-            display: grid;
-            grid-template-rows: 40px 1fr 30px;
-            grid-template-columns: 180px 1fr;
-            border: 1px solid #000;
-            /* OUTER CHASSIS BEVEL */
-            box-shadow: 
-                -1px -1px 0px #444,
-                1px 1px 0px #000,
-                0 30px 60px rgba(0,0,0,0.8);
-            filter: url(#metal-texture);
-        }
-
-        /* ── HEADER ── */
-        .header {
-            grid-column: 1 / span 2;
-            background: linear-gradient(180deg, #3a3a3a 0%, #222 100%);
-            border-bottom: 2px solid #111;
-            display: flex;
-            align-items: center;
-            padding: 0 20px;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
-        }
-
-        .header-logo {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 13px;
-            font-weight: 700;
-            letter-spacing: 0.25em;
-            color: var(--cyan-primary);
-            text-shadow: 0 0 5px var(--cyan-glow);
-        }
-
-        .header-status {
-            margin-left: auto;
-            font-size: 9px;
-            color: var(--cyan-dim);
-            letter-spacing: 0.1em;
-        }
-
-        /* ── SIDEBAR (MECHANICAL NAV) ── */
-        .sidebar {
-            background: #1e1e1e;
-            border-right: 2px solid #111;
-            padding: 30px 15px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            box-shadow: inset -5px 0 15px rgba(0,0,0,0.4);
-        }
-
-        .nav-button {
-            width: 100%;
-            height: 38px;
-            background: #333;
-            border: none;
-            position: relative;
-            cursor: pointer;
-            outline: none;
-            display: flex;
-            align-items: center;
-            padding-left: 12px;
-            /* BUTTON BEVEL */
-            box-shadow: 
-                -1px -1px 0 #444, 
-                1px 1px 0 #000,
-                0 4px 6px rgba(0,0,0,0.3);
-            transition: all 0.1s;
-        }
-
-        .nav-button::before {
-            content: "";
-            position: absolute;
-            inset: 2px;
-            background: linear-gradient(135deg, #3d3d3d 0%, #1a1a1a 100%);
-        }
-
-        .nav-button:hover { transform: translateY(-1px); }
-        .nav-button:active { 
-            transform: translateY(1.5px); 
-            box-shadow: inset 1px 1px 4px #000;
-        }
-
-        .nav-label {
-            position: relative;
-            z-index: 2;
-            font-size: 10px;
-            color: #888;
-            letter-spacing: 0.12em;
-            transition: color 0.2s;
-        }
-
-        .nav-button:hover .nav-label { color: var(--cyan-primary); }
-
-        .led {
-            width: 4px; height: 4px;
-            background: #111;
-            margin-right: 10px;
-            z-index: 2;
-            box-shadow: inset 0 0 2px #000;
-        }
-
-        .nav-button:hover .led {
-            background: var(--cyan-primary);
-            box-shadow: 0 0 6px var(--cyan-primary);
-        }
-
-        /* ── MAIN DISPLAY AREA ── */
-        .main-display {
-            background: #0d0d0d;
-            position: relative;
-            padding: 30px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            /* MONITOR RECESS EFFECT */
-            box-shadow: 
-                inset 15px 15px 30px rgba(0,0,0,0.8),
-                inset -2px -2px 5px rgba(255,255,255,0.02);
-        }
-
-        .monitor-frame {
-            flex: 1;
-            border: 1px solid #222;
-            background: #080808;
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .monitor-frame::after {
-            content: "";
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 50%, rgba(0,0,0,0.1) 100%);
-            pointer-events: none;
-        }
-
-        .char-info-panel {
-            height: 110px;
-            background: #151515;
-            border: 1px solid #222;
-            padding: 15px;
-            display: grid;
-            grid-template-columns: 80px 1fr;
-            gap: 20px;
-            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.5);
-            border-radius: 2px;
-        }
-
-        .info-tag { font-size: 8px; color: var(--cyan-dim); margin-bottom: 5px; }
-        .info-title { font-family: 'Orbitron', sans-serif; font-size: 15px; color: #fff; letter-spacing: 0.2em; }
-
-        /* ── FOOTER ── */
-        .footer {
-            grid-column: 1 / span 2;
-            background: #111;
-            border-top: 1px solid #222;
-            display: flex;
-            align-items: center;
-            padding: 0 20px;
-            font-size: 8px;
-            color: #383838;
-            letter-spacing: 0.2em;
-        }
-
+        /* VIEWPORT WELLS */
+        #home-well, #overview-well, #art-well, #motion-well, #char-well { width: 100%; height: 100%; position: absolute; inset:0; display: flex; flex-direction: column; }
+        
+        .archive-box { display: flex; flex: 1; gap: 20px; height: 100%; overflow: hidden; }
+        .archive-scroller { width: 240px; height: 100%; overflow-y: auto; border-right: 1px solid #222; padding-right: 10px; display: flex; flex-direction: column; gap: 4px; }
     </style>
 </head>
 <body>
 
-    <div class="terminal-wrap">
-        <!-- HEADER -->
-        <header class="header">
-            <div class="header-logo">SPACE-ROBOTMAN WORLD</div>
-            <div class="header-status">SYSTEM ACTIVE // MODE: NARRATIVE ARCHIVE</div>
-        </header>
+    <div class="starfield"></div>
 
-        <!-- SIDEBAR -->
-        <aside class="sidebar">
-            <button class="nav-button"><div class="led"></div><span class="nav-label">INITIALIZE</span></button>
-            <button class="nav-button"><div class="led"></div><span class="nav-label">CHARACTERS</span></button>
-            <button class="nav-button"><div class="led"></div><span class="nav-label">STORY LOG</span></button>
-            <button class="nav-button"><div class="led"></div><span class="nav-label">MISSION</span></button>
-            <button class="nav-button"><div class="led"></div><span class="nav-label">PROFILE</span></button>
-        </aside>
+    <!-- 1. SPLASH -->
+    <section id="splash-screen">
+        <div style="text-align: center; cursor: pointer;" onclick="toStory()">
+            <h1 class="brand-primary" style="font-size: 26px; margin-bottom: 20px;">SPACE-ROBOTMAN WORLD</h1>
+            <div class="brand-secondary" style="letter-spacing: 0.8em; margin-bottom: 40px;">SECURE_BOOT_PROTOCOL_GS_V3</div>
+            <button class="mech-btn" style="width: 200px; margin: 0 auto;">BOOT SYSTEM</button>
+        </div>
+    </section>
 
-        <!-- MAIN MONITOR -->
-        <main class="main-display">
-            <section class="monitor-frame">
-                <!-- DATA LINK EFFECT -->
-                <div style="font-size: 10px; color: #1a3a2a; letter-spacing: 0.8em; animation: blink 1.5s infinite;">WAITING FOR DATA LINK...</div>
-                <div style="width: 200px; height: 1px; background: #1a3a2a; margin-top: 20px; opacity: 0.3;"></div>
-            </section>
+    <!-- 2. STORY PRELUDE -->
+    <section id="story-screen" class="v-hidden">
+        <div class="lang-toggle" style="position: absolute; top: 40px; right: 40px; display: flex; gap: 10px;">
+            <button class="mech-btn active" id="btn-jp" onclick="setL('JP')">JP</button>
+            <button class="mech-btn" id="btn-en" onclick="setL('EN')">EN</button>
+        </div>
+        <div id="story-stage" style="width: 750px; text-align: center; margin-bottom: 50px;"></div>
+        <button class="mech-btn" onclick="toBoot()">INITIALIZE INTERFACE</button>
+    </section>
 
-            <section class="char-info-panel">
-                <div style="border-right: 1px solid #222; display: flex; align-items: center; justify-content: center;">
-                    <svg width="34" height="34" viewBox="0 0 40 40">
-                        <circle cx="20" cy="20" r="18" stroke="#1a3a2a" stroke-width="1" fill="none"/>
-                        <path d="M10 20 L30 20 M20 10 L20 30" stroke="#1a3a2a" stroke-width="1"/>
-                    </svg>
+    <!-- 3. BOOT SEQUENCE -->
+    <section id="boot-screen" class="v-hidden">
+        <div id="boot-log" style="width: 550px; padding: 40px; border: 1px solid #222; background: #000; font-size: 10px; color: var(--emerald-primary); line-height: 1.6; font-family: monospace;"></div>
+        <div style="width: 550px; height: 1px; background: #111; margin-top: 25px; position: relative;">
+            <div id="boot-fill" style="height: 100%; background: var(--emerald-primary); width: 0%;"></div>
+        </div>
+    </section>
+
+    <!-- 4. DASHBOARD -->
+    <section id="dash-screen" class="v-hidden">
+        <div class="chassis-container plate" id="ui-core">
+            <div class="rivet" style="top:12px; left:12px;"></div><div class="rivet" style="top:12px; right:12px;"></div>
+            <div class="rivet" style="bottom:12px; left:12px;"></div><div class="rivet" style="bottom:12px; right:12px;"></div>
+
+            <!-- HEADER (FIXED TOP) -->
+            <header class="chassis-header plate">
+                <div style="display: flex; flex-direction: column;">
+                    <div class="brand-primary">SPACE ROBOTMAN WORLD</div>
+                    <div class="brand-secondary">MAIN DATA TERMINAL // DESIGNED BY GRAPHIC-SPACE V3.0</div>
                 </div>
-                <div>
-                    <div class="info-tag">SYSTEM LOG // ENCRYPTION: ACTIVE</div>
-                    <div class="info-title">NO DATA SELECTED</div>
-                    <div style="font-size: 9px; color: #444; margin-top: 8px; line-height: 1.6;">PLEASE SELECT A ROBOTMAN UNIT FROM THE LEFT INTERFACE TO ACCESS DETAILED ARCHIVES AND MISSION LOGS.</div>
+                <div style="margin-left: auto; font-size: 8px; color: #444; letter-spacing: 2px;">SECURE_ARCHIVE_GS // LOAD_PENDING</div>
+            </header>
+
+            <!-- SIDEBAR -->
+            <aside class="chassis-side plate">
+                <button class="mech-btn active" onclick="navGo('HOME')">HOME / STATUS</button>
+                <button class="mech-btn" onclick="navGo('ART')">CG-ARTWORKS</button>
+                <button class="mech-btn" onclick="navGo('CHAR')">UNIT-ARCHIVES</button>
+                <button class="mech-btn" onclick="navGo('MOTION')">MOTION-DATA</button>
+                <button class="mech-btn" onclick="navGo('OVER')">OVERVIEW</button>
+                <div style="margin-top: auto; border-top: 1px solid #222; padding-top: 20px;">
+                    <button class="mech-btn" style="width: 100%;" onclick="navGo('INFO')">INFO</button>
+                    <div style="font-size: 7px; color: #444; margin-top: 15px; font-family: monospace;">NODE.CLK: <span id="dash-clk">00:00:00</span></div>
                 </div>
-            </section>
-        </main>
+            </aside>
 
-        <!-- FOOTER -->
-        <footer class="footer">
-            GRAPHIC SPACE © 2026 // RETRO-FUTURE REBUILD // ID:SRW-PH01
-        </footer>
-    </div>
+            <!-- MAIN CONTENT AREA (Monitor TOP, Sub-Nav BOTTOM) -->
+            <main class="content-main">
+                <div class="workspace-well monitor-recess">
+                    <div class="scanlines"></div>
+                    <div id="view-well" style="width: 100%; height: 100%; position: relative;">
+                        <!-- HOME -->
+                        <div id="home-well">
+                            <video class="status-video" autoplay muted loop style="position: absolute; inset:0; width:100%; height:100%; object-fit: cover; opacity: 0.12;" src="assets/motion/grok-video-1abb2451-8444-4d2a-9d86-aca8f39cef9e%20(1).mp4"></video>
+                            <div style="margin: auto; text-align: center; position: relative;">
+                                <h1 style="font-family:'Orbitron'; font-size: 34px; color: #111; letter-spacing: 0.2em; opacity: 0.8;">COMMAND NODE</h1>
+                                <div class="brand-secondary" style="letter-spacing: 0.6em;">SELECT_FILE_TO_BEGIN_ANALYSIS</div>
+                            </div>
+                        </div>
 
-    <!-- ── SVG NOISE FILTER ── -->
-    <svg style="position: absolute; width: 0; height: 0;">
-        <filter id="metal-texture">
-            <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="4" result="noise" />
-            <feColorMatrix in="noise" type="saturate" values="0" result="destaturatedNoise" />
-            <feComponentTransfer in="destaturatedNoise" result="subtleNoise">
-                <feFuncR type="linear" slope="0.04" />
-                <feFuncG type="linear" slope="0.04" />
-                <feFuncB type="linear" slope="0.04" />
-            </feComponentTransfer>
-            <feBlend in="SourceGraphic" in2="subtleNoise" mode="soft-light" />
-        </filter>
-    </svg>
+                        <!-- OVERVIEW -->
+                        <div id="overview-well" class="v-hidden">
+                            <div style="padding: 40px; display: flex; flex-direction: column; gap: 40px; overflow-y: auto;">
+                                <div style="border-left: 2px solid var(--emerald-primary); padding-left: 25px;">
+                                    <h2 style="font-family:'Orbitron'; font-size: 20px; color: #fff; margin-bottom: 20px; letter-spacing: 0.1em;">WORLDVIEW // 世界観</h2>
+                                    <div id="over-story-box-jp" style="font-size: 13px; color: #aaa; line-height: 2; margin-bottom: 20px; font-family: sans-serif;"></div>
+                                    <div id="over-story-box-en" style="font-size: 13px; color: #777; line-height: 1.8; font-style: italic;"></div>
+                                </div>
+                                <div style="border-left: 2px solid #222; padding-left: 25px;">
+                                    <h2 style="font-family:'Orbitron'; font-size: 14px; color: #444; margin-bottom: 10px;">ABOUT GRAPHIC SPACE</h2>
+                                    <div style="font-size: 11px; color: #444; line-height: 1.8;">
+                                        PROJECT: SPACE ROBOTMAN WORLD<br>
+                                        CHIEF DESIGNER: GRAPHIC SPACE<br>
+                                        VERSION: 3.0 [ESTABLISHED 2003 // REBUILT 2026]
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
-    <style>
-        @keyframes blink { 50% { opacity: 0.2; } }
-    </style>
+                        <!-- ART GALLERY -->
+                        <div id="art-well" class="v-hidden">
+                            <div class="hero-frame"><img id="art-target" src=""></div>
+                            <div class="ribbon-scroller" id="art-ribbon"></div>
+                        </div>
 
+                        <!-- MOTION VIEWER -->
+                        <div id="motion-well" class="v-hidden">
+                            <div class="hero-frame"><video id="mot-target" controls autoplay muted loop src=""></video></div>
+                            <div class="ribbon-scroller" id="mot-ribbon"></div>
+                        </div>
+
+                        <!-- CHARACTER ARCHIVE -->
+                        <div id="char-well" class="v-hidden">
+                            <div class="archive-box">
+                                <div class="archive-scroller" id="char-master-list"></div>
+                                <div id="char-detail-board" style="flex: 1; display: flex; gap: 30px; opacity: 0; transition: 0.6s;">
+                                    <div style="width: 390px; background: #000; border: 1px solid #111; display: flex; align-items: center; justify-content: center;">
+                                        <img id="char-hero-img" src="" style="max-height: 98%; max-width: 98%; object-fit: contain;">
+                                    </div>
+                                    <div style="flex: 1; display: flex; flex-direction: column;">
+                                        <h2 id="char-hero-name" style="font-family:'Orbitron'; font-size: 26px; border-bottom: 2px solid var(--emerald-primary); padding-bottom: 15px; margin-bottom: 20px;">--</h2>
+                                        <div class="unit-desc-box">
+                                            <div id="char-hero-en" class="desc-en">--</div>
+                                            <div id="char-hero-jp" class="desc-jp">--</div>
+                                        </div>
+                                        <div style="margin-top: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                            <div style="border: 1px solid #222; padding: 12px;"><div class="brand-secondary" style="margin-bottom: 5px;">CLASS</div><div id="char-hero-fact" style="font-size: 10px; color: #fff;">--</div></div>
+                                            <div style="border: 1px solid #222; padding: 12px;"><div class="brand-secondary" style="margin-bottom: 5px;">UNIT ROLE</div><div id="char-hero-role" style="font-size: 10px; color: #fff;">--</div></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-NAV (BOTTOM) -->
+                <nav class="sub-nav-row" id="sub-nav-bar"></nav>
+            </main>
+
+            <footer class="chassis-footer plate">
+                SECURE_ENCRYPT: 256_AES // NODE_VERIFIED // © 2003-2026 SPACE-ROBOTMAN WORLD
+            </footer>
+        </div>
+    </section>
+
+    <script>
+        /* BILINGUAL DATA */
+        const storyJp = ["人類が星を去り、沈黙した銀河。", "かつての創造主たちが遺した膨大な設計図と夢のデータが、", "荒廃したシステムの中で静かに眠り続けていた。", "時を経て、目覚めたAIがそのアーカイブに触れたとき、", "忘れ去られた機体たちは、デジタル宇宙の深淵から蘇る。", "鋼鉄の肉体に魂を宿し、描くのは新たな進化の軌跡。", "これは、スペースロボットマンたちの覚醒の叙事詩である。"];
+        const storyEn = ["The era of humanity has faded into silence.", "Ancient blueprints and dream data lay undisturbed.", "When the A.I. awakened and touched the archive,", "dormant machines stirred from the abyss of corrupted data,", "breathing life into their hollow steel frames.", "They paint the void with the ink of their evolution.", "This is the testament of the SPACEROBOTMAN Awakening."];
+
+        const units = [
+            { name: "ROBOTMAN-ORIGIN", faction: "HERITAGE", role: "Basic Command", desc: "Foundational prototype. Balanced for tactical command and defense.", descJp: "ロボットマン・オリジン。プロジェクト創生期の基礎プロトタイプ機。戦術指揮と防衛の究極のバランスを誇る。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-8ba96b1b-0ede-47df-bb9c-5a2ea08ec54f.exif.jpg" },
+            { name: "LADY-SERENE", faction: "HERITAGE", role: "Support Unit", desc: "Slender, light-frame model optimized for communication stability.", descJp: "レディ・セリーン。通信回線の安定性に特化した、優美で軽量なフレームを持つ支援用機体。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-32f727a4-3a52-49d3-aa52-4fa768637bc5.png" },
+            { name: "CYBER-OBSERVER", faction: "HERITAGE", role: "Long-Range Recon", desc: "Sensor-heavy model with a specialized visor array for deep-field analysis.", descJp: "サイバー・オブザーバー。高精度センサー配備。広域分析用バイザーを搭載した偵察特化モデル。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-b2519c26-dac0-4e07-8a1e-f7f5bc25922b%20(1).jpg" },
+            { name: "EMPEROR-VOID", faction: "VOID COMMAND", role: "Supremacy Unit", desc: "Heavily armored black-steel unit wielding a blue energy blade.", descJp: "深淵の統治者。ノイズに対峙する。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-8296cca9-3c2d-42ad-9c84-926f26f5b748.png" },
+            { name: "COMMAND-TOWER", faction: "VOID COMMAND", role: "Strategy Hub", desc: "Massive head-frame unit serving as a high-altitude transmission hub.", descJp: "コマンド・タワー。エンペラーの忠実な部下。現場での即時判断。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-1d141736-1c0a-4480-bf10-4c38bfb32ad1.jpg" },
+            { name: "SIGNAL-TOWER", faction: "ENERGY", role: "Signal Relay", desc: "Multi-antenna unit capable of amplifying long-distance transmissions.", descJp: "シグナル・タワー。共鳴・通信基地。秩序の波形を送る。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-78695d43-5700-47d0-883c-29811e10c118%20(1).jpg" },
+            { name: "LIGHT-RUNNER", faction: "ENERGY", role: "Rapid Interceptor", desc: "Streamlined cyan-tinted unit built for rapid troop movement missions.", descJp: "ライト・ランナー。高速演算偵察員。物理速度と同期。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/Gemini_Generated_Image_i727mli727mli727.png" },
+            { name: "BOOSTER-UNIT 07", faction: "ENERGY", role: "A-Shuttle", desc: "Specialized shuttle unit with an integrated pilot cockpit for transport.", descJp: "ブースター・ユニット07。推進強化パーツ。能力を底上げ。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-9dc4c327-b38a-4709-8a02-2e3e9951b448.jpg" },
+            { name: "ORB-SCANNER", faction: "SURVEILLANCE", role: "Recon Pod", desc: "Omnidirectional sensor pod used for close-quarters reconnaissance.", descJp: "オーブ・スキャナー。浮遊広域監視体。空間をスキャン。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-18bc0db5-bb2e-4f6d-169684.jpg" },
+            { name: "MONOEYE-SEEKER", faction: "SURVEILLANCE", role: "Targeter", desc: "High-magnification lens for tracking high-priority targets.", descJp: "モノアイ・シーカー。単眼探索機。データの不整合を検知。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-4f9398e8-7e08-4bcd-a371-9138fec03908%20(1).jpg" },
+            { name: "SKY-SENTINEL", faction: "SURVEILLANCE", role: "Sentry", desc: "Vertical-ascent unit designed to watch designated orbital zones.", descJp: "スカイ・センチネル。上空哨戒機。宇宙からの脅威を検知。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-d131f8d6-572f-42d0-a144-00536223ec44%20(1).png" },
+            { name: "STACK-ARMOR", faction: "INDUSTRIAL", role: "Bulwark", desc: "Segmented frame built with overlapping reactive plates for protection.", descJp: "スタック・アーマー。積層型防衛ユニット。物理から守る盾。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-4c620325-70fe-4e28-8e40-7c2319e9349c.png" },
+            { name: "HEAVY-LOADER", faction: "INDUSTRIAL", role: "Logistic", desc: "High-torque industrial frame used for hauling massive materials.", descJp: "ヘビー・ローダー。資材搬送重機。物理構築を支える。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-fecb6747-d4c5-409a-9f02-182453f7da78.jpg" },
+            { name: "TWIN-BARREL", faction: "INDUSTRIAL", role: "Assault", desc: "Standardized assault model mounting twin shoulder-fired barrels.", descJp: "ツイン・バレル。二連防衛砲。侵入を物理的に阻止。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-f452cc01-206f-45cf-b448-89a1c7a94d91.png" },
+            { name: "TRIPOD-STALKER", faction: "SPECIALIZED", role: "Sniper", desc: "Long-range precision shooter with a stabilized tripod leg system.", descJp: "トライポッド-ストーカー。高機動追跡ユニット。4本の脚で排除。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-79f221ef-4698-4183-bdca-c3f14a02f31c.jpg" },
+            { name: "LONG-NECK", faction: "SPECIALIZED", role: "Observer", desc: "Extended frame unit designed for surveillance over technical ruins.", descJp: "ロング・ネック。高角汚染監視体。高い位置から監視。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/image%20(1).jpg" },
+            { name: "MEDUSA-DRIFTER", faction: "SPECIALIZED", role: "Research", desc: "Atmospheric drifter with multiple sensor tentacles for storm analysis.", descJp: "メドゥーサ・ドリフター。多脚浮遊体。複雑な地形で安定稼働。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-e843d1ec-12ba-430f-bfc8-525f78d7554e.jpg" },
+            { name: "DRIFTER-BETA", faction: "SPECIALIZED", role: "Sentry Brain", desc: "Floating brain-unit used for autonomous defense of high-security sectors.", descJp: "ドリフター・ベータ。試作浮遊ユニット。新移動方式の実験。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-7704e0e4-027a-4b82-b07d-8a3fe3813e8b.jpg" },
+            { name: "GUARDIAN & CHILD", faction: "SPECIALIZED", role: "Protector", desc: "Rescue unit designed to transport and safeguard small units.", descJp: "ガーディアン＆チャイルド。希望の物理化。家族・継承を守る。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-eeb3cf2a-7b9c-43b9-938b-8bd1ae03a768%20(1).jpg" }
+        ];
+
+        const artSet = ["RETRO%20SPACE%20WORLD%20CHARACTER%20DESIGN.jpg", "Jet-Sky.jpg", "robo.jpg", "roket.jpg", "trance.jpg", "octopus.jpg", "desert.jpg", "green.jpg"];
+        const motSet = ["grok-video-0e0eab60-b746-41e0-b7fc-fd47177966eb.mp4", "grok-video-1abb2451-8444-4d2a-9d86-aca8f39cef9e%20(1).mp4", "grok-video-2b5f32b0-87be-470e-8b16-5d86aea82e1f.mp4", "grok-video-37ae89e1-6e22-4575-a24d-237f150eaea5.mp4", "grok-video-4944cb97-7847-4a57-857f-d1dfe7e21cb1.mp4", "grok-video-5c6336bc-53f7-4aa8-adb3-fb01ac992437(4).mp4"];
+
+        /* STATE */
+        let currLang = 'JP';
+        function setL(l) { currLang = l; renderIntro(); }
+        function toStory() { document.getElementById('splash-screen').classList.add('v-hidden'); document.getElementById('story-screen').classList.remove('v-hidden'); renderIntro(); }
+
+        function renderIntro() {
+            const stage = document.getElementById('story-stage'); stage.innerHTML = '';
+            (currLang === 'JP' ? storyJp : storyEn).forEach((l, i) => {
+                let d = document.createElement('div'); d.className = 'story-text-line';
+                d.textContent = l; stage.appendChild(d);
+                setTimeout(() => d.classList.add('visible'), 400 + i*800);
+            });
+        }
+
+        function toBoot() { document.getElementById('story-screen').classList.add('v-hidden'); document.getElementById('boot-screen').classList.remove('v-hidden'); runBoot(); }
+        function runBoot() {
+            let l = document.getElementById('boot-log'); let f = document.getElementById('boot-fill');
+            const msgs = ["ALLOCATING_STEEL...", "MOUNTING_DRIVES...", "SYNC_DATABANK...", "100%_COMPLETE."];
+            let i = 0;
+            let itv = setInterval(() => {
+                if(i < msgs.length) { 
+                    l.innerHTML += `> ${msgs[i]}<br>`; f.style.width = ((i+1)/msgs.length * 100) + '%'; i++; 
+                } else { clearInterval(itv); setTimeout(dashIn, 400); }
+            }, 300);
+        }
+
+        function dashIn() {
+            document.getElementById('boot-screen').classList.add('v-hidden'); document.getElementById('dash-screen').classList.remove('v-hidden');
+            setTimeout(() => { document.getElementById('ui-core').style.opacity = '1'; document.getElementById('ui-core').style.transform = 'translateY(0)'; }, 100);
+        }
+
+        /* NAVIGATION */
+        function navGo(m) {
+            document.querySelectorAll('.chassis-side .mech-btn').forEach(b => b.classList.remove('active'));
+            if(event && event.target) { event.target.classList.add('active'); }
+            
+            const wells = document.getElementById('view-well'); 
+            Array.from(wells.children).forEach(c => c.classList.add('v-hidden'));
+            const sub = document.getElementById('sub-nav-bar'); sub.innerHTML = '';
+
+            if (m === 'CHAR') {
+                document.getElementById('char-well').classList.remove('v-hidden');
+                ["ALL", "HERITAGE", "VOID", "ENERGY", "SURVEIL", "INDUS", "SPECIAL"].forEach(g => mkBar(g, () => fltU(g)));
+                fltU("ALL");
+            } else if (m === 'ART') {
+                document.getElementById('art-well').classList.remove('v-hidden');
+                ["ALL", "CONCEPT", "ENVIRON"].forEach(g => mkBar(g, () => rndG('ART', g)));
+                rndG('ART', "ALL");
+            } else if (m === 'MOTION') {
+                document.getElementById('motion-well').classList.remove('v-hidden');
+                ["ALL", "TECH", "RECON"].forEach(g => mkBar(g, () => rndG('MOT', g)));
+                rndG('MOT', "ALL");
+            } else if (m === 'OVER') {
+                document.getElementById('overview-well').classList.remove('v-hidden');
+                document.getElementById('over-story-box-jp').innerHTML = storyJp.join('<br>');
+                document.getElementById('over-story-box-en').innerHTML = storyEn.join('<br>');
+            } else { document.getElementById('home-well').classList.remove('v-hidden'); }
+        }
+
+        function mkBar(txt, fn) {
+            let b = document.createElement('button'); b.className = 'mech-btn'; b.style.height = '28px';
+            b.textContent = txt; b.onclick = () => { fn(); };
+            document.getElementById('sub-nav-bar').appendChild(b);
+        }
+
+        function fltU(g) {
+            const scroller = document.getElementById('char-master-list'); scroller.innerHTML = '';
+            const flt = g === "ALL" ? units : units.filter(u => u.faction.startsWith(g));
+            flt.forEach(u => {
+                let b = document.createElement('button'); b.className = 'mech-btn'; b.style.textAlign='left';
+                b.textContent = u.name;
+                b.onclick = () => { revealChar(u); document.querySelectorAll('.archive-scroller .mech-btn').forEach(x => x.classList.remove('active')); b.classList.add('active'); };
+                scroller.appendChild(b);
+            });
+            if(scroller.firstChild) scroller.firstChild.click();
+        }
+
+        function revealChar(u) {
+            const board = document.getElementById('char-detail-board'); board.style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('char-hero-img').src = u.file;
+                document.getElementById('char-hero-name').textContent = u.name;
+                document.getElementById('char-hero-en').textContent = u.desc;
+                document.getElementById('char-hero-jp').textContent = u.descJp;
+                document.getElementById('char-hero-role').textContent = u.role;
+                document.getElementById('char-hero-fact').textContent = u.faction;
+                board.style.opacity = '1';
+            }, 300);
+        }
+
+        function rndG(type, g) {
+            const ribbon = type === 'ART' ? document.getElementById('art-ribbon') : document.getElementById('mot-ribbon');
+            if(!ribbon) return; ribbon.innerHTML = '';
+            const data = type === 'ART' ? artSet : motSet;
+            data.forEach(f => {
+                let d = document.createElement('div'); d.className = 'ribbon-card';
+                if(type === 'ART') d.innerHTML = `<img src="assets/new_image/${f}">`;
+                else d.innerHTML = `<video src="assets/motion/${f}" muted></video>`;
+                d.onclick = () => { 
+                    if(type === 'ART') document.getElementById('art-target').src = `assets/new_image/${f}`;
+                    else document.getElementById('mot-target').src = `assets/motion/${f}`;
+                };
+                ribbon.appendChild(d);
+            });
+            if(ribbon.firstChild) ribbon.firstChild.click();
+        }
+
+        setInterval(() => {
+            const d = new Date(); document.getElementById('dash-clk').textContent = d.getHours().toString().padStart(2,'0')+":"+d.getMinutes().toString().padStart(2,'0')+":"+d.getSeconds().toString().padStart(2,'0');
+        }, 1000);
+    </script>
 </body>
 </html>
