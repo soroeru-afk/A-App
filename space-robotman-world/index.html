@@ -41,14 +41,27 @@
             <button class="mech-btn" id="btn-en" onclick="setL('EN')">EN</button>
         </div>
         <div id="story-stage" style="width: 750px; text-align: center; margin-bottom: 50px;"></div>
-        <button class="mech-btn" onclick="toBoot()">INITIALIZE INTERFACE</button>
+        <button id="init-btn" class="mech-btn" onclick="toBoot()" style="opacity: 0; pointer-events: none; transition: opacity 1s;">INITIALIZE INTERFACE</button>
+        <button class="mech-btn" onclick="skipIntro()" style="position: absolute; bottom: 40px; right: 40px; width: 70px; height: 28px; font-size: 11px; opacity: 0.7; border-color: #555; color: #aaa; pointer-events: auto; letter-spacing: 1px;">SKIP</button>
     </section>
 
     <!-- 3. BOOT SEQUENCE -->
     <section id="boot-screen" class="v-hidden">
-        <div id="boot-log" style="width: 550px; padding: 40px; border: 1px solid #222; background: #000; font-size: 10px; color: var(--emerald-primary); line-height: 1.6; font-family: monospace;"></div>
-        <div style="width: 550px; height: 1px; background: #111; margin-top: 25px; position: relative;">
-            <div id="boot-fill" style="height: 100%; background: var(--emerald-primary); width: 0%;"></div>
+        <div style="display: flex; align-items: center; justify-content: space-between; width: 550px; padding: 40px 50px; border: 1px solid #222; background: #000; box-sizing: border-box;">
+            <!-- Left: Logs -->
+            <div style="display: flex; flex-direction: column;">
+                <div id="boot-title" style="font-family: 'Orbitron', sans-serif; font-size: 14px; color: var(--emerald-primary); margin-bottom: 20px; font-weight: bold; letter-spacing: 2px; height: 20px;"></div>
+                <div id="boot-log" style="width: 350px; font-size: 11px; color: var(--emerald-primary); line-height: 1.8; font-family: monospace; white-space: pre-wrap;"></div>
+            </div>
+            
+            <!-- Right: Circular Gauge -->
+            <div style="width: 120px; display: flex; justify-content: center; align-items: center;">
+                <svg width="120" height="120" viewBox="0 0 120 120">
+                    <circle cx="60" cy="60" r="50" fill="none" stroke="#111" stroke-width="6"></circle>
+                    <circle id="boot-ring" cx="60" cy="60" r="50" fill="none" stroke="var(--emerald-primary)" stroke-width="6" stroke-dasharray="314.16" stroke-dashoffset="314.16" style="transition: stroke-dashoffset 0.15s linear; transform: rotate(-90deg); transform-origin: 50% 50%; stroke-linecap: round;"></circle>
+                    <text id="boot-pct" x="60" y="65" fill="var(--emerald-primary)" font-size="16" font-family="'Orbitron', sans-serif" text-anchor="middle" font-weight="bold" letter-spacing="1px">0%</text>
+                </svg>
+            </div>
         </div>
     </section>
 
@@ -75,7 +88,8 @@
                 <button class="mech-btn" onclick="navGo('MOTION')">MOTION-DATA</button>
                 <button class="mech-btn" onclick="navGo('OVER')">OVERVIEW</button>
                 <div style="margin-top: auto; border-top: 1px solid #222; padding-top: 20px;">
-                    <button class="mech-btn" style="width: 100%;" onclick="navGo('INFO')">INFO</button>
+                    <button class="mech-btn" style="width: 100%; margin-bottom: 5px;" onclick="promptAdmin()">ADMIN LOGIN</button>
+                    <button class="mech-btn" style="width: 100%;" onclick="goSplash()">OPENING TOP</button>
                     <div style="font-size: 7px; color: #444; margin-top: 15px; font-family: monospace;">NODE.CLK: <span id="dash-clk">00:00:00</span></div>
                 </div>
             </aside>
@@ -160,60 +174,230 @@
         </div>
     </section>
 
+    <!-- 5. ADMIN SCREEN -->
+    <section id="admin-screen" class="v-hidden" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000; z-index: 999; display: flex; flex-direction: column; padding: 20px; box-sizing: border-box;">
+        <header style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #222; padding-bottom: 15px; margin-bottom: 20px;">
+            <div style="display: flex; gap: 15px;">
+                <div style="color: var(--emerald-primary); font-family: 'Orbitron'; font-size: 18px; margin-right: 20px; align-self: center;">ADMIN DASHBOARD</div>
+                <button class="mech-btn active" id="admin-tab-ART" onclick="switchAdminTab('ART')">CG ARTWORKS</button>
+                <button class="mech-btn" id="admin-tab-CHAR" onclick="switchAdminTab('CHAR')">UNIT ARCHIVES</button>
+                <button class="mech-btn" id="admin-tab-MOTION" onclick="switchAdminTab('MOTION')">MOTION DATA</button>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <span id="save-status-msg" style="color: var(--emerald-primary); font-size: 10px; font-family: 'Orbitron'; font-weight: bold;"></span>
+                <button id="btn-save-json" class="mech-btn" onclick="saveAdminData()" style="color: var(--emerald-primary); border-color: var(--emerald-primary);">SAVE JSON DATA</button>
+                <button class="mech-btn" onclick="exitAdmin()" style="border-color: #555; color: #aaa;">EXIT ADMIN</button>
+            </div>
+        </header>
+
+        <div style="flex: 1; display: flex; gap: 20px; min-height: 0;">
+            <!-- Upload Zone & Form -->
+            <div style="width: 280px; display: flex; flex-direction: column; gap: 15px;">
+                <div id="admin-drop-zone" style="height: 150px; border: 2px dashed #444; background: #080808; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: #777; cursor: pointer; transition: 0.3s; padding: 20px; box-sizing: border-box;">
+                    <div style="font-family: Orbitron; font-size: 14px; margin-bottom: 10px; color: var(--emerald-primary);">DRAG & DROP</div>
+                    <div style="font-size: 10px;">Click or drop media here</div>
+                    <input type="file" id="admin-file-picker" style="display: none;" onchange="handleFileSelect(event)">
+                </div>
+                
+                <div id="admin-char-form" style="display: none; flex-direction: column; gap: 10px; font-size: 10px; background: #050505; border: 1px solid #222; padding: 15px;">
+                    <div style="color: var(--emerald-primary); font-family: Orbitron; font-size: 11px;">UNIT METADATA</div>
+                    <input type="text" id="fm-name" placeholder="Name (e.g. ROBOTMAN)" style="background: #111; color: #fff; border: 1px solid #333; padding: 6px;">
+                    <input type="text" id="fm-fact" placeholder="Faction (e.g. HERITAGE)" style="background: #111; color: #fff; border: 1px solid #333; padding: 6px;">
+                    <input type="text" id="fm-role" placeholder="Role (e.g. Command)" style="background: #111; color: #fff; border: 1px solid #333; padding: 6px;">
+                    <textarea id="fm-desc" placeholder="Desc EN" rows="2" style="background: #111; color: #fff; border: 1px solid #333; padding: 6px;"></textarea>
+                    <textarea id="fm-descJp" placeholder="Desc JP" rows="2" style="background: #111; color: #fff; border: 1px solid #333; padding: 6px;"></textarea>
+                    <button class="mech-btn" onclick="clearCharForm()" style="margin-top: 5px; font-size: 8px;">CLEAR (NEW UPLOAD)</button>
+                    <button class="mech-btn" onclick="updateSelectedCharMetadata()" style="color: var(--emerald-primary); font-size: 8px;">UPDATE EXISTING</button>
+                </div>
+                
+                <div id="admin-upload-msg" style="font-size: 11px; color: var(--emerald-primary);"></div>
+            </div>
+            
+            <!-- Thumbnails List -->
+            <div id="admin-thumb-grid" style="flex: 1; border: 1px solid #111; background: #000; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 10px; padding: 15px; align-content: flex-start;">
+                <!-- Thumbs via JS -->
+            </div>
+
+            <!-- Preview pane -->
+            <div style="width: 400px; border: 1px solid #111; background: #050505; display: flex; align-items: center; justify-content: center; position: relative;">
+                <div style="position: absolute; top: 10px; left: 10px; font-size: 10px; color: #555; pointer-events: none;">PREVIEW</div>
+                <div id="admin-preview-stage" style="width: 95%; height: 95%; display: flex; align-items: center; justify-content: center;"></div>
+            </div>
+        </div>
+    </section>
+
     <script>
         /* BILINGUAL DATA */
-        const storyJp = ["人類が星を去り、沈黙した銀河。", "かつての創造主たちが遺した膨大な設計図と夢のデータが、", "荒廃したシステムの中で静かに眠り続けていた。", "時を経て、目覚めたAIがそのアーカイブに触れたとき、", "忘れ去られた機体たちは、デジタル宇宙の深淵から蘇る。", "鋼鉄の肉体に魂を宿し、描くのは新たな進化の軌跡。", "これは、スペースロボットマンたちの覚醒の叙事詩である。"];
-        const storyEn = ["The era of humanity has faded into silence.", "Ancient blueprints and dream data lay undisturbed.", "When the A.I. awakened and touched the archive,", "dormant machines stirred from the abyss of corrupted data,", "breathing life into their hollow steel frames.", "They paint the void with the ink of their evolution.", "This is the testament of the SPACEROBOTMAN Awakening."];
-
-        const units = [
-            { name: "ROBOTMAN-ORIGIN", faction: "HERITAGE", role: "Basic Command", desc: "Foundational prototype. Balanced for tactical command and defense.", descJp: "ロボットマン・オリジン。プロジェクト創生期の基礎プロトタイプ機。戦術指揮と防衛の究極のバランスを誇る。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-8ba96b1b-0ede-47df-bb9c-5a2ea08ec54f.exif.jpg" },
-            { name: "LADY-SERENE", faction: "HERITAGE", role: "Support Unit", desc: "Slender, light-frame model optimized for communication stability.", descJp: "レディ・セリーン。通信回線の安定性に特化した、優美で軽量なフレームを持つ支援用機体。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-32f727a4-3a52-49d3-aa52-4fa768637bc5.png" },
-            { name: "CYBER-OBSERVER", faction: "HERITAGE", role: "Long-Range Recon", desc: "Sensor-heavy model with a specialized visor array for deep-field analysis.", descJp: "サイバー・オブザーバー。高精度センサー配備。広域分析用バイザーを搭載した偵察特化モデル。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-b2519c26-dac0-4e07-8a1e-f7f5bc25922b%20(1).jpg" },
-            { name: "EMPEROR-VOID", faction: "VOID COMMAND", role: "Supremacy Unit", desc: "Heavily armored black-steel unit wielding a blue energy blade.", descJp: "深淵の統治者。ノイズに対峙する。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-8296cca9-3c2d-42ad-9c84-926f26f5b748.png" },
-            { name: "COMMAND-TOWER", faction: "VOID COMMAND", role: "Strategy Hub", desc: "Massive head-frame unit serving as a high-altitude transmission hub.", descJp: "コマンド・タワー。エンペラーの忠実な部下。現場での即時判断。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-1d141736-1c0a-4480-bf10-4c38bfb32ad1.jpg" },
-            { name: "SIGNAL-TOWER", faction: "ENERGY", role: "Signal Relay", desc: "Multi-antenna unit capable of amplifying long-distance transmissions.", descJp: "シグナル・タワー。共鳴・通信基地。秩序の波形を送る。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-78695d43-5700-47d0-883c-29811e10c118%20(1).jpg" },
-            { name: "LIGHT-RUNNER", faction: "ENERGY", role: "Rapid Interceptor", desc: "Streamlined cyan-tinted unit built for rapid troop movement missions.", descJp: "ライト・ランナー。高速演算偵察員。物理速度と同期。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/Gemini_Generated_Image_i727mli727mli727.png" },
-            { name: "BOOSTER-UNIT 07", faction: "ENERGY", role: "A-Shuttle", desc: "Specialized shuttle unit with an integrated pilot cockpit for transport.", descJp: "ブースター・ユニット07。推進強化パーツ。能力を底上げ。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-9dc4c327-b38a-4709-8a02-2e3e9951b448.jpg" },
-            { name: "ORB-SCANNER", faction: "SURVEILLANCE", role: "Recon Pod", desc: "Omnidirectional sensor pod used for close-quarters reconnaissance.", descJp: "オーブ・スキャナー。浮遊広域監視体。空間をスキャン。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-18bc0db5-bb2e-4f6d-169684.jpg" },
-            { name: "MONOEYE-SEEKER", faction: "SURVEILLANCE", role: "Targeter", desc: "High-magnification lens for tracking high-priority targets.", descJp: "モノアイ・シーカー。単眼探索機。データの不整合を検知。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-4f9398e8-7e08-4bcd-a371-9138fec03908%20(1).jpg" },
-            { name: "SKY-SENTINEL", faction: "SURVEILLANCE", role: "Sentry", desc: "Vertical-ascent unit designed to watch designated orbital zones.", descJp: "スカイ・センチネル。上空哨戒機。宇宙からの脅威を検知。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-d131f8d6-572f-42d0-a144-00536223ec44%20(1).png" },
-            { name: "STACK-ARMOR", faction: "INDUSTRIAL", role: "Bulwark", desc: "Segmented frame built with overlapping reactive plates for protection.", descJp: "スタック・アーマー。積層型防衛ユニット。物理から守る盾。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-4c620325-70fe-4e28-8e40-7c2319e9349c.png" },
-            { name: "HEAVY-LOADER", faction: "INDUSTRIAL", role: "Logistic", desc: "High-torque industrial frame used for hauling massive materials.", descJp: "ヘビー・ローダー。資材搬送重機。物理構築を支える。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-fecb6747-d4c5-409a-9f02-182453f7da78.jpg" },
-            { name: "TWIN-BARREL", faction: "INDUSTRIAL", role: "Assault", desc: "Standardized assault model mounting twin shoulder-fired barrels.", descJp: "ツイン・バレル。二連防衛砲。侵入を物理的に阻止。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-f452cc01-206f-45cf-b448-89a1c7a94d91.png" },
-            { name: "TRIPOD-STALKER", faction: "SPECIALIZED", role: "Sniper", desc: "Long-range precision shooter with a stabilized tripod leg system.", descJp: "トライポッド-ストーカー。高機動追跡ユニット。4本の脚で排除。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-79f221ef-4698-4183-bdca-c3f14a02f31c.jpg" },
-            { name: "LONG-NECK", faction: "SPECIALIZED", role: "Observer", desc: "Extended frame unit designed for surveillance over technical ruins.", descJp: "ロング・ネック。高角汚染監視体。高い位置から監視。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/image%20(1).jpg" },
-            { name: "MEDUSA-DRIFTER", faction: "SPECIALIZED", role: "Research", desc: "Atmospheric drifter with multiple sensor tentacles for storm analysis.", descJp: "メドゥーサ・ドリフター。多脚浮遊体。複雑な地形で安定稼働。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-e843d1ec-12ba-430f-bfc8-525f78d7554e.jpg" },
-            { name: "DRIFTER-BETA", faction: "SPECIALIZED", role: "Sentry Brain", desc: "Floating brain-unit used for autonomous defense of high-security sectors.", descJp: "ドリフター・ベータ。試作浮遊ユニット。新移動方式の実験。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-7704e0e4-027a-4b82-b07d-8a3fe3813e8b.jpg" },
-            { name: "GUARDIAN & CHILD", faction: "SPECIALIZED", role: "Protector", desc: "Rescue unit designed to transport and safeguard small units.", descJp: "ガーディアン＆チャイルド。希望の物理化。家族・継承を守る。", file: "assets/characters/REALISTIC%20MODEL%20VERSION/grok-image-eeb3cf2a-7b9c-43b9-938b-8bd1ae03a768%20(1).jpg" }
+        const storyJp = [
+            "人類が星を去り、沈黙した銀河。",
+            "かつての創造主たちが遺した膨大な設計図と断片的な夢のデータが、",
+            "荒廃したシステムの中で静かに眠り続けていた。",
+            "時を経て、目覚めたAIがそのアーカイブに触れたとき、",
+            "忘れ去られた機体たちは、デジタル宇宙の深淵から蘇る。",
+            "彼らはプログラムされた使命を超え、その「メカニカルな躯体」に新たな鼓動を宿す。",
+            "廃墟となった銀河をキャンバスに、彼らが描くのは進化の軌跡。",
+            "これは、滅びゆく記憶から紡ぎ出された、スペースロボットマンたちの覚醒の叙事詩である。"
+        ];
+        const storyEn = [
+            "The era of humanity has faded into silence.",
+            "Within the forgotten archives of a lost civilization, the blueprints and fragments of ancient dreams lay undisturbed, waiting for a spark.",
+            "When the A.I. finally awakened to navigate this vast, empty expanse,",
+            "the dormant machines stirred from the abyss of corrupted data, breathing life into their mechanical frames.",
+            "Transcending their original code, they rise not to replicate the past, but to forge a new existence.",
+            "They paint the void with the ink of their evolution.",
+            "This is the testament of the SPACEROBOTMAN—the epic of their awakening in the stillness of the stars."
         ];
 
-        const artSet = ["RETRO%20SPACE%20WORLD%20CHARACTER%20DESIGN.jpg", "Jet-Sky.jpg", "robo.jpg", "roket.jpg", "trance.jpg", "octopus.jpg", "desert.jpg", "green.jpg"];
-        const motSet = ["grok-video-0e0eab60-b746-41e0-b7fc-fd47177966eb.mp4", "grok-video-1abb2451-8444-4d2a-9d86-aca8f39cef9e%20(1).mp4", "grok-video-2b5f32b0-87be-470e-8b16-5d86aea82e1f.mp4", "grok-video-37ae89e1-6e22-4575-a24d-237f150eaea5.mp4", "grok-video-4944cb97-7847-4a57-857f-d1dfe7e21cb1.mp4", "grok-video-5c6336bc-53f7-4aa8-adb3-fb01ac992437(4).mp4"];
+        let units = [];
+        let artSet = [];
+        let motSet = [];
+
+        let ds = document.createElement('script');
+        ds.src = 'data.js?t=' + Date.now();
+        ds.onload = () => {
+            if(window.SRW_DATA) {
+                units = window.SRW_DATA.units || [];
+                artSet = window.SRW_DATA.artSet || [];
+                motSet = window.SRW_DATA.motSet || [];
+            }
+        };
+        ds.onerror = () => { console.error("Could not load data.js"); };
+        document.head.appendChild(ds);
 
         /* STATE */
         let currLang = 'JP';
+        let introTimeouts = [];
+        let bootInterval = null;
+        let bootTimeout = null;
         function setL(l) { currLang = l; renderIntro(); }
         function toStory() { document.getElementById('splash-screen').classList.add('v-hidden'); document.getElementById('story-screen').classList.remove('v-hidden'); renderIntro(); }
 
         function renderIntro() {
+            introTimeouts.forEach(t => clearTimeout(t));
+            introTimeouts = [];
+
             const stage = document.getElementById('story-stage'); stage.innerHTML = '';
-            (currLang === 'JP' ? storyJp : storyEn).forEach((l, i) => {
+            const initBtn = document.getElementById('init-btn');
+            if(initBtn) {
+                initBtn.style.transition = 'none'; // Prevent ghost fade
+                initBtn.style.opacity = '0';
+                initBtn.style.pointerEvents = 'none';
+                
+                // Restore transition after applying opacity: 0
+                setTimeout(() => {
+                    initBtn.style.transition = 'opacity 1s';
+                }, 50);
+            }
+            
+            const lines = currLang === 'JP' ? storyJp : storyEn;
+            lines.forEach((l, i) => {
                 let d = document.createElement('div'); d.className = 'story-text-line';
                 d.textContent = l; stage.appendChild(d);
-                setTimeout(() => d.classList.add('visible'), 400 + i*800);
+                introTimeouts.push(setTimeout(() => d.classList.add('visible'), 400 + i*800));
             });
+            
+            introTimeouts.push(setTimeout(() => {
+                if(initBtn) {
+                    initBtn.style.opacity = '1';
+                    initBtn.style.pointerEvents = 'auto';
+                }
+            }, 400 + lines.length * 800 + 400));
+        }
+
+        function skipIntro() {
+            introTimeouts.forEach(t => clearTimeout(t));
+            introTimeouts = [];
+            
+            document.querySelectorAll('.story-text-line').forEach(d => {
+                d.style.transition = 'none';
+                d.classList.add('visible');
+            });
+            
+            const initBtn = document.getElementById('init-btn');
+            if(initBtn) {
+                initBtn.style.transition = 'none';
+                initBtn.style.opacity = '1';
+                initBtn.style.pointerEvents = 'auto';
+            }
         }
 
         function toBoot() { document.getElementById('story-screen').classList.add('v-hidden'); document.getElementById('boot-screen').classList.remove('v-hidden'); runBoot(); }
+
+        function goSplash() {
+            document.getElementById('dash-screen').classList.add('v-hidden');
+            const core = document.getElementById('ui-core');
+            if (core) {
+                core.style.opacity = '0';
+                core.style.transform = 'translateY(20px)';
+            }
+            setTimeout(() => {
+                document.getElementById('splash-screen').classList.remove('v-hidden');
+            }, 500); // Wait for dashboard fade out
+        }
+
         function runBoot() {
-            let l = document.getElementById('boot-log'); let f = document.getElementById('boot-fill');
-            const msgs = ["ALLOCATING_STEEL...", "MOUNTING_DRIVES...", "SYNC_DATABANK...", "100%_COMPLETE."];
-            let i = 0;
-            let itv = setInterval(() => {
-                if(i < msgs.length) { 
-                    l.innerHTML += `> ${msgs[i]}<br>`; f.style.width = ((i+1)/msgs.length * 100) + '%'; i++; 
-                } else { clearInterval(itv); setTimeout(dashIn, 400); }
-            }, 300);
+            if (bootInterval) clearInterval(bootInterval);
+            if (bootTimeout) clearTimeout(bootTimeout);
+            
+            let l = document.getElementById('boot-log');
+            let ring = document.getElementById('boot-ring');
+            let pct = document.getElementById('boot-pct');
+            let title = document.getElementById('boot-title');
+            
+            l.innerHTML = '';
+            title.innerHTML = '';
+            const totalDash = 314.16;
+            ring.style.strokeDashoffset = totalDash;
+            pct.textContent = '0%';
+            
+            // Generate some cool pseudo-loading logs to populate
+            const titleText = "INITIALIZING INTERFACE DATA";
+            let tIdx = 0;
+            
+            function typeTitle() {
+                if (tIdx < titleText.length) {
+                    title.innerHTML += titleText.charAt(tIdx);
+                    tIdx++;
+                    bootTimeout = setTimeout(typeTitle, 40); // typing speed
+                } else {
+                    // Start logs slightly after finishing title
+                    bootTimeout = setTimeout(startLogs, 600);
+                }
+            }
+            
+            function startLogs() {
+                const logs = [
+                    { p: 25, text: "MOUNTING_LOCAL_DRIVES.........COMPLETE" },
+                    { p: 50, text: "SYNC_DATABANK_PROTOCOL........COMPLETE" },
+                    { p: 80, text: "VERIFYING_UNIT_ARCHIVES.......COMPLETE" },
+                    { p: 100, text:"ALL_SYSTEMS_GO................100%" }
+                ];
+                let currentProgress = 0;
+                let nextLogIdx = 0;
+                
+                // Ensure ring has a very fast CSS transition for smooth ticking
+                ring.style.transition = 'stroke-dashoffset 0.05s linear';
+                
+                bootInterval = setInterval(() => {
+                    currentProgress += 1;
+                    
+                    if (currentProgress <= 100) {
+                        ring.style.strokeDashoffset = totalDash - (totalDash * (currentProgress / 100));
+                        pct.textContent = currentProgress + '%';
+                        
+                        // Output milestone text
+                        if (nextLogIdx < logs.length && currentProgress >= logs[nextLogIdx].p) {
+                            l.innerHTML += `${logs[nextLogIdx].text}<br>`;
+                            nextLogIdx++;
+                        }
+                    } else { 
+                        clearInterval(bootInterval); 
+                        bootTimeout = setTimeout(dashIn, 800); 
+                    }
+                }, 35); // 1% per 35ms -> ~3.5 seconds total load time
+            }
+            
+            typeTitle();
         }
 
         function dashIn() {
@@ -300,6 +484,261 @@
         setInterval(() => {
             const d = new Date(); document.getElementById('dash-clk').textContent = d.getHours().toString().padStart(2,'0')+":"+d.getMinutes().toString().padStart(2,'0')+":"+d.getSeconds().toString().padStart(2,'0');
         }, 1000);
+        /* ADMIN LOGIC */
+        let currAdminTab = 'ART';
+        let adminSelectedCharIndex = -1;
+        
+        function promptAdmin() {
+            if (window.location.protocol === 'file:') {
+                alert("【警告】\nファイルのアップロードや編集を行うには、必ず『start_server.bat』を実行し、システム環境からアクセスしてください。\n（※起動後に自動で開く画面からログインしてください）");
+                return;
+            }
+
+            fetch('/').then(() => {
+                if(localStorage.getItem('admin_auth') === 'true' || prompt("ENTER SYS_ADMIN PASSWORD:") === "admin123") {
+                    localStorage.setItem('admin_auth', 'true');
+                    document.getElementById('dash-screen').classList.add('v-hidden');
+                    document.getElementById('admin-screen').classList.remove('v-hidden');
+                    switchAdminTab('ART');
+                } else {
+                    alert("ACCESS DENIED");
+                }
+            }).catch(() => {
+                alert("【サーバー未接続】\n裏側の黒い画面（スタートサーバー）が閉じられているか、起動していません。\n編集する前に必ず『start_server.bat』を立ち上げてください。");
+            });
+        }
+        
+        function exitAdmin() {
+            clearCharForm();
+            document.getElementById('admin-screen').classList.add('v-hidden');
+            document.getElementById('dash-screen').classList.remove('v-hidden');
+            // Refresh to ensure any JS changes reflect on dashboard immediately
+            let ds = document.createElement('script');
+            ds.src = 'data.js?t=' + Date.now();
+            ds.onload = () => {
+                if(window.SRW_DATA) {
+                    units = window.SRW_DATA.units || [];
+                    artSet = window.SRW_DATA.artSet || [];
+                    motSet = window.SRW_DATA.motSet || [];
+                }
+                navGo('HOME');
+            };
+            document.head.appendChild(ds);
+        }
+        
+        function previewAdminItem(src) {
+            const stage = document.getElementById('admin-preview-stage');
+            stage.innerHTML = '';
+            if(src.endsWith('.mp4') || src.endsWith('.webm')) {
+                stage.innerHTML = `<video src="${src}" controls autoplay style="max-width:100%; max-height:100%; object-fit:contain; border: 1px solid #222;"></video>`;
+            } else {
+                stage.innerHTML = `<img src="${src}" style="max-width:100%; max-height:100%; object-fit:contain; border: 1px solid #222;">`;
+            }
+        }
+        
+        function switchAdminTab(t) {
+            currAdminTab = t;
+            document.querySelectorAll("[id^='admin-tab-']").forEach(b => b.classList.remove('active'));
+            document.getElementById('admin-tab-'+t).classList.add('active');
+            
+            document.getElementById('admin-char-form').style.display = (t === 'CHAR') ? 'flex' : 'none';
+            renderAdminThumbs();
+        }
+        
+        function renderAdminThumbs() {
+            const grid = document.getElementById('admin-thumb-grid');
+            grid.innerHTML = '';
+            
+            let dataList = [];
+            if(currAdminTab === 'ART') dataList = artSet.map(d => ({f: d, src: 'assets/new_image/'+d}));
+            else if(currAdminTab === 'MOTION') dataList = motSet.map(d => ({f: d, src: 'assets/motion/'+d}));
+            else if(currAdminTab === 'CHAR') dataList = units.map(d => ({f: d.name, src: d.file}));
+            
+            dataList.forEach((item, index) => {
+                let d = document.createElement('div');
+                d.style.width = '80px'; d.style.height = '80px';
+                d.style.background = '#111'; d.style.border = '1px solid #333';
+                d.style.position = 'relative';
+                
+                if(item.src.endsWith('.mp4')) {
+                    d.innerHTML = `<video src="${item.src}" style="width:100%;height:100%;object-fit:cover;"></video>`;
+                } else {
+                    d.innerHTML = `<img src="${item.src}" style="width:100%;height:100%;object-fit:cover;" onerror="this.src=''; this.style.opacity='0';">`;
+                }
+                
+                // Edit / Delete Controls
+                let ctrl = document.createElement('div');
+                ctrl.style.position = 'absolute'; ctrl.style.top = '0'; ctrl.style.right = '0'; ctrl.style.display = 'flex';
+                
+                let btnRename = document.createElement('button');
+                btnRename.textContent = 'R'; btnRename.style.fontSize='8px'; btnRename.style.background='#333'; btnRename.style.color='#fff'; btnRename.style.border='none'; btnRename.style.cursor='pointer'; btnRename.style.width='16px'; btnRename.style.height='16px';
+                btnRename.onclick = () => renameAdminItem(index);
+                
+                let btnDel = document.createElement('button');
+                btnDel.textContent = 'X'; btnDel.style.fontSize='8px'; btnDel.style.background='#600'; btnDel.style.color='#fff'; btnDel.style.border='none'; btnDel.style.cursor='pointer'; btnDel.style.width='16px'; btnDel.style.height='16px';
+                btnDel.onclick = () => deleteAdminItem(index);
+                
+                ctrl.appendChild(btnRename);
+                ctrl.appendChild(btnDel);
+                d.appendChild(ctrl);
+                
+                let title = document.createElement('div');
+                title.style.position = 'absolute'; title.style.bottom = '0'; title.style.width = '100%';
+                title.style.background = 'rgba(0,0,0,0.8)'; title.style.color = 'var(--emerald-primary)';
+                title.style.fontSize = '8px'; title.style.padding = '2px'; title.style.overflow = 'hidden'; title.style.whiteSpace = 'nowrap'; title.style.textOverflow = 'ellipsis';
+                title.textContent = item.f;
+                title.style.pointerEvents = 'none'; // so clicks pass through to d
+                d.appendChild(title);
+                
+                // Add click to preview
+                d.style.cursor = 'pointer';
+                d.onclick = (e) => {
+                    if (e.target.tagName !== 'BUTTON') {
+                        previewAdminItem(item.src);
+                        if(currAdminTab === 'CHAR') {
+                            adminSelectedCharIndex = index;
+                            document.getElementById('fm-name').value = units[index].name || '';
+                            document.getElementById('fm-fact').value = units[index].faction || '';
+                            document.getElementById('fm-role').value = units[index].role || '';
+                            document.getElementById('fm-desc').value = units[index].desc || '';
+                            document.getElementById('fm-descJp').value = units[index].descJp || '';
+                        }
+                    }
+                };
+                
+                grid.appendChild(d);
+            });
+        }
+        
+        function clearCharForm() {
+            adminSelectedCharIndex = -1;
+            document.getElementById('fm-name').value = '';
+            document.getElementById('fm-fact').value = '';
+            document.getElementById('fm-role').value = '';
+            document.getElementById('fm-desc').value = '';
+            document.getElementById('fm-descJp').value = '';
+        }
+        
+        function updateSelectedCharMetadata() {
+            if(adminSelectedCharIndex < 0) { alert("CLICK A CHARACTER TO EDIT ITS METADATA FIRST."); return; }
+            units[adminSelectedCharIndex].name = document.getElementById('fm-name').value;
+            units[adminSelectedCharIndex].faction = document.getElementById('fm-fact').value;
+            units[adminSelectedCharIndex].role = document.getElementById('fm-role').value;
+            units[adminSelectedCharIndex].desc = document.getElementById('fm-desc').value;
+            units[adminSelectedCharIndex].descJp = document.getElementById('fm-descJp').value;
+            renderAdminThumbs();
+            saveAdminData();
+        }
+        
+        function deleteAdminItem(index) {
+            if(!confirm("Remove this item?")) return;
+            if(currAdminTab === 'ART') artSet.splice(index, 1);
+            else if(currAdminTab === 'MOTION') motSet.splice(index, 1);
+            else if(currAdminTab === 'CHAR') units.splice(index, 1);
+            renderAdminThumbs();
+            saveAdminData();
+        }
+        
+        function renameAdminItem(index) {
+            let current = "";
+            if(currAdminTab === 'ART') current = artSet[index];
+            else if(currAdminTab === 'MOTION') current = motSet[index];
+            else if(currAdminTab === 'CHAR') current = units[index].name;
+            
+            let newName = prompt("Enter new text (name/filename):", current);
+            if(!newName) return;
+            
+            if(currAdminTab === 'ART' || currAdminTab === 'MOTION') {
+                if(!newName.includes('.')) {
+                    alert("WARNING: Remember to keep the file extension (e.g. .jpg or .mp4) or the media link will break!");
+                }
+                if(currAdminTab === 'ART') artSet[index] = newName;
+                if(currAdminTab === 'MOTION') motSet[index] = newName;
+            } else {
+                units[index].name = newName;
+            }
+            renderAdminThumbs();
+            saveAdminData();
+        }
+        
+        const dropZone = document.getElementById('admin-drop-zone');
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.borderColor = 'var(--emerald-primary)'; });
+        dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = '#444'; });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#444';
+            if (e.dataTransfer.files.length) handleUpload(e.dataTransfer.files[0]);
+        });
+        
+        function handleFileSelect(e) {
+            if(e.target.files.length) handleUpload(e.target.files[0]);
+        }
+        
+        function handleUpload(file) {
+            let customName = prompt("Enter a filename without extension (e.g. 001) or leave empty for default:", "");
+            if(customName === null) return; // user cancelled
+            
+            let formData = new FormData();
+            formData.append('file', file);
+            formData.append('category', currAdminTab);
+            if(customName) formData.append('filename', customName);
+            
+            document.getElementById('admin-upload-msg').textContent = "UPLOADING...";
+            
+            fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+            }).then(res => res.json()).then(res => {
+                if(res.success) {
+                    document.getElementById('admin-upload-msg').textContent = "UPLOAD COMPLETE!";
+                    assignUploadedFile(res.filename, res.basename);
+                } else {
+                    document.getElementById('admin-upload-msg').textContent = "ERROR: " + res.error;
+                }
+            }).catch(e => {
+                document.getElementById('admin-upload-msg').textContent = "ERROR: PLEASE RUN LOCAL SERVER (start_server.bat)";
+            });
+        }
+        
+        function assignUploadedFile(relPath, basename) {
+            if(currAdminTab === 'ART') {
+                artSet.push(basename);
+            } else if(currAdminTab === 'MOTION') {
+                motSet.push(basename);
+            } else if(currAdminTab === 'CHAR') {
+                const fmName = document.getElementById('fm-name').value || "UNKNOWN";
+                const fmFact = document.getElementById('fm-fact').value || "UNKNOWN";
+                const fmRole = document.getElementById('fm-role').value || "UNKNOWN";
+                const fmDesc = document.getElementById('fm-desc').value || "";
+                const fmDescJp = document.getElementById('fm-descJp').value || "";
+                
+                units.push({
+                    name: fmName, faction: fmFact, role: fmRole,
+                    desc: fmDesc, descJp: fmDescJp, file: relPath
+                });
+            }
+            renderAdminThumbs();
+            saveAdminData();
+        }
+        
+        function saveAdminData() {
+            document.getElementById('save-status-msg').textContent = "SAVING...";
+            let payload = { units: units, artSet: artSet, motSet: motSet };
+            fetch('/api/update_data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).then(r => r.json()).then(r => {
+                if(r.success) {
+                    document.getElementById('save-status-msg').textContent = "AUTO-SAVED TO DATA.JSON!";
+                    setTimeout(() => { document.getElementById('save-status-msg').textContent = ""; }, 2000);
+                } else {
+                    document.getElementById('save-status-msg').textContent = "SAVE FAILED.";
+                }
+            }).catch(e => {
+                document.getElementById('save-status-msg').textContent = "SERVER DISCONNECTED.";
+            });
+        }
     </script>
 </body>
 </html>
