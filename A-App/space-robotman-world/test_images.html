@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { background: #111; color: #fff; font-family: sans-serif; display: flex; flex-wrap: wrap; gap: 10px; }
+        .card { border: 1px solid #444; padding: 5px; width: 150px; text-align: center; }
+        img { width: 100%; height: auto; }
+        .fname { font-size: 10px; word-break: break-all; }
+    </style>
+</head>
+<body>
+    <script>
+        const files = [
+            "Gemini_Generated_Image_i727mli727mli727.png",
+            "grok-image-18bc0db5-bb2e-4f6d-169684.jpg",
+            "grok-image-1d141736-1c0a-4480-bf10-4c38bfb32ad1.jpg",
+            "grok-image-32f727a4-3a52-49d3-aa52-4fa768637bc5.png",
+            "grok-image-4c620325-70fe-4e28-8e40-7c2319e9349c.png",
+            "grok-image-4f9398e8-7e08-4bcd-a371-9138fec03908 (1).jpg",
+            "grok-image-7704e0e4-027a-4b82-b07d-8a3fe3813e8b.jpg",
+            "grok-image-78695d43-5700-47d0-883c-29811e10c118 (1).jpg",
+            "grok-image-79f221ef-4698-4183-bdca-c3f14a02f31c.jpg",
+            "grok-image-8296cca9-3c2d-42ad-9c84-926f26f5b748.png",
+            "grok-image-8ba96b1b-0ede-47df-bb9c-5a2ea08ec54f.exif.jpg",
+            "grok-image-979d964e-8da4-472d-8e32-56602e2551ff.jpg",
+            "grok-image-9dc4c327-b38a-4709-8a02-2e3e9951b448.jpg",
+            "grok-image-b2519c26-dac0-4e07-8a1e-f7f5bc25922b (1).jpg",
+            "grok-image-d131f8d6-572f-42d0-a144-00536223ec44 (1).png",
+            "grok-image-e843d1ec-12ba-430f-bfc8-525f78d7554e.jpg",
+            "grok-image-eeb3cf2a-7b9c-43b9-938b-8bd1ae03a768 (1).jpg",
+            "grok-image-f452cc01-206f-45cf-b448-89a1c7a94d91.png",
+            "grok-image-fecb6747-d4c5-409a-9f02-182453f7da78.jpg",
+            "image (1).jpg"
+        ];
+        files.forEach((f, i) => {
+            document.write('<div class="card"><img src="assets/characters/REALISTIC MODEL VERSION/' + f + '"><div class="fname">' + i + ': ' + f + '</div></div>');
+        });
+    </script>
+</body>
+</html>
