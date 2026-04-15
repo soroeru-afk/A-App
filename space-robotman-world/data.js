@@ -154,16 +154,16 @@ window.SRW_DATA = {
     }
   ],
   "artSet": [
-    "RETRO%20SPACE%20WORLD%20CHARACTER%20DESIGN.jpg",
-    "Jet-Sky.jpg",
-    "robo.jpg",
-    "roket.jpg",
-    "trance.jpg",
-    "octopus.jpg",
-    "desert.jpg",
-    "green.jpg",
-    "HEAVY-LOADER.jpg",
-    "HEAVY-LOADER2.jpg"
+    "001.jpg",
+    "002.jpg",
+    "003.jpg",
+    "004.jpg",
+    "005.jpg",
+    "006.jpg",
+    "007.jpg",
+    "008.jpg",
+    "009.jpg",
+    "010.jpg"
   ],
   "motSet": [
     "grok-video-1abb2451-8444-4d2a-9d86-aca8f39cef9e%20(1).mp4",
