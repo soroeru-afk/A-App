@@ -1,13 +1,16 @@
 /* SPACE ROBOTMAN WORLD: ULTIMATE STEEL & MOTION (v9) */
 :root {
-    --bg-dark: #050505;
-    --steel-mid: #68686a;
-    --steel-light: #d1d1d1;
-    --steel-dark: #121213;
+    --bg-dark: #1a1a1a;
+    --base-gray: #2a2a2a;
+    --metal-base: #4a4a4a;
+    --metal-highlight: #999;
+    --metal-shadow: #111;
+    --accent-cyan: #00ffff;
     --emerald-primary: #00ede8;
     --emerald-dim: #00817e;
     --emerald-glow: rgba(0, 237, 232, 0.2);
     --emerald-diffuse: rgba(0, 237, 232, 0.08);
+    
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -28,53 +31,105 @@ body {
 }
 
 /* 1. ULTIMATE CHASSIS GRID */
+/* 1. MASTER TERMINAL CHASSIS */
 .chassis-container {
-    width: 1200px; height: 800px;
+    width: 1024px; height: 700px;
     display: grid; 
-    grid-template-columns: 240px 1fr; 
-    grid-template-rows: 60px 1fr 30px; /* HEADER (TOP) - CONTENT - FOOTER */
-    gap: 1px; background: #000; opacity: 0; 
+    grid-template-columns: 200px 1fr; 
+    grid-template-rows: 45px 1fr 45px; /* HEADER - CONTENT - FOOTER */
+    background: var(--base-gray); 
+    border: 1px solid #000;
+    box-shadow: 0 0 50px rgba(0,0,0,1);
+    opacity: 0; 
     transform: translateY(40px);
     transition: all 1s ease;
+    position: relative;
+    overflow: hidden;
 }
 
 .plate {
-    background: linear-gradient(180deg, var(--steel-mid) 0%, #333 48%, #111 52%, var(--steel-dark) 100%);
+    background: var(--base-gray);
     border: 1px solid #000;
     position: relative;
     box-shadow: 
-        inset 1px 1px 0 var(--steel-light),
+        inset 1px 1px 0 #444,
         inset -1px -1px 0 #000,
         0 20px 60px rgba(0,0,0,0.9);
 }
 
 .chassis-header {
-    grid-row: 1; /* FIXED AT TOP */
+    grid-row: 1;
     grid-column: 1 / span 2;
-    display: flex; align-items: center;
-    padding: 0 25px;
-    border-bottom: 2px solid #000;
+    background: linear-gradient(180deg, #555, #333);
+    border-bottom: 2px solid #111;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px;
+    box-shadow: inset 1px 1px 0 #888;
 }
 
 .chassis-footer {
     grid-row: 3;
     grid-column: 1 / span 2;
+    background: linear-gradient(180deg, #555, #333);
+    border-top: 2px solid #111;
     display: flex; align-items: center;
-    padding: 0 25px;
-    border-top: 2px solid #000;
-    font-size: 7px;
-    color: #444;
+    padding: 0 20px;
+    box-shadow: inset 1px 1px 0 #888;
+    font-size: 8px;
+    color: #555;
 }
 
 .chassis-side {
     grid-row: 2;
-    width: 240px;
-    padding: 30px 15px;
-    display: flex; flex-direction: column; gap: 12px;
-    border-right: 2px solid #000;
+    width: 200px;
+    position: relative;
+    display: flex; flex-direction: column;
+}
+
+/* 背後の構造パネル */
+.structural-panel {
+    position: absolute;
+    left: 0; top: 0; width: 50px; height: 100%;
+    background: #3a3a3a;
+    border-right: 1px solid #111;
+    box-shadow: 2px 0px 0px #555 inset, 5px 0px 15px rgba(0,0,0,0.7);
+    z-index: 1;
+}
+
+.button-area {
+    position: relative;
+    z-index: 2;
+    padding: 30px 10px;
+    height: 100%;
+    display: flex; flex-direction: column;
+    justify-content: space-between;
+    box-sizing: border-box;
+    width: 100%;
 }
 
 /* 2. REFINED BRANDING */
+/* 2. REFINED BRANDING */
+.header-title {
+    color: #eee;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: bold;
+    font-size: 14px;
+    letter-spacing: 3px;
+    white-space: nowrap;
+}
+.header-status-line {
+    display: flex;
+    align-items: center;
+}
+.header-sub {
+    color: var(--accent-cyan);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    white-space: nowrap;
+}
+
 .brand-primary {
     font-family: 'Orbitron', sans-serif;
     font-size: 16px;
@@ -87,7 +142,7 @@ body {
     color: var(--emerald-dim);
     letter-spacing: 0.15em;
     opacity: 0.6;
-    margin-top: 8px; /* SPACING REFINED */
+    margin-top: 8px;
 }
 
 /* 3. CONTENT AREA: VIEWER-FIRST HIERARCHY */
@@ -116,45 +171,81 @@ body {
 }
 
 /* 4. SQUARE & SOLID BUTTONS: NO JIGGLE */
+/* 4. MECH BUTTON: GOLDEN RULE */
 .mech-btn {
-    background: linear-gradient(180deg, #3a3a3a 0%, #0d0d0d 100%);
-    border: 1px solid #000;
-    color: #777;
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 10px;
-    letter-spacing: 0.2em;
-    padding: 8px 15px;
+    position: relative;
+    width: 140px; /* Reduced from 160px */
+    height: 30px;
+    background: linear-gradient(180deg, #666 0%, #444 100%);
+    border: 1px solid #111;
     cursor: pointer;
-    box-shadow: inset 1px 1px 0 #555, 1px 1px 2px #000;
-    text-transform: uppercase;
-    transition: color 0.2s, background 0.2s;
     display: flex; align-items: center; justify-content: center;
-    border-radius: 0; /* SQUARE */
-}
-.mech-btn:hover {
-    color: var(--emerald-primary);
-    background: linear-gradient(180deg, #444 0%, #1a1a1a 100%);
-}
-.mech-btn:active {
-    background: #000;
-    box-shadow: inset 2px 2px 8px #000;
-    color: #555;
-}
-.mech-btn.active {
-    color: var(--emerald-primary);
-    background: #080808;
-    box-shadow: inset 1px 1px 8px #000;
-    border-bottom: 2px solid var(--emerald-primary);
+    box-shadow: 1px 1px 0px #888 inset;
+    transition: all 0.1s;
+    text-decoration: none;
+    flex-shrink: 0;
+    margin-bottom: 8px; /* Adjustment for spacing */
 }
 
+.mech-btn::before {
+    content: "";
+    position: absolute;
+    top: 3px; left: 3px; right: 3px; bottom: 3px;
+    background: #2a2a2a;
+    border: 1px solid #111;
+    box-shadow: inset 1px 1px 3px #000;
+    transition: background 0.2s;
+}
+
+.mech-btn span {
+    position: relative;
+    color: #aaa;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: color 0.2s, text-shadow 0.2s;
+}
+
+.mech-btn:hover::before { background: #333; }
+.mech-btn:hover span {
+    color: var(--accent-cyan);
+    text-shadow: 0 0 8px var(--accent-cyan);
+}
+
+.mech-btn.active::before {
+    background: var(--accent-cyan);
+}
+.mech-btn.active span {
+    color: #000;
+    text-shadow: none;
+}
+
+/* SUB-NAV ROW ADJUSTMENT */
+.sub-nav-row .mech-btn {
+    width: auto;
+    min-width: 80px;
+    margin-bottom: 0;
+}
+
+/* SMALL BUTTON VARIANT for Story etc. */
+.mech-btn.small {
+    width: 60px;
+    height: 22px;
+}
+.mech-btn.small::before { top: 2px; left: 2px; right: 2px; bottom: 2px; }
+.mech-btn.small span { font-size: 8px; letter-spacing: 0.5px; }
+
+/* 5. MONITOR & MOTION */
 /* 5. MONITOR & MOTION */
 .monitor-recess {
     background: #000;
-    box-shadow: inset 0 0 60px #000, inset 0 0 10px var(--emerald-diffuse);
-    border: 12px solid #111;
-    border-image: linear-gradient(135deg, #444, #111) 1;
+    border: 8px solid #3a3a3a;
+    outline: 2px solid #111;
     position: relative;
     overflow: hidden;
+    box-shadow: inset 0 0 40px #000;
 }
 .scanlines {
     position: absolute; inset: 0;

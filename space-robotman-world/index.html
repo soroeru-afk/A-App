@@ -18,7 +18,7 @@
         #home-well, #overview-well, #art-well, #motion-well, #char-well { width: 100%; height: 100%; position: absolute; inset:0; display: flex; flex-direction: column; }
         
         .archive-box { display: flex; flex: 1; gap: 20px; height: 100%; overflow: hidden; }
-        .archive-scroller { width: 240px; height: 100%; overflow-y: auto; border-right: 1px solid #222; padding-right: 10px; display: flex; flex-direction: column; gap: 4px; }
+        .archive-scroller { width: 260px; height: 100%; overflow-y: auto; border-right: 1px solid #222; padding-right: 15px; display: flex; flex-direction: column; gap: 4px; }
     </style>
 </head>
 <body>
@@ -30,19 +30,19 @@
         <div style="text-align: center; cursor: pointer;" onclick="toStory()">
             <h1 class="brand-primary" style="font-size: 26px; margin-bottom: 20px;">SPACE-ROBOTMAN WORLD</h1>
             <div class="brand-secondary" style="letter-spacing: 0.8em; margin-bottom: 40px;">SECURE_BOOT_PROTOCOL_GS_V3</div>
-            <button class="mech-btn" style="width: 200px; margin: 0 auto;">BOOT SYSTEM</button>
+            <button class="mech-btn" style="width: 200px; margin: 0 auto;"><span>BOOT SYSTEM</span></button>
         </div>
     </section>
 
     <!-- 2. STORY PRELUDE -->
     <section id="story-screen" class="v-hidden">
-        <div class="lang-toggle" style="position: absolute; top: 40px; right: 40px; display: flex; gap: 10px;">
-            <button class="mech-btn active" id="btn-jp" onclick="setL('JP')">JP</button>
-            <button class="mech-btn" id="btn-en" onclick="setL('EN')">EN</button>
-        </div>
-        <div id="story-stage" style="width: 750px; text-align: center; margin-bottom: 50px;"></div>
-        <button id="init-btn" class="mech-btn" onclick="toBoot()" style="opacity: 0; pointer-events: none; transition: opacity 1s;">INITIALIZE INTERFACE</button>
-        <button class="mech-btn" onclick="skipIntro()" style="position: absolute; bottom: 40px; right: 40px; width: 70px; height: 28px; font-size: 11px; opacity: 0.7; border-color: #555; color: #aaa; pointer-events: auto; letter-spacing: 1px;">SKIP</button>
+    <div class="lang-toggle" style="position: absolute; top: 40px; right: 40px; display: flex; gap: 10px;">
+        <button class="mech-btn small active" id="btn-jp" onclick="setL('JP')"><span>JP</span></button>
+        <button class="mech-btn small" id="btn-en" onclick="setL('EN')"><span>EN</span></button>
+    </div>
+    <div id="story-stage" style="width: 750px; text-align: center; margin-bottom: 50px;"></div>
+    <button id="init-btn" class="mech-btn" onclick="toBoot()" style="opacity: 0; pointer-events: none; transition: opacity 1s;"><span>INITIALIZE INTERFACE</span></button>
+    <button class="mech-btn" onclick="skipIntro()" style="position: absolute; bottom: 40px; right: 40px; width: 70px; height: 28px; font-size: 11px; opacity: 0.7; border-color: #555; color: #aaa; pointer-events: auto; letter-spacing: 1px;"><span>SKIP</span></button>
     </section>
 
     <!-- 3. BOOT SEQUENCE -->
@@ -72,25 +72,30 @@
             <div class="rivet" style="bottom:12px; left:12px;"></div><div class="rivet" style="bottom:12px; right:12px;"></div>
 
             <!-- HEADER (FIXED TOP) -->
-            <header class="chassis-header plate">
-                <div style="display: flex; flex-direction: column;">
-                    <div class="brand-primary">SPACE ROBOTMAN WORLD</div>
-                    <div class="brand-secondary">MAIN DATA TERMINAL // DESIGNED BY GRAPHIC-SPACE V3.0</div>
+            <header class="chassis-header">
+                <div class="header-title">SPACE ROBOTMAN WORLD</div>
+                <div class="header-status-line">
+                    <span class="header-sub">MAIN DATA TERMINAL // v.3.0</span>
                 </div>
-                <div style="margin-left: auto; font-size: 8px; color: #444; letter-spacing: 2px;">SECURE_ARCHIVE_GS // LOAD_PENDING</div>
             </header>
 
             <!-- SIDEBAR -->
-            <aside class="chassis-side plate">
-                <button class="mech-btn active" onclick="navGo('HOME')">HOME / STATUS</button>
-                <button class="mech-btn" onclick="navGo('ART')">CG-ARTWORKS</button>
-                <button class="mech-btn" onclick="navGo('CHAR')">UNIT-ARCHIVES</button>
-                <button class="mech-btn" onclick="navGo('MOTION')">MOTION-DATA</button>
-                <button class="mech-btn" onclick="navGo('OVER')">OVERVIEW</button>
-                <div style="margin-top: auto; border-top: 1px solid #222; padding-top: 20px;">
-                    <button class="mech-btn" style="width: 100%; margin-bottom: 5px;" onclick="promptAdmin()">ADMIN LOGIN</button>
-                    <button class="mech-btn" style="width: 100%;" onclick="goSplash()">OPENING TOP</button>
-                    <div style="font-size: 7px; color: #444; margin-top: 15px; font-family: monospace;">NODE.CLK: <span id="dash-clk">00:00:00</span></div>
+            <aside class="chassis-side">
+                <div class="structural-panel"></div>
+                <div class="button-area">
+                    <div class="nav-group" style="flex: 0 0 auto;">
+                        <button class="mech-btn active" onclick="navGo('HOME')"><span>HOME / STATUS</span></button>
+                        <button class="mech-btn" onclick="navGo('ART')"><span>CG-ARTWORKS</span></button>
+                        <button class="mech-btn" onclick="navGo('CHAR')"><span>UNIT-ARCHIVES</span></button>
+                        <button class="mech-btn" onclick="navGo('MOTION')"><span>MOTION-DATA</span></button>
+                        <button class="mech-btn" onclick="navGo('OVER')"><span>OVERVIEW</span></button>
+                    </div>
+
+                    <div class="nav-group" style="flex: 0 0 auto;">
+                        <button class="mech-btn" style="width: 100%; margin-bottom: 5px;" onclick="promptAdmin()"><span>ADMIN LOGIN</span></button>
+                        <button class="mech-btn" style="width: 100%;" onclick="goSplash()"><span>OPENING TOP</span></button>
+                        <div style="font-size: 7px; color: #555; margin-top: 15px; font-family: monospace;">NODE.CLK: <span id="dash-clk">00:00:00</span></div>
+                    </div>
                 </div>
             </aside>
 
@@ -143,12 +148,12 @@
                         <div id="char-well" class="v-hidden">
                             <div class="archive-box">
                                 <div class="archive-scroller" id="char-master-list"></div>
-                                <div id="char-detail-board" style="flex: 1; display: flex; gap: 30px; opacity: 0; transition: 0.6s;">
-                                    <div style="width: 390px; background: #000; border: 1px solid #111; display: flex; align-items: center; justify-content: center;">
+                                <div id="char-detail-board" style="flex: 1; display: flex; gap: 20px; opacity: 0; transition: 0.6s; min-width: 0;">
+                                    <div style="width: 300px; background: #000; border: 1px solid #111; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
                                         <img id="char-hero-img" src="" style="max-height: 98%; max-width: 98%; object-fit: contain;">
                                     </div>
-                                    <div style="flex: 1; display: flex; flex-direction: column;">
-                                        <h2 id="char-hero-name" style="font-family:'Orbitron'; font-size: 26px; border-bottom: 2px solid var(--emerald-primary); padding-bottom: 15px; margin-bottom: 20px;">--</h2>
+                                    <div style="flex: 1; display: flex; flex-direction: column; min-width: 0;">
+                                        <h2 id="char-hero-name" style="font-family:'Orbitron'; font-size: 20px; border-bottom: 2px solid var(--emerald-primary); padding-bottom: 15px; margin-bottom: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">--</h2>
                                         <div class="unit-desc-box">
                                             <div id="char-hero-en" class="desc-en">--</div>
                                             <div id="char-hero-jp" class="desc-jp">--</div>
@@ -168,8 +173,10 @@
                 <nav class="sub-nav-row" id="sub-nav-bar"></nav>
             </main>
 
-            <footer class="chassis-footer plate">
-                SECURE_ENCRYPT: 256_AES // NODE_VERIFIED // © 2003-2026 SPACE-ROBOTMAN WORLD
+            <footer class="chassis-footer">
+                <div style="color: #555; font-size: 8px; font-family: monospace;">
+                    (C) 2003-2026 GRAPHIC-SPACE // SECURE_ENCRYPT: 256_AES // NODE_VERIFIED
+                </div>
             </footer>
         </div>
     </section>
@@ -179,14 +186,14 @@
         <header style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #222; padding-bottom: 15px; margin-bottom: 20px;">
             <div style="display: flex; gap: 15px;">
                 <div style="color: var(--emerald-primary); font-family: 'Orbitron'; font-size: 18px; margin-right: 20px; align-self: center;">ADMIN DASHBOARD</div>
-                <button class="mech-btn active" id="admin-tab-ART" onclick="switchAdminTab('ART')">CG ARTWORKS</button>
-                <button class="mech-btn" id="admin-tab-CHAR" onclick="switchAdminTab('CHAR')">UNIT ARCHIVES</button>
-                <button class="mech-btn" id="admin-tab-MOTION" onclick="switchAdminTab('MOTION')">MOTION DATA</button>
+                <button class="mech-btn active" id="admin-tab-ART" onclick="switchAdminTab('ART')"><span>CG ARTWORKS</span></button>
+                <button class="mech-btn" id="admin-tab-CHAR" onclick="switchAdminTab('CHAR')"><span>UNIT ARCHIVES</span></button>
+                <button class="mech-btn" id="admin-tab-MOTION" onclick="switchAdminTab('MOTION')"><span>MOTION DATA</span></button>
             </div>
             <div style="display: flex; gap: 10px; align-items: center;">
-                <span id="save-status-msg" style="color: var(--emerald-primary); font-size: 10px; font-family: 'Orbitron'; font-weight: bold;"></span>
-                <button id="btn-save-json" class="mech-btn" onclick="saveAdminData()" style="color: var(--emerald-primary); border-color: var(--emerald-primary);">SAVE JSON DATA</button>
-                <button class="mech-btn" onclick="exitAdmin()" style="border-color: #555; color: #aaa;">EXIT ADMIN</button>
+                <span id="save-status-msg" style="color: var(--accent-cyan); font-size: 10px; font-family: 'Orbitron'; font-weight: bold;"></span>
+                <button id="btn-save-json" class="mech-btn" onclick="saveAdminData()" style="color: var(--accent-cyan); border-color: var(--accent-cyan);"><span>SAVE JSON DATA</span></button>
+                <button class="mech-btn" onclick="exitAdmin()" style="border-color: #555; color: #aaa;"><span>EXIT ADMIN</span></button>
             </div>
         </header>
 
@@ -206,8 +213,8 @@
                     <input type="text" id="fm-role" placeholder="Role (e.g. Command)" style="background: #111; color: #fff; border: 1px solid #333; padding: 6px;">
                     <textarea id="fm-desc" placeholder="Desc EN" rows="2" style="background: #111; color: #fff; border: 1px solid #333; padding: 6px;"></textarea>
                     <textarea id="fm-descJp" placeholder="Desc JP" rows="2" style="background: #111; color: #fff; border: 1px solid #333; padding: 6px;"></textarea>
-                    <button class="mech-btn" onclick="clearCharForm()" style="margin-top: 5px; font-size: 8px;">CLEAR (NEW UPLOAD)</button>
-                    <button class="mech-btn" onclick="updateSelectedCharMetadata()" style="color: var(--emerald-primary); font-size: 8px;">UPDATE EXISTING</button>
+                    <button class="mech-btn" onclick="clearCharForm()" style="margin-top: 5px; font-size: 8px;"><span>CLEAR (NEW UPLOAD)</span></button>
+                    <button class="mech-btn" onclick="updateSelectedCharMetadata()" style="color: var(--accent-cyan); font-size: 8px;"><span>UPDATE EXISTING</span></button>
                 </div>
                 
                 <div id="admin-upload-msg" style="font-size: 11px; color: var(--emerald-primary);"></div>
@@ -435,7 +442,7 @@
 
         function mkBar(txt, fn) {
             let b = document.createElement('button'); b.className = 'mech-btn'; b.style.height = '28px';
-            b.textContent = txt; b.onclick = () => { fn(); };
+            b.innerHTML = `<span>${txt}</span>`; b.onclick = () => { fn(); };
             document.getElementById('sub-nav-bar').appendChild(b);
         }
 
@@ -444,7 +451,7 @@
             const flt = g === "ALL" ? units : units.filter(u => u.faction.startsWith(g));
             flt.forEach(u => {
                 let b = document.createElement('button'); b.className = 'mech-btn'; b.style.textAlign='left';
-                b.textContent = u.name;
+                b.innerHTML = `<span>${u.name}</span>`;
                 b.onclick = () => { revealChar(u); document.querySelectorAll('.archive-scroller .mech-btn').forEach(x => x.classList.remove('active')); b.classList.add('active'); };
                 scroller.appendChild(b);
             });
