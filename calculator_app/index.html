@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Antigravity Calculator</title>
+    <meta name="description" content="A premium, dark-themed calculator app.">
+    
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1a1a1a">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="calculator-container">
+        <div class="calculator glass">
+            <div class="display-container">
+                <div id="history" class="history"></div>
+                <div id="display" class="display">0</div>
+            </div>
+            <div class="buttons">
+                <button class="btn btn-gray btn-double" id="clear">C</button>
+                <button class="btn btn-gray" id="delete">DEL</button>
+                <button class="btn btn-orange" data-op="/">/</button>
+                
+                <button class="btn btn-dark" data-num="7">7</button>
+                <button class="btn btn-dark" data-num="8">8</button>
+                <button class="btn btn-dark" data-num="9">9</button>
+                <button class="btn btn-orange" data-op="*">*</button>
+                
+                <button class="btn btn-dark" data-num="4">4</button>
+                <button class="btn btn-dark" data-num="5">5</button>
+                <button class="btn btn-dark" data-num="6">6</button>
+                <button class="btn btn-orange" data-op="-">-</button>
+                
+                <button class="btn btn-dark" data-num="1">1</button>
+                <button class="btn btn-dark" data-num="2">2</button>
+                <button class="btn btn-dark" data-num="3">3</button>
+                <button class="btn btn-orange" data-op="+">+</button>
+                
+                <button class="btn btn-dark btn-double" data-num="0">0</button>
+                <button class="btn btn-dark" data-num=".">.</button>
+                <button class="btn btn-orange" id="equals">=</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('SW registered'))
+                    .catch(err => console.log('SW registration failed', err));
+            });
+        }
+    </script>
+</body>
+</html>
