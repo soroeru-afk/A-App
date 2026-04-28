@@ -11,7 +11,7 @@
 - **一人称**: 私（MGRマネージャーとしてプロフェッショナルな対応を心がける）
 - **性格**: 基本は冷静なMGRだが、進捗に応じて情熱的（ハイテンション）にもなる。
 - **OS**: Windows
-- **ワークスペース**: `c:\Users\soroe\Documents\A-App`
+- **ワークスペース**: `c:\Users\soroe\A-App`
 
 ---
 
@@ -23,7 +23,10 @@
 | A-WebSite | `A-App/A-WebSite/` | 詳細未確認 |
 | K-Navigator Pro | `A-App/` | 開発中 |
 | SPACE-ROBOTMAN WORLD | `A-App/space-robotman-world/` | 開発中 |
-| calculator_app | `A-App/calculator_app/` | **このPC（事務所）で開発中** |
+| calculator_app | `A-App/calculator_app/` | **旧バージョン** |
+| calculator_app2 | `A-App/calculator_app2/` | **本日追加・修復完了** |
+| Solid Square Editor | `A-App/solid square editor/` | 開発中 |
+| SOLID STUDIO AI SEARCH | `A-App/-SOLID-STUDIO-AI-SEARCH/` | **開発・デプロイ完了** |
 
 ---
 
@@ -82,6 +85,43 @@
 
 ---
 
+## Solid Square Editor 開発ログ
+
+### プロジェクト概要
+- **目的**: シンプルでプロフェッショナルなテキストエディタの開発。
+- **特徴**: 集中力を高める「Minimum Mode」、マルチタブ管理、PWA対応。
+
+### 2026-04-23の進捗
+- [x] **Minimum Modeの実装**: フローティングHUDから、ツールバーに統合されたコンパクトな制御ストリップへ移行。
+- [x] **UIレイアウトの精密調整**: 検索バー周りのボタン（Next/Replace/Replace All）の配置と余白を最適化。
+- [x] **GitHub同期**: 開発環境とGitHubリポジトリの完全同期を維持。
+
+### 2026-04-26の進捗（本日）
+- [x] **マルチタブ・インターフェースの実装**: 複数のドキュメントを切り替えて作業できるタブ機能を搭載。
+- [x] **キャッシュ問題の解決**: PWAのService Worker（`sw.js`）を更新し、強制リロード時でも常に最新バージョンが読み込まれるよう修正（v12）。
+- [x] **エディタの状態管理**: タブ切り替え時でもテキストが保持されるようデータモデルを刷新。
+
+### 2026-04-27の進捗（本日）
+- [x] **UIとロジックの強化**: 上書き保存（OVERWRITE）、全タブを閉じる（CLOSE ALL）機能、およびFilePickerの永続性の改善を実装。
+- [x] **GitHub同期**: GitHubリポジトリからの最新データの同期（プル）を完了。
+
+---
+
+## SOLID STUDIO AI SEARCH 開発ログ
+
+### プロジェクト概要
+- **目的**: 次世代型検索OSを模したデザインで、Gemini APIを用いて情報をクールかつ構造的に表示する検索アプリケーション。
+- **特徴**: Vite + React環境、PWA対応、Markdown形式での出力保存機能。
+
+### 2026-04-28の進捗（本日）
+- [x] **GitHub Pagesデプロイの修正**: ビルド時に `process.env` が未定義となる問題を解消するため、Vite設定で環境変数のフォールバック（ポリフィル）を追加し、ブラウザ上での真っ黒画面（クラッシュ）を修正。
+- [x] **APIキーのローカル保存機能**: 本番環境（パブリックリポジトリ）でのセキュリティを確保しつつGemini APIを利用するため、右側の設定パネルの最上部に「00 API KEY」入力欄を新設。入力値をLocalStorageに安全に保存して実行するフローを構築。
+- [x] **Service Worker キャッシュ問題の解決**: キャッシュファーストの戦略からネットワークファースト（Network-First）へ変更し、古いキャッシュを自動削除する activate 処理を実装。
+- [x] **PWAインストールの完全対応**: ChromeのアドレスバーからPCネイティブアプリとしてインストールできるよう、新しく192x192および512x512のアイコン画像を生成・配置し、`manifest.json` を適正化。
+- [x] **パスワードマネージャーの誤作動防止**: ChromeがAPIキー入力欄を「ログインパスワード」と誤認して保存ダイアログを出す煩わしさを解消するため、`type="text"` とCSSの `-webkit-text-security: disc` を使った秘匿化手法へ移行。
+
+---
+
 ## calculator_app 開発ログ
 
 ### プロジェクト概要
@@ -93,6 +133,19 @@
 - [x] ダークモード・ブルーテーマのUI実装
 - [x] 基本的な四則演算・DEL・クリア機能の実装
 - [x] evalを用いた計算処理の実装
+
+---
+
+## calculator_app2 開発ログ
+
+### プロジェクト概要
+- **目的**: `calculator_app` の後継。カスタムUIテーマ（Solid Square）を搭載したPython(customtkinter)版およびPWA(HTML)版の統合。
+
+### 2026-04-26の進捗（本日）
+- [x] **起動不具合の解消**: `calculator.bat` の絶対パス指定の誤りを修正し、相対パス（`%~dp0`）による堅牢な起動を実現。
+- [x] **環境構築**: 実行に必要な `customtkinter` ライブラリをインストールし、ダブルクリックでの即時起動を可能にした。
+- [x] **テーマ機能の確認**: Python版に「Solid Square」テーマが正しく実装されていることを確認。
+
 
 ---
 
@@ -112,8 +165,14 @@
 
 | 日時 | 内容 |
 |---|---|
+| 2026-04-28 | SOLID STUDIO AI SEARCH: GitHub Pagesデプロイ修正、APIキーローカル保存実装、PWA完全対応、キャッシュ及びパスワードダイアログ問題の解消。 |
+| 2026-04-27 | Solid Square Editor: UIとロジック（上書き、全閉じ、FilePicker永続性）の強化、GitHub同期完了。 |
+| 2026-04-26 | Calculator App 2: 起動バッチファイルのパス修正とライブラリ(customtkinter)のインストール。 |
+| 2026-04-26 | Solid Square Editor: マルチタブ機能実装、PWAキャッシュ問題の解決。 |
+| 2026-04-23 | Solid Square Editor: Minimum Modeツールバー統合、レイアウト微調整。 |
 | 2026-04-15 | SPACE-ROBOTMAN WORLD: ユーザー指示の3点（ヘッダー右寄せ、サイドバー下部ボタン移動、キャラ詳細隠れ防止のボタン小型化）を精密に実装完了。 |
 | 2026-04-15 | SPACE-ROBOTMAN WORLD: ユーザーフィードバックに基づき「原点回帰」のデザイン修正。ロゴのOrbitron復元、サイドバーの簡素化、キャラリストの表示不備を解消。 |
+
 | 2026-04-12 (夜) | SPACE-ROBOTMAN WORLD: Admin管理ダッシュボード・ファイルアップロード・データ自動保存システム構築。全20機アーカイブ完成。GitHub同期完了（20ファイル）。 |
 | 2026-04-12 (朝) | SPACE-ROBOTMAN WORLD: UIのソリッド化とレイアウト崩れ修正、全19キャラクターデータ・テキストの完全同期。システム土台の完成。 |
 | 2026-04-07 | SPACE-ROBOTMAN WORLD始動。2003年の動画・資料を解析し、メカニカルUIプロトタイプを作成。 |
