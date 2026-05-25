@@ -25,6 +25,7 @@
 | SPACE-ROBOTMAN WORLD | `A-App/space-robotman-world/` | 開発中 |
 | calculator_app | `A-App/calculator_app/` | **旧バージョン** |
 | calculator_app2 | `A-App/calculator_app2/` | **本日追加・修復完了** |
+| Street View Viewer | `A-App/data/` | **ブックマーク整理完了** |
 | Solid Square Editor | `A-App/solid square editor/` | 開発中 |
 | SOLID STUDIO AI SEARCH | `A-App/-SOLID-STUDIO-AI-SEARCH/` | **開発・デプロイ完了** |
 
@@ -115,6 +116,11 @@
 - [x] **PWAの更新**: `sw.js` のキャッシュバージョンを更新（v17）し、最新の書き込みモード機能を即座に反映。
 - [x] **GitHub同期**: 自宅での変更分をオフィス環境へ完全に同期（プル）完了。
 
+### 2026-05-25の進捗（本日）
+- [x] **UIレイアウトの最適化**: ユーザーの要望に基づき、HISTORY SNAPSHOTを廃止してINFORMATION PANELへ統合し、テキストエリア（エディタ全体）を上へ拡張。
+- [x] **MINIMUM MODEの操作性向上**: フォーカスモード時のミニHUDにおいて、検索ツール（FIND等）を右端へ移動し、テーマ（■■■■■）とEXIT FOCUSボタンをその左に配置するよう順序を整理（タブレットでの視認性改善）。
+- [x] **GitHub同期**: PWA更新のため、最新のUI改修をコミット・プッシュ完了。
+
 ---
 
 ## SOLID STUDIO AI SEARCH 開発ログ
@@ -156,6 +162,26 @@
 - [x] **環境構築**: 実行に必要な `customtkinter` ライブラリをインストールし、ダブルクリックでの即時起動を可能にした。
 - [x] **テーマ機能の確認**: Python版に「Solid Square」テーマが正しく実装されていることを確認。
 
+---
+
+## Street View Viewer 開発ログ
+
+### プロジェクト概要
+- **目的**: 大量のストリートビュー・ブックマークを地域・カテゴリ別に自動整理し、管理・閲覧を容易にする。
+- **ファイル構成**:
+  - `data/streetview_locations_2026-05-15.json` — ブックマーク生データ
+  - `data/ai_studio_code.py` — 自動分類スクリプト（Python）
+  - `data/streetview_locations_organized.json` — 整理済みデータ
+
+### 2026-05-15の進捗（本日）
+- [x] **自動分類スクリプトの実装と強化**:
+  - タイトルやフォルダ名から地域（群馬、東京、千葉、新潟など）やカテゴリ（リゾート、ショップ、海外）を判別するロジックを構築。
+  - 「蔵前橋」と「前橋」の誤判定など、日本語特有のキーワード重複問題を解消。
+- [x] **ブックマークの大掃除**:
+  - 約500件以上のデータのうち、未分類アイテムを53件から **22件** まで削減。
+  - 海外スポット（ノルウェー、アイスランド等）の自動抽出に対応。
+- [x] **整理済みデータの生成**: 
+  - `streetview_locations_organized.json` として、全データに正しい `folderName` を付与。
 
 ---
 
@@ -175,6 +201,8 @@
 
 | 日時 | 内容 |
 |---|---|
+| 2026-05-25 | Solid Square Editor: INFORMATION PANELへの統合によるエディタ領域の拡大、およびMINIMUM MODEの右側UI並び順最適化（タブレット対応）。 |
+| 2026-05-15 | Street View Viewer: ブックマーク自動整理スクリプトの強化。未分類を53→22件に削減。誤判定（蔵前橋等）を修正。 |
 | 2026-05-12 | Solid Square Editor: 横縦書き切り替え機能（Writing Mode）の実装。通常・フォーカス両モードにボタン配置。PWAキャッシュ更新(v17)。 |
 | 2026-05-11 | Solid Square Editor: CHAT整形機能（透明マーカーによる太字保持、参照リンク連結、余白調整）の強化。PWAキャッシュ更新(v15)。 |
 | 2026-04-28 | SOLID STUDIO AI SEARCH: GitHub Pagesデプロイ修正、APIキーローカル保存実装、PWA完全対応、キャッシュ及びパスワードダイアログ問題の解消。 |
