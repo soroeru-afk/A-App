@@ -1,0 +1,96 @@
+:root {
+    --bg-color: #121722;
+    --display-bg: #191f2c;
+    --display-border: #8ea3c7;
+    --btn-dark: #212a38;
+    --btn-gray: #303b4c;
+    --btn-orange: #8ea3c7;
+    --btn-orange-hover: #7f8fa8;
+    --text-white: #e8edf7;
+    --text-black: #121722;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+}
+
+body {
+    background-color: #0d1117;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.calculator {
+    width: 320px;
+    background-color: var(--bg-color);
+    padding: 10px;
+    border-radius: 0; /* Solid Square */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    border: 1px solid #303b4c;
+}
+
+.display-container {
+    margin-bottom: 10px;
+}
+
+.display {
+    background-color: var(--display-bg);
+    border: 1px solid var(--display-border);
+    color: var(--text-white);
+    font-size: 2.5rem;
+    padding: 10px 15px;
+    text-align: right;
+    border-radius: 0;
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.buttons {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+}
+
+.btn {
+    border: 1px solid #303b4c;
+    border-radius: 0;
+    height: 65px;
+    font-size: 1.25rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.1s;
+}
+
+.btn:active {
+    filter: brightness(1.2);
+    transform: translateY(1px);
+}
+
+.btn-dark {
+    background-color: var(--btn-dark);
+    color: var(--text-white);
+}
+
+.btn-gray {
+    background-color: var(--btn-gray);
+    color: var(--text-white);
+}
+
+.btn-orange {
+    background-color: var(--btn-orange);
+    color: var(--text-black);
+    font-weight: bold;
+}
+
+.btn-double {
+    grid-column: span 2;
+}
