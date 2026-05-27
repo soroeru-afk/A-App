@@ -229,6 +229,7 @@
 
 | 日時 | 内容 |
 |---|---|
+| 2026-05-27 | 全体: AppフォルダーをGitHubの最新状態に同期（git pull実行）。 |
 | 2026-05-26 | ライブドアブログ自動投稿システム: Playwrightを用いた自動ブラウザ操作による定型フォーマットでの下書き作成スクリプト（`livedoor_poster.py`）を構築・テスト完了。 |
 | 2026-05-25 | Solid Square Editor: INFORMATION PANELへの統合によるエディタ領域の拡大、およびMINIMUM MODEの右側UI並び順最適化（タブレット対応）。 |
 | 2026-05-18 | Solid Square Editor: タブ最大数16に制限、新規タブ時のプレビュー残存バグ修正。PWA v17.6更新。 |
