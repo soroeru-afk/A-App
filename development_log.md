@@ -267,6 +267,7 @@
 | 2026-05-31 | スーパーフォルダログビューアー: プロジェクト新規追加。「なるべく自動化し、AIに丸投げできるやり方」を最優先方針として明記。 |
 | 2026-05-29 | SOLID COLOR EXTRACT DESIGNER: PWA化実装、Windows向け黒枠アイコン自動生成とキャッシュ解消。次期目標（動画からのカラー抽出と生成）を記録。 |
 | 2026-05-29 | Solid Square Editor: ツールバーのコントロール配置の高さ統一（FONT FAMILYとREADING FOCUS）、Focus ModeのUI調整。PWAキャッシュ更新（v19）とGitHub同期。 |
+| 2026-05-27 | Stitch MCP連携: Stitchアカウントへの接続テストを実施。アカウント内のプロジェクト（Dynamic 3D Web Experience, メイン・エディタ）の読み込みに成功。 |
 | 2026-05-27 | 全体: AppフォルダーをGitHubの最新状態に同期（git pull実行）。 |
 | 2026-05-26 | ライブドアブログ自動投稿システム: Playwrightを用いた自動ブラウザ操作による定型フォーマットでの下書き作成スクリプト（`livedoor_poster.py`）を構築・テスト完了。 |
 | 2026-05-25 | Solid Square Editor: INFORMATION PANELへの統合によるエディタ領域の拡大、およびMINIMUM MODEの右側UI並び順最適化（タブレット対応）。 |
