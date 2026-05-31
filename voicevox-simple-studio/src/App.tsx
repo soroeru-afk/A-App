@@ -67,6 +67,10 @@ export default function App() {
     );
   };
 
+  const handleClearBlocks = () => {
+    setBlocks([]);
+  };
+
   const generateSingle = async (blockId: string) => {
     setBlocks((prev) =>
       prev.map((b) => (b.id === blockId ? { ...b, status: 'generating', errorMessage: undefined } : b))
@@ -159,6 +163,7 @@ export default function App() {
             onGlobalSpeakerChange={handleGlobalSpeakerChange}
             onGenerateSingle={generateSingle}
             onGenerateAll={handleGenerateAll}
+            onClearBlocks={handleClearBlocks}
           />
         </div>
       </div>

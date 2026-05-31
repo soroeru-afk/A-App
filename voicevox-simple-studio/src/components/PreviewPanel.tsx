@@ -1,7 +1,7 @@
 import React from 'react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import { Download, PlayCircle, Library, Wand2 } from 'lucide-react';
+import { Download, PlayCircle, Library, Wand2, Trash2 } from 'lucide-react';
 import { TextBlock, Speaker } from '../types';
 import { BlockItem } from './BlockItem';
 
@@ -12,6 +12,7 @@ interface PreviewPanelProps {
   onGlobalSpeakerChange: (speakerId: number) => void;
   onGenerateSingle: (blockId: string) => void;
   onGenerateAll: () => void;
+  onClearBlocks: () => void;
 }
 
 export function PreviewPanel({
@@ -20,7 +21,8 @@ export function PreviewPanel({
   onSpeakerChange,
   onGlobalSpeakerChange,
   onGenerateSingle,
-  onGenerateAll
+  onGenerateAll,
+  onClearBlocks
 }: PreviewPanelProps) {
   
   const [playingIndex, setPlayingIndex] = React.useState<number | null>(null);
@@ -126,6 +128,17 @@ export function PreviewPanel({
             <Download className="w-4 h-4" />
             ZIPダウンロード
           </button>
+          
+          {hasBlocks && (
+            <button
+              onClick={onClearBlocks}
+              disabled={isGeneratingAny}
+              className="flex items-center gap-2 px-3 py-1.5 border border-red-900 text-red-400 hover:bg-red-900/30 rounded text-sm transition-colors disabled:opacity-50"
+              title="すべてクリア"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 

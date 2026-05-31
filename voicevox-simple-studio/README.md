@@ -1,20 +1,64 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Voicevox Simple Studio
 
-# Run and deploy your AI Studio app
+VOICEVOXのAPIと連携して、長文を細かいブロックに自動分割し、それぞれ個別に（または一括で）音声を生成できる軽量なWebアプリケーションです。
 
-This contains everything you need to run your app locally.
+## 主な機能
+- **自動文章分割**: 長文を句読点や改行で自動的にブロックごとに分割します。
+- **全体・個別キャラクター選択**: 全体のキャラクターを一括で変更できるほか、ブロックごとに別のキャラクター（話者）を割り当てることも可能です。
+- **連続再生**: 生成した音声を、1番目のブロックから最後まで自動で連続再生します。
+- **一括ZIPダウンロード**: 生成されたすべてのWAVファイルを連番付き（例：`001_synthesis.wav`）でZIPにまとめ、一括ダウンロードできます。
+- **CORS完全回避**: Node.js (Express) のバックエンドサーバーを内蔵しており、フロントエンドからVOICEVOXへのリクエストを中継することでブラウザのCORSエラーを回避します。
 
-View your app in AI Studio: https://ai.studio/apps/b5b2ac7b-b115-4065-b5d9-5f97b01187b3
+---
 
-## Run Locally
+## 🚀 その他のPCで使うときの手順 (Development Log)
 
-**Prerequisites:**  Node.js
+このツールはGitHub (`A-App` リポジトリ内) にプッシュされています。
+別のPCでこのシステムを利用する場合は、以下の手順でセットアップと起動を行ってください。
 
+### 1. 前提条件
+- **Node.js** がインストールされていること (推奨: v18以降)
+- ローカル環境で **[VOICEVOX](https://voicevox.hiroshiba.jp/)** アプリケーションが起動していること（デフォルトポート: `50021`）
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### 2. インストール手順
+
+まず、対象のPCで大元のリポジトリをクローン（またはプル）し、このディレクトリに入ります。
+
+```bash
+# 既存のA-Appリポジトリ内から pull する場合
+git pull origin main
+cd voicevox-simple-studio
+
+# もしくは、新しくクローンする場合
+# git clone https://github.com/soroeru-afk/A-App.git
+# cd A-App/voicevox-simple-studio
+```
+
+次に、必要なパッケージをインストールします。
+
+```bash
+npm install
+```
+
+### 3. 起動方法
+
+インストールが完了したら、以下のコマンドでサーバーを起動します。
+
+```bash
+npm run dev
+```
+
+> **Note:**
+> このコマンドを実行すると、`concurrently` によって以下の2つのプロセスが同時に立ち上がります。
+> - **フロントエンド (Vite)**: `http://localhost:3000` (または3001など)
+> - **バックエンドプロキシ (Express)**: `http://localhost:51021`
+
+ターミナルに表示された **Local: `http://localhost:3000/`** などのURLをブラウザで開けば準備完了です！
+
+### 🛠️ 開発履歴 (Development Log)
+- **2026/05**: プロジェクト初期化
+  - AI Studioで生成されたフロントエンドUIをベースに、Expressによるバックエンドプロキシを追加。
+  - Viteのプロキシ設定を用いて通信を統合。
+  - VOICEVOXのデフォルトポートを `5021` から `50021` に修正。
+  - 「全体の話者の一括変更機能」と「長文の連続再生機能」を追加。
+  - UI右上に「すべてクリア」できるゴミ箱ボタンを追加し、操作性を向上。
