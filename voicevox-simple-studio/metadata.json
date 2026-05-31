@@ -1,0 +1,8 @@
+{
+  "name": "Voicevox Simple Studio",
+  "description": "長文テキスト専用の超絶シンプルな音声生成Webアプリケーション",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
