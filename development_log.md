@@ -29,7 +29,7 @@
 | Solid Square Editor | `A-App/solid square editor/` | 開発中 |
 | SOLID STUDIO AI SEARCH | `A-App/-SOLID-STUDIO-AI-SEARCH/` | **開発・デプロイ完了** |
 | SOLID COLOR EXTRACT DESIGNER | `A-App/-SOLID-COLOR-EXTRACT-DESIGNER/` | **PWA化・アイコン最適化完了** |
-| スーパーフォルダログビューアー | `未定` | **新規追加・自動化優先** |
+| スーパーフォルダログビューアー | `A-App/super-folder-log-viewer/` | **新規追加・自動化優先** |
 
 ---
 
