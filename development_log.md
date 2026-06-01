@@ -29,6 +29,7 @@
 | Solid Square Editor | `A-App/solid square editor/` | 開発中 |
 | SOLID STUDIO AI SEARCH | `A-App/-SOLID-STUDIO-AI-SEARCH/` | **開発・デプロイ完了** |
 | SOLID COLOR EXTRACT DESIGNER | `A-App/-SOLID-COLOR-EXTRACT-DESIGNER/` | **PWA化・アイコン最適化完了** |
+| SOLID SUPER GATE ESCAPER | `A-App/SOLID-SUPER-GATE-ESCAPER-/` | **PWA化・起動バッチ実装完了** |
 | スーパーフォルダログビューアー | `A-App/super-folder-log-viewer/` | **新規追加・自動化優先** |
 
 ---
@@ -257,6 +258,7 @@
 - [ ] **コンテンツの拡張（任意）**: 今後、シーズン2等の物語展開に合わせた新規CGアート・ムービー等の追加。Admin画面からドラッグ&ドロップで追加可能。
 - [ ] **パスワードの強化（任意）**: 現在の管理パスワードは `admin123`。本番公開時はより強固なものに変更を検討。
 - [ ] **K-Navigator連携・他プロジェクト**: SPACE-ROBOTMAN WORLDが一段落したため、必要に応じて他の開発プロジェクトの再開・改修。
+- [ ] **VOICEVOX Studioの拡張**: 音程（ピッチ）、速度（スピード）、トーン（抑揚）などのパラメータ調整機能の追加。
 
 ---
 
@@ -264,6 +266,9 @@
 
 | 日時 | 内容 |
 |---|---|
+| 2026-06-01 | SOLID STUDIO AI SEARCH: 前回開いたときの設定保存（ウィンドウ位置、幅、高さ、テーマ、各種設定値等）の実装と、起動時の強制画面センター配置の解除。PWAキャッシュ更新（v3）とGitHubプッシュ完了。 |
+| 2026-06-01 | 全体: PWAタイトル・ブラウザタブタイトルの統一感を高めるため、SOLID SQUARE EDITOR、SOLID COLOR EXTRACT DESIGNER、SOLID AUDIO MUSIC PLAYER、SOLID STUDIO AI SEARCH のすべてのタイトル文字を一挙大文字化し、各々のリモートリポジトリへ反映完了。 |
+| 2026-06-01 | SOLID SUPER GATE ESCAPER: リポジトリをA-Appフォルダ直下に新規クローン。マニフェスト、サービスワーカー、アイコン画像の自動リサイズ生成(192x192, 512x512)を実施し、PWA化を完了。ダブルクリックでローカルサーバーを起動できる「開発スタート.bat」を追加。 |
 | 2026-06-01 | スーパーフォルダログビューアー: PWA起動時の画面サイズ固定（横長）および、前回開いたフォルダ・テキストの自動復元機能（localStorage連携）を実装。 |
 | 2026-05-31 | スーパーフォルダログビューアー: プロジェクト新規追加。「なるべく自動化し、AIに丸投げできるやり方」を最優先方針として明記。 |
 | 2026-05-29 | SOLID COLOR EXTRACT DESIGNER: PWA化実装、Windows向け黒枠アイコン自動生成とキャッシュ解消。次期目標（動画からのカラー抽出と生成）を記録。 |
