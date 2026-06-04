@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import { Download, PlayCircle, Library, Wand2, Trash2, Square, Play, Loader2, Music, Settings } from 'lucide-react';
+import { Download, PlayCircle, Library, Wand2, Trash2, Square, Play, Loader2, Music, Settings, XCircle } from 'lucide-react';
 import { TextBlock, Speaker } from '../types';
 import { BlockItem } from './BlockItem';
 import { synthesizeAudio } from '../lib/voicevox';
@@ -23,6 +23,14 @@ interface PreviewPanelProps {
   onGenerateAll: () => void;
   onClearBlocks: () => void;
 }
+
+const PRESET_SAMPLES = [
+  { label: 'こんにちは', text: 'こんにちは' },
+  { label: 'よろしくお願いします。', text: 'よろしくお願いします。' },
+  { label: '今日の天気はとても良いですね。', text: '今日の天気はとても良いですね。' },
+  { label: '私の声は、うまく聞こえていますでしょうか？', text: '私の声は、うまく聞こえていますでしょうか？' },
+  { label: 'エラーが発生しました。システムを確認してください。', text: 'エラーが発生しました。システムを確認してください。' },
+];
 
 export function PreviewPanel({
   blocks,
@@ -46,6 +54,10 @@ export function PreviewPanel({
   const [isPreviewingGlobalVoice, setIsPreviewingGlobalVoice] = useState(false);
   const [selectedGlobalSpeakerId, setSelectedGlobalSpeakerId] = useState<number>(3); // Default to Zundamon
   const [isMerging, setIsMerging] = useState(false);
+  const [sampleText, setSampleText] = useState('こんにちは');
+  const [customSampleText, setCustomSampleText] = useState('');
+
+  const activeAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const isGeneratingAny = blocks.some((b) => b.status === 'generating');
   const hasBlocks = blocks.length > 0;
@@ -95,8 +107,13 @@ export function PreviewPanel({
   };
 
   const handleContinuousPlay = () => {
+    // Stop any currently playing preview audio first
+    if ((window as any)._activeAudio) {
+      (window as any)._activeAudio.pause();
+      (window as any)._activeAudio = null;
+    }
+
     if (readyBlocks.length > 0) {
-      // Find first done block
       const firstDoneIndex = blocks.findIndex((b) => b.status === 'done' && b.audioUrl);
       if (firstDoneIndex !== -1) {
         setPlayingIndex(firstDoneIndex);
@@ -106,6 +123,10 @@ export function PreviewPanel({
 
   const handleStopContinuousPlay = () => {
     setPlayingIndex(null);
+    if ((window as any)._activeAudio) {
+      (window as any)._activeAudio.pause();
+      (window as any)._activeAudio = null;
+    }
   };
 
   const handleAudioEnded = () => {
@@ -123,16 +144,30 @@ export function PreviewPanel({
   };
 
   const handlePreviewGlobalVoice = async () => {
+    if ((window as any)._activeAudio) {
+      (window as any)._activeAudio.pause();
+      (window as any)._activeAudio = null;
+    }
     if (isPreviewingGlobalVoice) return;
     setIsPreviewingGlobalVoice(true);
     try {
-      const blob = await synthesizeAudio('こんにちは', selectedGlobalSpeakerId, engineUrl, {
+      const textToSynthesize = customSampleText.trim() || sampleText;
+      const blob = await synthesizeAudio(textToSynthesize, selectedGlobalSpeakerId, engineUrl, {
         speedScale: globalSpeed,
         pitchScale: globalPitch,
         intonationScale: globalIntonation,
       });
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
+      if ((window as any)._activeAudio) {
+        (window as any)._activeAudio.pause();
+      }
+      (window as any)._activeAudio = audio;
+      audio.onended = () => {
+        if ((window as any)._activeAudio === audio) {
+          (window as any)._activeAudio = null;
+        }
+      };
       audio.play();
     } catch (err) {
       console.error('Failed to preview global voice', err);
@@ -262,6 +297,35 @@ export function PreviewPanel({
                   )}
                 </button>
               </div>
+
+              {/* Voice Sample Selection */}
+              <div className="flex flex-col gap-1.5 mt-1">
+                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider font-mono">プレビュー用サンプルテキスト</span>
+                <select
+                  value={sampleText}
+                  onChange={(e) => {
+                    setSampleText(e.target.value);
+                    setCustomSampleText('');
+                  }}
+                  className="bg-[#121212] border border-[#2c2c2c] text-gray-300 text-[11px] rounded-lg px-2.5 py-1.5 outline-none focus:border-indigo-600 transition-colors"
+                >
+                  {PRESET_SAMPLES.map((s) => (
+                    <option key={s.text} value={s.text}>
+                      {s.label}
+                    </option>
+                  ))}
+                  <option value="">カスタムテキストを入力...</option>
+                </select>
+                {(sampleText === '' || customSampleText !== '') && (
+                  <input
+                    type="text"
+                    placeholder="テスト再生させたいセリフを入力してください"
+                    value={customSampleText}
+                    onChange={(e) => setCustomSampleText(e.target.value)}
+                    className="bg-[#121212] border border-[#2c2c2c] text-gray-300 text-[11px] rounded-lg px-2.5 py-1.5 outline-none focus:border-indigo-600 transition-colors mt-1"
+                  />
+                )}
+              </div>
             </div>
 
             <div className="flex flex-col gap-3">
@@ -323,6 +387,14 @@ export function PreviewPanel({
           autoPlay
           src={blocks[playingIndex].audioUrl}
           onEnded={handleAudioEnded}
+          ref={(el) => {
+            if (el) {
+              if ((window as any)._activeAudio && (window as any)._activeAudio !== el) {
+                (window as any)._activeAudio.pause();
+              }
+              (window as any)._activeAudio = el;
+            }
+          }}
           className="hidden"
         />
       )}

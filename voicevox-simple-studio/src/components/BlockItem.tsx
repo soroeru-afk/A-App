@@ -33,6 +33,10 @@ export function BlockItem({
   );
 
   const handlePreviewVoice = async () => {
+    if ((window as any)._activeAudio) {
+      (window as any)._activeAudio.pause();
+      (window as any)._activeAudio = null;
+    }
     if (isPreviewingVoice) return;
     setIsPreviewingVoice(true);
     try {
@@ -43,6 +47,15 @@ export function BlockItem({
       });
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
+      if ((window as any)._activeAudio) {
+        (window as any)._activeAudio.pause();
+      }
+      (window as any)._activeAudio = audio;
+      audio.onended = () => {
+        if ((window as any)._activeAudio === audio) {
+          (window as any)._activeAudio = null;
+        }
+      };
       audio.play();
     } catch (err) {
       console.error('Failed to preview voice', err);
