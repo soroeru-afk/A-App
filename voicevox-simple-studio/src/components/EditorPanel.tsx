@@ -7,21 +7,26 @@ interface EditorPanelProps {
 }
 
 export function EditorPanel({ text, setText, onAnalyze }: EditorPanelProps) {
+  const charCount = text.length;
+
   return (
-    <div className="flex flex-col h-full bg-[#1e1e1e] border-r border-[#333] p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-medium text-gray-400 uppercase tracking-widest">Editor</h2>
+    <div className="flex flex-col h-full bg-[#121212] border-r border-[#222] p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-baseline gap-3">
+          <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest font-mono">Editor</h2>
+          <span className="text-xs text-gray-500 font-mono">{charCount} 文字</span>
+        </div>
         <button
           onClick={onAnalyze}
           disabled={!text.trim()}
-          className="px-4 py-1.5 bg-gray-100 text-gray-900 rounded text-sm font-medium hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-1.5 bg-indigo-600 text-white hover:bg-indigo-500 font-semibold rounded-lg text-xs tracking-wide transition-all disabled:opacity-40 disabled:cursor-not-allowed"
         >
           解析して分割
         </button>
       </div>
       <textarea
-        className="flex-1 w-full bg-transparent resize-none outline-none text-gray-200 text-lg leading-relaxed placeholder-gray-600"
-        placeholder="ここに長文を貼り付けてください。&#13;&#10;読点（、）や句点（。）、改行で自動的に分割されます。"
+        className="flex-1 w-full bg-transparent resize-none outline-none text-gray-200 text-base md:text-lg leading-relaxed placeholder-gray-600 font-sans"
+        placeholder="ここに長文を貼り付けてください。&#13;&#10;読点（、）や句点（。）、改行で自動的に分割されます。&#13;&#10;プレミアムかつ快適な執筆環境の静寂から、新しい音声が生み出されます。"
         value={text}
         onChange={(e) => setText(e.target.value)}
         spellCheck={false}

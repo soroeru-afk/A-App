@@ -18,4 +18,7 @@ export interface TextBlock {
   audioUrl?: string;
   audioBlob?: Blob;
   errorMessage?: string;
+  speedScale?: number;
+  pitchScale?: number;
+  intonationScale?: number;
 }
