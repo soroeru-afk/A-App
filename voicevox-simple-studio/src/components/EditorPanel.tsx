@@ -19,7 +19,7 @@ export function EditorPanel({ text, setText, onAnalyze }: EditorPanelProps) {
         <button
           onClick={onAnalyze}
           disabled={!text.trim()}
-          className="px-4 py-1.5 bg-indigo-600 text-white hover:bg-indigo-500 font-semibold rounded-lg text-xs tracking-wide transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          className="sq-btn sq-btn-accent h-7 px-4 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           解析して分割
         </button>

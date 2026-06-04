@@ -50,7 +50,7 @@ export function PreviewPanel({
   onClearBlocks,
 }: PreviewPanelProps) {
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
-  const [showGlobalSettings, setShowGlobalSettings] = useState(false);
+  const [showGlobalSettings, setShowGlobalSettings] = useState(true);
   const [isPreviewingGlobalVoice, setIsPreviewingGlobalVoice] = useState(false);
   const [selectedGlobalSpeakerId, setSelectedGlobalSpeakerId] = useState<number>(3); // Default to Zundamon
   const [isMerging, setIsMerging] = useState(false);
@@ -190,10 +190,10 @@ export function PreviewPanel({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowGlobalSettings(!showGlobalSettings)}
-              className={`p-2 rounded-lg border transition-all ${
+              className={`sq-btn h-7 w-7 transition-all ${
                 showGlobalSettings
-                  ? 'bg-indigo-600/10 border-indigo-500/30 text-indigo-400'
-                  : 'bg-[#1b1b1b] border-[#2c2c2c] text-gray-400 hover:text-gray-200 hover:bg-[#252525]'
+                  ? 'bg-indigo-600/20 text-indigo-400 border-indigo-500/50'
+                  : 'sq-btn-default'
               }`}
               title="全体パラメータ設定"
             >
@@ -203,7 +203,7 @@ export function PreviewPanel({
             {playingIndex !== null ? (
               <button
                 onClick={handleStopContinuousPlay}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-semibold tracking-wide transition-colors"
+                className="sq-btn sq-btn-danger h-7 px-3 text-xs font-semibold"
               >
                 <Square className="w-3.5 h-3.5 fill-current" />
                 停止
@@ -212,7 +212,7 @@ export function PreviewPanel({
               <button
                 onClick={handleContinuousPlay}
                 disabled={!someReady}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded-lg text-xs font-semibold tracking-wide transition-colors disabled:opacity-40 disabled:bg-[#1b1b1b] disabled:text-gray-500"
+                className="sq-btn sq-btn-success h-7 px-3 text-xs font-semibold disabled:opacity-40"
               >
                 <PlayCircle className="w-3.5 h-3.5" />
                 連続再生
@@ -222,7 +222,7 @@ export function PreviewPanel({
             <button
               onClick={onGenerateAll}
               disabled={!hasBlocks || isGeneratingAny}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold tracking-wide transition-colors disabled:opacity-40"
+              className="sq-btn sq-btn-accent h-7 px-3 text-xs font-semibold disabled:opacity-40"
             >
               <Wand2 className="w-3.5 h-3.5" />
               一括生成
@@ -231,7 +231,7 @@ export function PreviewPanel({
             <button
               onClick={handleMergeDownload}
               disabled={!someReady || isMerging}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1b1b1b] border border-[#2c2c2c] text-gray-300 hover:bg-[#252525] rounded-lg text-xs font-semibold tracking-wide transition-colors disabled:opacity-40 disabled:text-gray-500"
+              className="sq-btn sq-btn-default h-7 px-3 text-xs font-semibold disabled:opacity-40"
             >
               {isMerging ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -244,7 +244,7 @@ export function PreviewPanel({
             <button
               onClick={handleDownloadZip}
               disabled={!someReady}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1b1b1b] border border-[#2c2c2c] text-gray-300 hover:bg-[#252525] rounded-lg text-xs font-semibold tracking-wide transition-colors disabled:opacity-40 disabled:text-gray-500"
+              className="sq-btn sq-btn-default h-7 px-3 text-xs font-semibold disabled:opacity-40"
             >
               <Download className="w-3.5 h-3.5" />
               ZIP
@@ -254,7 +254,7 @@ export function PreviewPanel({
               <button
                 onClick={onClearBlocks}
                 disabled={isGeneratingAny}
-                className="p-2 border border-red-900/30 text-red-400 hover:bg-red-950/20 rounded-lg transition-colors disabled:opacity-50"
+                className="sq-btn sq-btn-danger h-7 w-7 disabled:opacity-50"
                 title="すべてクリア"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -287,7 +287,7 @@ export function PreviewPanel({
                 <button
                   onClick={handlePreviewGlobalVoice}
                   disabled={isPreviewingGlobalVoice}
-                  className="p-2 bg-[#121212] hover:bg-[#252525] border border-[#2c2c2c] text-gray-300 hover:text-indigo-400 rounded-lg transition-colors disabled:opacity-50"
+                  className="sq-btn sq-btn-default h-8 w-8 disabled:opacity-50"
                   title="全体ボイスプレビュー"
                 >
                   {isPreviewingGlobalVoice ? (

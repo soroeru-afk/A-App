@@ -87,7 +87,7 @@ export function BlockItem({
             <button
               onClick={handlePreviewVoice}
               disabled={isPreviewingVoice}
-              className="p-2 bg-[#121212] hover:bg-[#252525] border border-[#2c2c2c] text-gray-300 hover:text-indigo-400 rounded-lg transition-colors disabled:opacity-50"
+              className="sq-btn sq-btn-default h-8 w-8 disabled:opacity-50"
               title="ボイスプレビュー"
             >
               {isPreviewingVoice ? (
@@ -101,10 +101,10 @@ export function BlockItem({
           <div className="flex items-center justify-between md:justify-end gap-2 w-full">
             <button
               onClick={() => setShowSettings(!showSettings)}
-              className={`p-2 rounded-lg border transition-all ${
+              className={`sq-btn h-8 w-8 transition-all ${
                 showSettings
-                  ? 'bg-indigo-600/10 border-indigo-500/30 text-indigo-400'
-                  : 'bg-[#121212] border-[#2c2c2c] text-gray-400 hover:text-gray-200 hover:bg-[#252525]'
+                  ? 'bg-indigo-600/20 text-indigo-400 border-indigo-500/50'
+                  : 'sq-btn-default'
               }`}
               title="パラメータ個別設定"
             >
@@ -129,7 +129,7 @@ export function BlockItem({
                 <button
                   onClick={() => onGenerate(block.id)}
                   disabled={block.status === 'generating'}
-                  className="flex items-center gap-1.5 px-4.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold tracking-wide transition-all disabled:opacity-50"
+                  className="sq-btn sq-btn-accent h-8 px-4.5 text-xs disabled:opacity-50"
                 >
                   {block.status === 'generating' ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />

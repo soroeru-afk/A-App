@@ -2,7 +2,7 @@
 
 .custom-audio {
   height: 32px;
-  border-radius: 4px;
+  border-radius: 0 !important;
 }
 
 .custom-audio::-webkit-media-controls-panel {
@@ -13,3 +13,75 @@
 .custom-audio::-webkit-media-controls-time-remaining-display {
   color: #ccc;
 }
+
+/* --- Solid Square Editor Styles --- */
+button, select, input, textarea {
+  border-radius: 0 !important;
+}
+
+/* Base style for Solid Square buttons */
+.sq-btn {
+  border-radius: 0 !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+  font-size: 11px !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  font-weight: 700 !important;
+  border: 1px solid #303030 !important;
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.02) !important;
+  cursor: pointer;
+  transition: all 140ms linear !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+}
+
+/* Default / Dark Button */
+.sq-btn-default {
+  background: #232323 !important;
+  color: #ececec !important;
+  border-color: #3e3e3e !important;
+}
+.sq-btn-default:hover:not(:disabled) {
+  background: #8ea3c7 !important;
+  color: #121212 !important;
+  border-color: #8ea3c7 !important;
+}
+
+/* Indigo / Accent Button */
+.sq-btn-accent {
+  background: #312e81 !important;
+  color: #ffffff !important;
+  border-color: #4338ca !important;
+}
+.sq-btn-accent:hover:not(:disabled) {
+  background: #818cf8 !important;
+  color: #121212 !important;
+  border-color: #818cf8 !important;
+}
+
+/* Success / Green Button */
+.sq-btn-success {
+  background: #14532d !important;
+  color: #ffffff !important;
+  border-color: #16a34a !important;
+}
+.sq-btn-success:hover:not(:disabled) {
+  background: #4ade80 !important;
+  color: #121212 !important;
+  border-color: #4ade80 !important;
+}
+
+/* Danger / Red Button */
+.sq-btn-danger {
+  background: #7f1d1d !important;
+  color: #ffffff !important;
+  border-color: #b91c1c !important;
+}
+.sq-btn-danger:hover:not(:disabled) {
+  background: #f87171 !important;
+  color: #121212 !important;
+  border-color: #f87171 !important;
+}
+
