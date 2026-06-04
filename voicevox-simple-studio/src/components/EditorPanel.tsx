@@ -13,7 +13,7 @@ export function EditorPanel({ text, setText, onAnalyze }: EditorPanelProps) {
     <div className="flex flex-col h-full bg-[#121212] border-r border-[#222] p-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-baseline gap-3">
-          <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest font-mono">Editor</h2>
+          <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest font-mono">エディタ</h2>
           <span className="text-xs text-gray-500 font-mono">{charCount} 文字</span>
         </div>
         <button

@@ -181,7 +181,7 @@ export function PreviewPanel({
       <div className="flex flex-col p-6 border-b border-[#222] gap-4 bg-[#121212]">
         <div className="flex items-center justify-between">
           <div className="flex flex-col gap-1.5">
-            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest font-mono">Blocks</h2>
+            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest font-mono">ブロック一覧</h2>
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-500 font-mono">{blocks.length} ブロック</span>
             </div>
@@ -403,7 +403,7 @@ export function PreviewPanel({
         {blocks.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-gray-600">
             <Library className="w-10 h-10 mb-3 opacity-30" />
-            <p className="text-xs font-mono">Waiting for text analysis...</p>
+            <p className="text-xs font-mono text-center">テキスト解析待ちです。<br />左側のエディタにテキストを入力し、「解析して分割」を押してください。</p>
           </div>
         ) : (
           blocks.map((block) => (
