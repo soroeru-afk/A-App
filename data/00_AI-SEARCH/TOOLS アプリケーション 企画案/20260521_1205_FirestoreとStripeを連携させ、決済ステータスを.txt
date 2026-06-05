@@ -1,0 +1,112 @@
+FirestoreとStripeを連携させ、決済ステータスを自動同期するシステムは、Firebase Extensions（拡張機能）を使うのが最も効率的です。「Run Subscription Payments with Stripe」という公式拡張機能を使えば、サーバーサイドのコードをほとんど書かずに同期システムを構築できます。
+
+以下に、拡張機能の導入からフロントエンドの実装までの手順を解説します。
+
+🛠️ 1. Firebase Extensionsのセットアップ
+
+Stripeの決済状態（新規登録、支払い成功、解約など）をFirestoreに自動反映させる設定を行います。
+
+• 拡張機能のインストールFirebaseコンソールを開きます。「Extensions（拡張機能）」メニューから 「Run Subscription Payments with Stripe」 を探してインストールします。
+• Firestoreのコレクション設定インストール時の設定画面で、ユーザーデータを保存するコレクション名（例: users）と、チェックアウトセッションを管理するコレクション名（例: customers）を指定します。
+• Stripe APIキーの連携Stripe管理画面から「シークレットキー」を取得し、Firebaseの設定画面に入力します。
+• Webhookの設定拡張機能のインストール完了後に表示される「Webhook URL」をコピーします。Stripe管理画面の「Developers」>「Webhooks」で新しいエンドポイントを追加し、コピーしたURLを貼り付けます。送信するイベントとして checkout.session.completed や customer.subscription.updated などを選択します。
+
+💻 2. フロントエンド実装：チェックアウト画面への遷移
+
+ユーザーが「購入ボタン」を押したときに、Stripeの決済ページへリダイレクトさせるコードです。（Firebase v9以降のJavaScript SDK例）
+
+javascript
+
+```
+import { db } from "./firebaseConfig";
+import { collection, addDoc, onSnapshot } from "firebase/firestore";
+
+async function createCheckoutSession(userId) {
+  // 1. ユーザーの配下にある checkout_sessions コレクションにドキュメントを追加
+  const docRef = await addDoc(collection(db, "users", userId, "checkout_sessions"), {
+    price: "price_1NxXXXXXXXXXXXXX", // Stripeで発行した価格ID
+    success_url: window.location.origin + "/success",
+    cancel_url: window.location.origin + "/cancel",
+  });
+
+  // 2. 拡張機能がStripeのURLを書き込むのを監視
+  onSnapshot(docRef, (snap) => {
+    const { error, url } = snap.data();
+    if (error) {
+      console.error(`エラーが発生しました: ${error.message}`);
+    }
+    if (url) {
+      // 3. Stripeの決済ページへリダイレクト
+      window.location.assign(url);
+    }
+  });
+}
+```
+
+コードは注意してご使用ください。
+
+🔄 3. フロントエンド実装：決済ステータスの確認
+
+決済が完了すると、拡張機能が自動的にFirestoreの特定コレクション（例: subscriptions）にステータスを書き込みます。アプリ側でこれを読み取り、有料機能のロックを解除します。
+
+javascript
+
+```
+import { db } from "./firebaseConfig";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
+
+function watchSubscriptionStatus(userId) {
+  const q = query(
+    collection(db, "users", userId, "subscriptions"),
+    where("status", "in", ["active", "trialing"]) // 有効または試用期間中
+  );
+
+  // リアルタイムでサブスク状態を監視
+  onSnapshot(q, (snapshot) => {
+    if (snapshot.empty) {
+      console.log("無料プランのユーザーです");
+      // 無料版の画面を表示
+    } else {
+      console.log("有料プランのユーザーです");
+      // 有料機能のロックを解除
+    }
+  });
+}
+```
+
+コードは注意してご使用ください。
+
+🔒 4. セキュリティルールの設定
+
+Firestoreのデータを保護するため、セキュリティルール（Firestore Security Rules）を必ず設定してください。他人が決済ステータスを偽装できないようにします。
+
+javascript
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ユーザー自身のみが自分の決済セッションを作成できるようにする
+    match /users/{userId}/checkout_sessions/{id} {
+      allow create, read: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // サブスク情報は読み取り専用（書き込みはStripe拡張機能の管理者権限のみ許可）
+    match /users/{userId}/subscriptions/{id} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
+```
+
+コードは注意してご使用ください。
+
+次ステップに向けて、さらに具体的な要件を絞り込んでいきましょう。
+
+もしよろしければ、以下について教えていただけますか？
+
+• 開発中のフロントエンドのフレームワーク（React, Next.js, Vue.js, Flutterなど）
+• 扱う決済は単発購入か、それともサブスクリプションなどの継続課金か
+• 拡張機能を使わず、自前のCloud Functions（サーバーサイドコード）で実装したいか
+ご状況に合わせた具体的なコードサンプルをご案内いたします。

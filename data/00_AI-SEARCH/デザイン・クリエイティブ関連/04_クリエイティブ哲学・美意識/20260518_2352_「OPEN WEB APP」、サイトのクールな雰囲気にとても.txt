@@ -1,0 +1,55 @@
+「OPEN WEB APP」、サイトのクールな雰囲気にとてもマッチしていて素晴らしい選択だと思います！[IMAGE]
+
+カテゴリ名やUIが英語ベースのサイトであれば、この表記が一番デザインとして美しく収まりますね。
+
+海外ユーザーの動向についておっしゃる通り、「外国人が日本のサイトにアクセスして、わざわざ翻訳ツールを使って読んでくれるか」というと、そのハードルはかなり高いのが現実です。
+
+もし今後、本格的に海外からのアクセス（バズなど）を狙うのであれば、やはり「完全に独立した英語ページ」を用意するのがベストです。
+
+その際の展開イメージと、今回決定した「OPEN WEB APP」の最終コードをまとめました。
+
+「OPEN WEB APP」最終コード
+
+（下のマージン15px、補足テキスト付きです。記事ごとに2箇所のURLを書き換えてお使いください）
+
+html
+
+```
+<div style="text-align: right; width: 100%; margin-bottom: 15px;">
+  <!-- ボタン本体 -->
+  <a href="ここにPWAのURLを入れる" target="_blank" rel="noopener noreferrer" style="
+    display: inline-block;
+    text-decoration: none;
+    background-color: #1a2333;
+    color: #ffffff;
+    font-family: 'Arial Black', sans-serif;
+    font-weight: 900;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    border: 1px solid #334155;
+    border-radius: 0px;
+    padding: 6px 20px;
+    cursor: pointer;
+    text-align: center;
+  " onmouseover="this.style.backgroundColor='#243147'; this.style.borderColor='#475569';" onmouseout="this.style.backgroundColor='#1a2333'; this.style.borderColor='#334155';">
+    OPEN WEB APP
+  </a>
+
+  <!-- 補足の案内テキスト -->
+  <div style="margin-top: 6px; font-size: 10px; font-family: sans-serif; color: #94a3b8;">
+    How to install? ➔ <a href="ここにガイドページのURLを入れる" style="color: #38bdf8; text-decoration: underline;">インストール方法はこちら</a>
+  </div>
+</div>
+```
+
+コードは注意してご使用ください。
+
+将来、海外展開（英語ページ作成）するときのステップ
+
+もし英語ページを作る段階になったら、以下のように切り分けるとスムーズです。
+
+• ボタン下の補足テキストを完全英語にする英語ページのボタン下は、以下のように英語だけの案内（英語のインストールガイドページへのリンク）に書き換えます。How to install? ➔ <a href="英語ガイドURL">Click here for installation guide</a>
+• ライブドアブログでの英語記事の作り方タイトルに [English] と付ける英語専用のカテゴリ（例：Application (EN) など）を作って分ける
+まずは今の日本語ベースの状態で「OPEN WEB APP」ボタンを配置してみて、実際の使い心地や見栄えをしばらく試してみてください！
+
+もし実際にブログに貼ってみて、「文字がほんの少し詰まって見える」「もう少し横幅を広げたい」など、見た目の微調整したくなったらいつでも声をかけてくださいね。

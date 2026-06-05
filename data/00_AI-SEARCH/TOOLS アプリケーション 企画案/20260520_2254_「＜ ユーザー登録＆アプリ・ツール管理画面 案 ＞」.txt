@@ -1,0 +1,168 @@
+ 以下の内容で添付した画像のインターフェースに合わせた形のユーザー管理ツールダッシュボードを使用します。
+そのためのポータルアプリのモックアップを作ってもらいたい、お願いします。
+
+＜ ユーザー登録＆アプリ・ツール管理画面「ポータルアプリ（ダッシュボード）」案 ＞
+
+● 具体的なユーザー体験のイメージ
+Webアプリ＆ツール紹介サイトなどを通じて、ユーザーが初めてSquare EditorなどのWebアプリにアクセスする。
+「ユーザー登録・ログイン（SIGN UP）して全ての機能を使う」ボタンを押すと、共通のポータルサイトに飛び、そこで登録する。
+Googleアカウントなどで登録後、Square Editorに戻るとログイン状態になっており、メニューに自分のアカウント名が出ている。
+ポータルサイトに行くと、「あなたが今使えるツール一覧」が並んでおり、そこから別のツールにもそのまま飛べる。
+
+※Webアプリ＆ツール上にある【「ユーザー登録・ログイン（SIGN UP）して全ての機能を使う」ボタン】とポータルサイトは共通にする仕様。
+※システムはFirebase, Firestoreデータベースへの接続やStripe経由での決済ステータス同期機能をコードに組み込んでいく。
+
+FirestoreとStripeを連携させ、決済ステータスを自動同期するシステムは、Firebase Extensions（拡張機能）を使うのが最も効率的。「Run Subscription Payments with Stripe」という公式拡張機能を使えば、サーバーサイドのコードをほとんど書かずに同期システムを構築。
+
+USERS 情報
+  └ [ユーザーのUID] (ドキュメント)
+      ├ name: "Kaoru" (各アプリに表示する名前)
+      ├ email: "kaoru@example.com"
+      └ plan: "premium" (または "Premium") ← ここで特典を管理
+
+アカウント状態: 無料 / 有料 / 寄付済み
+登録日: 2026年5月20日
+有効期限: 2026年8月20日（無料版の3ヶ月制限など）
+
+アプリ＆ツール管理「あなたが今使えるツール一覧」
+  └ ├ ■ SOLID SQUARE EDITOR ⇒ Webアプリへのリンクまたはダウンロードリンク
+      ├ ■ SOLID IMAGE ENGINE CONVERTER
+      ├ ■ SOLID DESKTOP IMAGE VIEWER 
+      ├ ■ SOLID DESIGN EDITORIALIZER
+      ├ ■ SOLID LOGO & TYPOGRAPHY CREATOR
+      └ ■ SOLID GRAPHIC ART DESIGNER　
+
+※ 管理者が提供するアプリやツールを登録管理できる仕様。追加／削除、リンク設定などが必要。
+
+
+＜ 登録ユーザーの主要プラン案 ＞
+
+【 構成 ① 】
+
+• 未登録ユーザー（Guest）：ただ画面上で文字が打てる、動かせるだけ。画面を閉じたらすべて消える。保存できない。
+• 無料登録ユーザー（Free）：1か月間のみ、すべての機能を試用期間で一時的に使えるが それ以降は未登録ユーザー（Guest）扱いになる。
+• 有料登録ユーザー（Premium）： 年間500円 で、すべてのアプリの全ての機能を使えるようになる。
+• 「寄付」ステータス
+
+※ アプリ側でトグルで保存などの主要な機能制限（無効化）／解除を設定・管理。 ユーザー登録による1か月の試用期間などをデータベースの方で管理。
+各ツール（Square Editorなど）は、ユーザーがログインした瞬間にこのデータベースを見に行きます。
+「この人は無料の期限が切れているな」と思ったら一部のボタンをグレーアウト（無効化）したり、
+「この人は有料ユーザーだ」と分かったらプレミアム機能を開放したりする、という判定だけを各ツール側で行う。
+
+－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－
+▼ 以下 決済システム組み込み方法
+
+FirestoreとStripeを連携させ、決済ステータスを自動同期するシステムは、Firebase Extensions（拡張機能）を使うのが最も効率的です。「Run Subscription Payments with Stripe」という公式拡張機能を使えば、サーバーサイドのコードをほとんど書かずに同期システムを構築できます。
+
+以下に、拡張機能の導入からフロントエンドの実装までの手順を解説します。
+
+🛠️ 1. Firebase Extensionsのセットアップ
+
+Stripeの決済状態（新規登録、支払い成功、解約など）をFirestoreに自動反映させる設定を行います。
+
+• 拡張機能のインストールFirebaseコンソールを開きます。「Extensions（拡張機能）」メニューから 「Run Subscription Payments with Stripe」 を探してインストールします。
+• Firestoreのコレクション設定インストール時の設定画面で、ユーザーデータを保存するコレクション名（例: users）と、チェックアウトセッションを管理するコレクション名（例: customers）を指定します。
+• Stripe APIキーの連携Stripe管理画面から「シークレットキー」を取得し、Firebaseの設定画面に入力します。
+• Webhookの設定拡張機能のインストール完了後に表示される「Webhook URL」をコピーします。Stripe管理画面の「Developers」>「Webhooks」で新しいエンドポイントを追加し、コピーしたURLを貼り付けます。送信するイベントとして checkout.session.completed や customer.subscription.updated などを選択します。
+
+💻 2. フロントエンド実装：チェックアウト画面への遷移
+
+ユーザーが「購入ボタン」を押したときに、Stripeの決済ページへリダイレクトさせるコードです。（Firebase v9以降のJavaScript SDK例）
+
+javascript
+
+```
+import { db } from "./firebaseConfig";
+import { collection, addDoc, onSnapshot } from "firebase/firestore";
+
+async function createCheckoutSession(userId) {
+  // 1. ユーザーの配下にある checkout_sessions コレクションにドキュメントを追加
+  const docRef = await addDoc(collection(db, "users", userId, "checkout_sessions"), {
+    price: "price_1NxXXXXXXXXXXXXX", // Stripeで発行した価格ID
+    success_url: window.location.origin + "/success",
+    cancel_url: window.location.origin + "/cancel",
+  });
+
+  // 2. 拡張機能がStripeのURLを書き込むのを監視
+  onSnapshot(docRef, (snap) => {
+    const { error, url } = snap.data();
+    if (error) {
+      console.error(`エラーが発生しました: ${error.message}`);
+    }
+    if (url) {
+      // 3. Stripeの決済ページへリダイレクト
+      window.location.assign(url);
+    }
+  });
+}
+```
+
+コードは注意してご使用ください。
+
+🔄 3. フロントエンド実装：決済ステータスの確認
+
+決済が完了すると、拡張機能が自動的にFirestoreの特定コレクション（例: subscriptions）にステータスを書き込みます。アプリ側でこれを読み取り、有料機能のロックを解除します。
+
+javascript
+
+```
+import { db } from "./firebaseConfig";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
+
+function watchSubscriptionStatus(userId) {
+  const q = query(
+    collection(db, "users", userId, "subscriptions"),
+    where("status", "in", ["active", "trialing"]) // 有効または試用期間中
+  );
+
+  // リアルタイムでサブスク状態を監視
+  onSnapshot(q, (snapshot) => {
+    if (snapshot.empty) {
+      console.log("無料プランのユーザーです");
+      // 無料版の画面を表示
+    } else {
+      console.log("有料プランのユーザーです");
+      // 有料機能のロックを解除
+    }
+  });
+}
+```
+
+コードは注意してご使用ください。
+
+🔒 4. セキュリティルールの設定
+
+Firestoreのデータを保護するため、セキュリティルール（Firestore Security Rules）を必ず設定してください。他人が決済ステータスを偽装できないようにします。
+
+javascript
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ユーザー自身のみが自分の決済セッションを作成できるようにする
+    match /users/{userId}/checkout_sessions/{id} {
+      allow create, read: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // サブスク情報は読み取り専用（書き込みはStripe拡張機能の管理者権限のみ許可）
+    match /users/{userId}/subscriptions/{id} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
+```
+
+コードは注意してご使用ください。
+
+次ステップに向けて、さらに具体的な要件を絞り込んでいきましょう。
+
+もしよろしければ、以下について教えていただけますか？
+
+• 開発中のフロントエンドのフレームワーク（React, Next.js, Vue.js, Flutterなど）
+• 扱う決済は単発購入か、それともサブスクリプションなどの継続課金か
+• 拡張機能を使わず、自前のCloud Functions（サーバーサイドコード）で実装したいか
+ご状況に合わせた具体的なコードサンプルをご案内いたします。
+
+

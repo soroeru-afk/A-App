@@ -1,0 +1,51 @@
+# 20260605_2112_- SUPER FOLDER LOG VIEWER_物理フォルダー階層化およびカスタム設定の機能拡張
+
+本アプリ「SUPER FOLDER LOG VIEWER」に、物理的なフォルダ階層構造（多階層フォルダ移動・編集機能）を統合しつつ、既存の「AIエージェント専用フォルダ」におけるフラットなGoogle Drive構造の仮想ネスト表示（聖域・別世界）を壊さず共存させるハイブリッド型の条件分岐ロジックと、UI機能拡張を実装しました。
+
+## 1. 完了したシステム/マイルストーンの概要と成果
+
+### A. 物理フォルダ多階層化・移動機能の実装（一般カテゴリー側）
+- **多階層フォルダの解析と収集**:
+  `src/AppContext.tsx` において、一般カテゴリー（`AIエージェント専用` 以外のフォルダ）では、物理ディレクトリを再帰的に探索し、`parent/child/grandchild` のようにパス形式でカテゴリ名（および `pFolders`）を自動的に分類収集するロジックを実装。
+  一方で、`AIエージェント専用` の場合は、Googleドライブのフラット構成（1階層）を維持するため、配下の物理的なサブフォルダ探索をスキップする条件分岐を確実に行いました。
+- **サイドバーでのツリー階層化と合計カウント表示**:
+  `src/components/Sidebar.tsx` において、`allCategories` からツリーノードを構築し、親フォルダのカウントバッジには「配下の子・孫フォルダ内のファイル数」をすべて再帰的に合算した合計値を動的に計算・表示するロジックを組み込みました。また、子階層のフォルダからはフォルダアイコンを消去し、シンプルな1列リスト表示を損なわないよう最適化しました。
+
+### B. UIパーツの移植とSVGカラーピッカー・フォルダー文字サイズ調整
+- **FolderIcon（SVG）への置換**:
+  既存の 📁（絵文字）を、すべて SVG 形式の `<FolderIcon />` コンポーネントに移植・置換しました。
+- **フォルダー文字サイズの動的調整**:
+  設定パネルの「文字」タブに「カテゴリー文字サイズ」調整スライダー（8px〜18px）を追加。CSS変数 `--sb-category-size` を通じてサイドバーのカテゴリー名フォントサイズに動的に反映させ、子階層は1px小さくなるよう CSS で相対計算を適用しました。
+- **フォルダーアイコン色の変更機能**:
+  設定パネルの「テーマ」タブに「フォルダーアイコン色」設定を追加。パレット上の定番カラーサークルからのワンクリック選択、およびカスタムカラーピッカー（`type="color"`）による自由な色指定を可能にし、CSS変数 `--sb-folder-color` でアイコン色を一元制御できるようにしました。
+
+### C. 移動先ダイアログ等のスクロール対策
+- フォルダ数や階層が増えた際に「選んで移動」ダイアログや「フォルダ編集」リストが画面外に肥大化するのを防ぐため、選択エリアに `max-height: 40vh` と `overflow-y: auto` を設定。
+- スクロールバーが目立たないよう、ホバー時のみやや濃くなる薄いカスタムスクロールバー（Webkit）をCSSでスタイリングしました。
+
+---
+
+## 2. 変更・追加したファイルの要点
+
+1. **[AppContext.tsx](file:///c:/Users/soroe/A-App/SUPER-FOLDER-LOG-VIEWER-/src/AppContext.tsx)**
+   - `collect` 内で、`AIエージェント専用` フォルダ直下の探索時のみサブフォルダへの再帰走査をブロックし、一般カテゴリのみ相対パス階層化（`/`区切り）で収集するロジックを実装。
+2. **[Sidebar.tsx](file:///c:/Users/soroe/A-App/SUPER-FOLDER-LOG-VIEWER-/src/components/Sidebar.tsx)**
+   - `renderCategoryGroup` の引数に `childrenGroups`, `totalCount`, `depth` を追加。
+   - `treeTop` ノード配列を作成し、再帰的に `totalCount` を合算算出する階層ツリービルダを追加。
+   - 絵文字の置換と `AIエージェント専用` 向けの仮想フォルダグループ表示の維持を共存。
+3. **[MainContent.tsx](file:///c:/Users/soroe/A-App/SUPER-FOLDER-LOG-VIEWER-/src/components/MainContent.tsx)**
+   - 移動先選択パネルとフォルダ編集パネルを `move-panel-scroll` クラスの付いたコンテナで包み、絵文字フォルダを `<FolderIcon />` に変更。
+4. **[settingsSync.ts](file:///c:/Users/soroe/A-App/SUPER-FOLDER-LOG-VIEWER-/src/settingsSync.ts)**
+   - 初期値 `defs` に `lv_sbCatSize: '10'`, `lv_folderColor: '#FBBF24'` を追加。
+   - `applySettingsToDOM` で `--sb-category-size` と `--sb-folder-color` をDOMに注入。
+5. **[SettingsPanel.tsx](file:///c:/Users/soroe/A-App/SUPER-FOLDER-LOG-VIEWER-/src/components/SettingsPanel.tsx)**
+   - 「文字」タブにカテゴリー文字サイズスライダー、「テーマ」タブにフォルダーアイコン色のカラーピッカー・スウォッチを配置。
+6. **[index.css](file:///c:/Users/soroe/A-App/SUPER-FOLDER-LOG-VIEWER-/src/index.css)**
+   - 動的CSS変数を用いたカテゴリーフォントサイズ、フォルダ・SVG色割り当て、および move パネル専用のスクロールバーデザインの追加。
+
+---
+
+## 3. 次のフェーズへの申し送り事項
+- 現状、Viteによるプロダクションビルド（`npm run build`）およびTypeScriptチェック（`npm run lint`）は完全にエラーなく成功することを確認済みです。
+- 修正済みコード一式は、GitHub（`origin/main`）に同期・プッシュ完了し、PWAは最新版にアップデートされています。
+- 次回作業時は、引き続き進捗マップにある「起動時のローディング演出」や「SE音効の実装」に進むことが可能です。

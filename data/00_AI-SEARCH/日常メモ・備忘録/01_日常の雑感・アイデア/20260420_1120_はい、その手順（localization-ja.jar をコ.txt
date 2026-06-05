@@ -1,0 +1,29 @@
+はい、その手順（localization-ja.jar をコピーして入れる方法）で日本語化は可能です。
+
+お使いの Android Studio のバージョンが 2025.3.3 と非常に新しいため、IntelliJ IDEA も「2025.3.x」系の同じバージョンのものを選ぶのがポイントです。
+
+ダウンロード形式についての回答と、コピーの手順を整理しました。
+
+1. どっちをダウンロードすべき？
+
+結論から言うと、「zipファイル（Windows用）」がおすすめです。
+
+• 理由: localization-ja.jar ファイルを抜き出すだけなので、PCにソフトとしてインストール（exe実行）する必要がないからです。
+• 入手先: IntelliJ IDEA 公式ダウンロードページから、Community Edition の Windows (.zip) を選んでください。
+
+2. コピーの手順
+
+• ダウンロードした IntelliJ の zipファイル を開きます（展開しなくてOK）。
+• 中にある plugins フォルダを開き、さらに localization-ja フォルダを探します。
+• その中の lib フォルダに入っている localization-ja.jar をコピーします。
+• Android Studio がインストールされている場所（通常は C:\Program Files\Android\Android Studio\plugins）を開き、そこに新しいフォルダ localization-ja\lib を作って、ファイルを貼り付けます。※ または、plugins フォルダ直下にそのまま貼り付けても認識される場合があります。
+• Android Studio を再起動します。
+
+注意点
+
+• バージョンの不一致: レビューにもあった通り、バージョンが違いすぎると起動エラーになることがあります。その場合はコピーしたファイルを消せば元に戻ります。
+• 設定の確認: 再起動後、自動で日本語にならない場合は、Settings > Appearance & Behavior > System Settings > Language and Region で Japanese が選べるようになっているか確認してください。
+
+もしファイルの場所が見つからない、あるいはエラーが出るなどあれば、また教えてください。
+
+無事にメニューが日本語に変わるといいですね！

@@ -1,0 +1,37 @@
+JavaScript不要、「PWA」をインストールする新しいHTML要素が「Chrome」「Edge」でテスト中
+
+HTMLに1行追加するだけでWebアプリのインストールボタンを設置
+
+樽井 秀人
+
+2026年5月27日 08:16
+
+　「Google Chrome」と「Microsoft Edge」で、Webアプリ（PWA）を簡単にインストールできるようにする新しいHTML要素がテストされているとのこと。米Googleの開発者向けブログ「Chrome for Developers」で5月12日（現地時間）、それを紹介するブログ記事が公開された。
+
+　「PWA」（プログレッシブ Web アプリ）は、Webアプリをシステムにインストールして、あたかもローカルアプリのように利用できるようにする仕組み。Windows環境の場合、Webサイトを［スタート］画面から起動したり、タスクバーにピン留めしたりできるようになる。
+
+関連記事
+
+Webアプリのストアも構築可能、「Microsoft Edge」でWeb Install APIのテストが開始
+
+　「PWA」はWebブラウザーのアドレスバーなどからインストールできるが、その具体的な手順はWebブラウザーごとにまちまちだ。Web開発者側からその方法やタイミングをコントロール（イベントハンドリング）したくても、限定的にしか制御できない。
+
+　また、WebサイトからJavaScriptでインストールさせることも可能だが、これは閲覧ページでしか動作しない。そのため、さまざまな「PWA」を集めたストアサイトのようなものを構築するのは難しかった。
+
+　そうした「PWA」の欠点を解決するのが、新しいHTML要素<install>だ。この要素の魅力は、「PWA」のインストールにJavaScriptが不要である点。HTMLに以下の1行追加するだけで、Webページに「PWA」のインストールボタンを設置できる。
+
+<install></install>
+
+　さらに『installurl』属性を使えば、別のWebアプリのインストールボタンを設置することも可能。つまり、前述のストアサイトのようなページも簡単に構築できる。
+
+<install installurl="https://awesome-app.com/">
+  Awesome Appを開く
+</install>
+
+　また、イベントハンドリングが不足している問題も解決。『promptaction』（インストール成功時）、『promptdismiss』（ユーザーがプロンプトを閉じたとき）、『validationstatuschanged』（検証エラー発生時）といったイベントを活用できる。
+
+　今後は、シンプルな用途では宣言的な<install>HTML要素、インストールの際の細かく挙動をカスタマイズしたい場合は命令型のJavaScript API『navigator.install()』、といったように使い分けることになるだろう。
+
+　この新しいHTML要素は「Chrome 148」「Edge 148」以降で、オリジントライアルとして提供中。v153まで継続される予定だ。
+
+https://forest.watch.impress.co.jp/docs/news/2111684.html

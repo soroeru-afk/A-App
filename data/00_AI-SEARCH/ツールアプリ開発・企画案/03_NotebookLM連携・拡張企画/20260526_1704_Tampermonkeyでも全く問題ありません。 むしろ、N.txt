@@ -1,0 +1,54 @@
+Tampermonkeyでも全く問題ありません。 むしろ、NotebookLMの画面をカスタマイズするなら、StylusよりもTampermonkey（JavaScript）の方が強力で自由度の高い変更が可能です。
+
+Stylusは「見た目（色や配置）」の変更に限定されますが、Tampermonkeyを使えば「自動操作」や「独自のボタン追加」といった機能的な不満も同時に解決できるためです。
+
+Tampermonkeyでできること
+
+• ボタンの配置変更や要素の非表示: Stylus同様、CSSを上書きして画面を広く使えます。
+• ソースの一括選択・削除: 面倒な複数ソースの管理を、自作の「一括チェックボタン」などで自動化できます。
+• サイドバーの自動開閉: 画面を広く使うために、不要なメニューをワンクリックで折りたためます。
+
+簡単な実装サンプルのイメージ
+
+例えば、Tampermonkeyの新規スクリプトに以下のようなコード（JavaScript）を書くことで、NotebookLMの画面要素を直接コントロールできます。
+
+javascript
+
+```
+// ==UserScript==
+// @name         NotebookLM UI Customizer
+// @match        https://notebooklm.google
+// @match        https://google.com*
+// @grant        GM_addStyle
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // 1. 見た目（CSS）を変更したい場合
+    GM_addStyle(`
+        /* 例：サイドバーの横幅を広げてソースを見やすくする */
+        .特定のクラス名 { width: 350px !important; }
+        /* 例：不要な案内エリアを消す */
+        .不要な要素のクラス名 { display: none !important; }
+    `);
+
+    // 2. 独自のボタンなどを画面に追加したい場合
+    const myButton = document.createElement('button');
+    myButton.innerText = 'ソース一括処理';
+    myButton.style.position = 'fixed';
+    myButton.style.top = '10px';
+    myButton.style.right = '10px';
+    myButton.onclick = function() {
+        // ここに自動化したいクリック処理などを書く
+        alert('ボタンが押されました');
+    };
+    document.body.appendChild(myButton);
+})();
+```
+
+コードは注意してご使用ください。
+
+NotebookLMのどの部分（例：左側のソース一覧、ノートの整理画面、チャットの入力欄など）が特に使いづらいと感じていますか？
+
+もしよろしければ、具体的な「こう変更したい」というご要望（「〇〇の幅を広げたい」「〇〇のボタンを常に表示させたい」など）を教えてください。それに合わせたTampermonkey用の具体的なスクリプト（コード）を作成してお渡しできます。

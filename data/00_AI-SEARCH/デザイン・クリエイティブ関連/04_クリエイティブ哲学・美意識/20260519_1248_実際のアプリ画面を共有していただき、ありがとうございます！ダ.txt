@@ -1,0 +1,35 @@
+実際のアプリ画面を共有していただき、ありがとうございます！ダークモードの非常に洗練された、プロフェッショナルで近未来的なUI（ユーザーインターフェース）ですね。サイバー感があり、機能密度の高いデザインにとてもワクワクします。
+
+お選びいただいた2つの候補は、この本格的なツールの雰囲気に完璧にマッチしています。
+
+• SOLID GRAPHIC ART DESIGNER— Image to Vector & Mosaic Art Converter —— Transform Images into Vector Illustrations & Mosaic Art —— Complete Vector Illustration & Mosaic Design Software —
+
+このUIの「AI Studio」や「ツールの詳細・説明文（Description）」のエリアに映える、プロフェッショナルで少しテック感のある長めの英文を3パターン作成しました。UIの文字数制限やスペースに合わせて選べるよう、長さとニュアンスを変えています。
+
+パターン1：最も網羅的でプロ仕様（文字数：多）
+
+ツールのすべてのコア機能（変換、ベクター、モザイク）を網羅し、高機能さをアピールする説明文です。
+
+"A powerful, AI-driven graphic creation suite engineered to transform standard raster images into high-fidelity vector illustrations and intricate tile mosaic art. Seamlessly convert photos, customize render parameters, and export professional-grade digital assets or precise ceramic layouts with a single, optimized workflow."
+
+（標準的な画像を、高精度なベクターイラストや緻密なタイルモザイクアートへと変換するために設計された、強力なAI駆動のグラフィック作成ツールです。写真のシームレスな変換、レンダリングパラメータのカスタマイズ、そしてプログレードのデジタル素材や正確なセラミックレイアウトの出力を、最適化された一つのワークフローで実現します。）
+
+パターン2：クリエイティブ＆スタイリッシュ（文字数：中）
+
+デザインツールとしての先進性と、ユーザーの創造性を刺激する表現を重視したスマートな文章です。
+
+"Unlock the next generation of graphic design. This advanced studio converts everyday images into stunning vector graphics and textured mosaic masterpieces. Take full control over tile shapes, alignment, and vector layers to bridge the gap between digital illustration and physical mosaic craftsmanship."
+
+（次世代のグラフィックデザインを解放。この先進的なスタジオは、日常の画像を美しいベクターグラフィックスや立体感のあるモザイクの傑作へと変換します。タイルの形状、配置、ベクターレイヤーを完全にコントロールし、デジタルイラストレーションと物理的なモザイク職人技の架け橋となります。）
+
+パターン3：テック・機能重視（文字数：少なめ、箇条書き風にも使える）
+
+画面のサイドバーや小さな情報ウィンドウに収まりやすい、簡潔で硬派なテック系文章です。
+
+"An all-in-one graphic converter and rendering engine. Instantly process images into clean vector illustrations or structured mosaic layouts. Features deep customization for tile matrixing, grid rendering, and multi-format vector exporting for designers, artists, and creators alike."
+
+（オールインワンのグラフィックコンバーター兼レンダリングエンジン。画像をクリーンなベクターイラストや構造化されたモザイクレイアウトに即座に処理します。デザイナー、アーティスト、クリエイター向けに、タイルマトリクス、グリッドレンダリング、マルチフォーマットのベクターエクスポートの深いカスタマイズ機能を搭載しています。）
+
+画面の右側にある「IMAGE DATABANKS」の上や、設定ウィンドウの小さな説明文（Tooltips）などに組み込むと、海外のハイエンドなソフトウェアのような雰囲気がさらに際立つと思います！
+
+もし「この特定の枠内（文字数制限など）に綺麗に収めたい」などのご要望があれば、テキストの長さを調整しますので教えてください。また、UI内の他の項目で英語にしたい部分がほかにもあれば、続けてお気軽にご相談ください！

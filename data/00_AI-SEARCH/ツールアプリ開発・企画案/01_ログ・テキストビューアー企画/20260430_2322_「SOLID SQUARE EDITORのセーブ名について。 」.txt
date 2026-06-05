@@ -1,0 +1,4 @@
+SOLID SQUARE EDITORのセーブ名について。
+SAVE ASで保存すると、ファイル名が少し短めになっている。
+今使っているSUPER FOLDER LOG VIEWERで見ても判別できるぐらいの長さに、ファイル名を調整してもらいたい。
+お願いします。 

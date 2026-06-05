@@ -1,0 +1,76 @@
+確かに、ログイン制限があるGoogleの画面からURLを一括で引っこ抜くのは難しそうに感じますよね。
+
+結論から言うと、APIを使ったりプログラムを組んだりする必要は一切ありません。ログイン状態を維持したまま、ブラウザの「開発者ツール（F12）」のコンソールに短いコードを1秒貼り付けるだけで、すべてのノートブック名とURLを瞬時にテキストで抽出できます。
+
+これが一番安全で、最も時間がかからない「タイパ最強」の方法です。
+
+最も簡単な一括抽出の手順（所要時間：10秒）
+
+NotebookLMを「リスト表示」にした状態で、以下の手順を実行してください。
+
+• NotebookLMのトップ画面を開き、一番下までスクロールしてすべてのノートブックを画面に表示させます。
+• キーボードの F12（Macは Cmd + Option + I）を押して開発者ツールを開きます。
+• 上部のタブから 「Console（コンソール）」 を選択します。
+• 以下のコードをそのままコピーして、コンソールに貼り付け（Ctrl+V）、Enterキーを押します。
+
+javascript
+
+```
+// NotebookLMのリスト画面からタイトルとURLを一括抽出するコード
+(function() {
+    const rows = document.querySelectorAll('tr[role="row"]');
+    let result = "";
+
+    rows.forEach(row => {
+        const titleEl = row.querySelector('td.project-table-title .project-table-title');
+        // リスト内のリンク（通常はtr全体か、特定のaタグなど）を探す
+        const linkEl = row.querySelector('a') || row.closest('a') || window.location.href;
+
+        if (titleEl) {
+            const title = titleEl.innerText.trim();
+            // もしaタグからURLが取れない場合は、NotebookLMの仕様に合わせて行のID等からURLを偽装抽出するケースを考慮
+            let url = linkEl.href || "";
+
+            // NotebookLMのリスト行がクリックイベントで遷移するタイプの場合、属性からIDを引っこ抜く
+            if (!url || url.includes(window.location.host + '/#') || url === window.location.href) {
+                const notebookId = row.getAttribute('data-row-id') || row.id || "";
+                if(notebookId) {
+                    url = `https://notebooklm.google{notebookId}`;
+                } else {
+                    // 最終手段：行内のテキストや構造からクリック対象の属性を探す
+                    const clickable = row.querySelector('[data-id], [href]');
+                    if(clickable) url = clickable.href || `https://notebooklm.google{clickable.getAttribute('data-id')}`;
+                }
+            }
+
+            if(title && title !== "マイノートブック") {
+                result += `${title}\t${url}\n`;
+            }
+        }
+    });
+
+    console.log("%c【抽出結果】以下をコピーして自作アプリやExcelに貼り付けてください：", "color: #1a73e8; font-weight: bold; font-size: 14px;");
+    console.log(result);
+})();
+```
+
+コードは注意してご使用ください。
+
+実行するとどうなるか？
+
+エンターキーを押すと、コンソール画面に以下のような形式でタイトルとURLがズラリと一覧で出力されます。
+
+text
+
+```
+ウェブアプリのインストールの歴史	https://notebooklm.google...
+〇〇の意志と新大陸の隆起	https://notebooklm.google...
+```
+
+コードは注意してご使用ください。
+
+これをマウスで丸ごとコピーして、AI Studioで作ったご自身の「ブックマークマネージャー」に一気に貼り付けるか、AI Studioに「このテキストデータをそのまま初期データ（JSON形式など）に変換してアプリに組み込んで！」と頼めば、一瞬で全ノートブックの移行が完了します。
+
+この方法であれば、あなたがログインしているブラウザの権限のまま画面上の文字とリンクをスキャンするだけなので、Googleにブロックされることもなく、セキュリティ的にも100%安全です。
+
+まずはコンソールに貼り付けてみて、綺麗にリストが吐き出されるか試してみてはいかがでしょうか？

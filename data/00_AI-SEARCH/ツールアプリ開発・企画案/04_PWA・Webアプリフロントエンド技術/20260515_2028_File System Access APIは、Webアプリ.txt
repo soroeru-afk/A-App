@@ -1,0 +1,80 @@
+File System Access APIは、Webアプリケーションがユーザーのデバイス上にあるローカルファイルやディレクトリを直接読み書き・管理できるようにするWeb APIです。従来のWebアプリのような「サーバーへのアップロード・ダウンロード」を挟むことなく、デスクトップアプリに近いシームレスなファイル操作環境を実現します。
+
+🛠️ 主な機能と特徴
+
+• ローカルファイルの直接編集：ユーザーが選択したファイルを直接上書き保存できます。
+• ディレクトリ（フォルダ）の操作：フォルダ全体を開き、内部のファイル構造を列挙・作成できます。
+• 安全なセキュリティモデル：アプリが勝手にファイルに触ることはできません。ユーザーの明示的な操作（ボタンクリックなど）を起点にダイアログが開き、アクセス権の付与が必要です。
+• 永続的な権限：以前はページを再読み込みするたびにアクセス許可を求められましたが、Chrome等のアップデートにより、一度許可すれば次回以降もスムーズにアクセス可能になりました。
+
+💻 基本的な使い方（コード例）
+
+1. ファイルを読み込む
+
+ユーザーにファイルピッカーを表示してファイルを参照し、テキストデータを取得します。
+
+javascript
+
+```
+async function openFile() {
+  // 1. ファイル選択ダイアログを表示（ファイルハンドルを取得）
+  const [handle] = await window.showOpenFilePicker();
+
+  // 2. ファイルオブジェクトを取得
+  const file = await handle.getFile();
+
+  // 3. テキストとして中身を読み込む
+  const text = await file.text();
+  console.log(text);
+}
+```
+
+コードは注意してご使用ください。
+
+2. ファイルに書き込む（保存する）
+
+新規保存、または既存のファイルハンドルに対してデータを直接書き込みます。
+
+javascript
+
+```
+async function saveFile(handle, content) {
+  // 1. 書き込み用のストリームを作成
+  const writable = await handle.createWritable();
+
+  // 2. データを書き込む
+  await writable.write(content);
+
+  // 3. ストリームを閉じて変更をディスクに確定させる
+  await writable.close();
+}
+```
+
+コードは注意してご使用ください。
+
+3. ディレクトリ（フォルダ）を開く
+
+フォルダ内のすべてのファイル名を表示します。
+
+javascript
+
+```
+async function openDirectory() {
+  // フォルダ選択ダイアログを表示
+  const dirHandle = await window.showDirectoryPicker();
+
+  // フォルダ内のエントリーをループ処理
+  for await (const entry of dirHandle.values()) {
+    console.log(`${entry.kind}: ${entry.name}`);
+  }
+}
+```
+
+コードは注意してご使用ください。
+
+⚠️ 注意点とブラウザ対応
+
+• ブラウザの互換性：Google ChromeやMicrosoft EdgeなどのChromium系ブラウザがフルサポートしています。SafariやFirefoxでは一部のメソッド（showDirectoryPickerなど）が非対応、または制限されているため、導入の際は MDNの互換性テーブル を確認する必要があります。
+• セキュリティ制限：HTTPS環境（または localhost）でのみ動作します。また、システム上の重要なフォルダ（WindowsのSystem32など）へのアクセスはブラウザによって自動的にブロックされます。
+
+File System Access APIを実装するにあたり、具体的なユースケース（テキストエディタ、画像編集ツールなど）や、非対応ブラウザへのフォールバック処理など、詳しく知りたい項目はありますか？
