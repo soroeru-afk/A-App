@@ -195,6 +195,8 @@ export default function App() {
   const [bulkTargetFolder, setBulkTargetFolder] = useState('');
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [tabs, setTabs] = useState<LocationItem[]>([]);
+  const tabsContainerRef = useRef<HTMLDivElement>(null);
   
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -283,16 +285,34 @@ export default function App() {
       if (savedCurrentItem) {
         setCurrentItem(JSON.parse(savedCurrentItem));
       }
+      const savedTabs = localStorage.getItem('sv_open_tabs');
+      if (savedTabs) {
+        const parsedTabs = JSON.parse(savedTabs);
+        if (Array.isArray(parsedTabs)) setTabs(parsedTabs);
+      }
     } catch(e) {}
   }, []);
 
   useEffect(() => {
     if (currentItem) {
       localStorage.setItem('sv_current_item', JSON.stringify(currentItem));
+      // Add to tabs if not already present
+      setTabs(prev => {
+        if (prev.some(t => t.id === currentItem.id)) {
+          return prev;
+        }
+        return [...prev, currentItem];
+      });
     } else {
       localStorage.removeItem('sv_current_item');
     }
   }, [currentItem]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('sv_open_tabs', JSON.stringify(tabs));
+    } catch(e) {}
+  }, [tabs]);
 
   // Save changes
   const saveLocations = (newLocs: LocationItem[]) => {
@@ -652,25 +672,6 @@ export default function App() {
                 return (
                   <div key={folderName} className="mb-2">
                     <div className="flex items-center group relative pr-14 ml-[2px]">
-                      {isSelectMode && (
-                        <div className="w-[34px] flex items-center justify-center shrink-0">
-                          <input 
-                            type="checkbox"
-                            className="custom-checkbox"
-                            checked={isAllChecked}
-                            ref={el => { if (el) el.indeterminate = isIndeterminate; }}
-                            onChange={(e) => {
-                              const newSet = new Set(selectedIds);
-                              if (e.target.checked) {
-                                items.forEach(i => newSet.add(i.id));
-                              } else {
-                                items.forEach(i => newSet.delete(i.id));
-                              }
-                              setSelectedIds(newSet);
-                            }}
-                          />
-                        </div>
-                      )}
                       <button 
                         className="flex-1 flex items-center py-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-sm transition-colors text-left min-w-0 group-hover:bg-slate-800"
                         onClick={() => toggleFolder(folderName)}
@@ -928,6 +929,92 @@ export default function App() {
                   </a>
                 </div>
               </div>
+
+              {/* === Tabs Bar === */}
+              <div className="flex items-center bg-black/40 border-b border-slate-800 px-4 py-1.5 shrink-0 gap-2 select-none h-10">
+                <button 
+                  onClick={() => {
+                    if (tabsContainerRef.current) {
+                      tabsContainerRef.current.scrollBy({ left: -150, behavior: 'smooth' });
+                    }
+                  }}
+                  className="p-1 hover:text-white text-slate-500 transition-colors"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <div 
+                  ref={tabsContainerRef}
+                  className="flex-1 flex gap-1.5 overflow-x-auto scrollbar-none items-center"
+                  style={{ scrollbarWidth: 'none' }}
+                >
+                  {tabs.map((tabItem) => {
+                    const isActive = currentItem?.id === tabItem.id;
+                    return (
+                      <div 
+                        key={tabItem.id}
+                        onClick={() => setCurrentItem(tabItem)}
+                        className={`flex items-center gap-2 px-3 py-1 rounded border text-xs font-semibold cursor-pointer transition-colors max-w-[180px] shrink-0
+                          ${isActive 
+                            ? 'bg-cyan-900/30 border-cyan-800 text-cyan-400' 
+                            : 'bg-slate-900/40 border-slate-800/60 text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
+                          }
+                        `}
+                      >
+                        <span className="truncate">{tabItem.title}</span>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setTabs(prev => {
+                              const filtered = prev.filter(t => t.id !== tabItem.id);
+                              if (currentItem?.id === tabItem.id) {
+                                if (filtered.length > 0) {
+                                  setCurrentItem(filtered[filtered.length - 1]);
+                                } else {
+                                  setCurrentItem(null);
+                                }
+                              }
+                              return filtered;
+                            });
+                          }}
+                          className="hover:text-red-400 text-slate-500 transition-colors p-0.5"
+                        >
+                          <X size={10} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                  <button 
+                    onClick={() => {
+                      setEditTarget(null);
+                      setIsEditModalOpen(true);
+                    }}
+                    className="p-1 border border-dashed border-slate-700 hover:border-slate-500 text-slate-500 hover:text-slate-300 rounded transition-colors flex items-center justify-center shrink-0 w-7 h-6"
+                    title="新規タブを追加"
+                  >
+                    <Plus size={12} />
+                  </button>
+                </div>
+                <button 
+                  onClick={() => {
+                    if (tabsContainerRef.current) {
+                      tabsContainerRef.current.scrollBy({ left: 150, behavior: 'smooth' });
+                    }
+                  }}
+                  className="p-1 hover:text-white text-slate-500 transition-colors"
+                >
+                  <ChevronRight size={16} />
+                </button>
+                <button 
+                  onClick={() => {
+                    setTabs([]);
+                    setCurrentItem(null);
+                  }}
+                  className="text-[10px] font-bold text-slate-500 hover:text-red-400 hover:border-red-900/40 px-2 py-1 bg-slate-900/30 border border-slate-800/80 rounded transition-colors whitespace-nowrap"
+                >
+                  全て閉じる
+                </button>
+              </div>
+
               <div className="flex-1 bg-slate-950 relative flex items-center justify-center">
                 <div className="text-slate-600 font-mono text-xs tracking-widest absolute">{t('loading')}</div>
                 <iframe 
