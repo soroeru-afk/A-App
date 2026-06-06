@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Settings, Folder, File as FileIcon, X, Search, Plus, Minus, RotateCw, Trash2, Edit2, Upload, Download, Map as MapIcon, ChevronRight, ChevronLeft, Menu, Check, Copy, PanelLeftClose, PanelRightClose, PanelLeftOpen, PanelRightOpen } from 'lucide-react';
+import { Settings, Folder, FolderOpen, File as FileIcon, X, Search, Plus, Minus, RotateCw, Trash2, Edit2, Upload, Download, Map as MapIcon, ChevronRight, ChevronLeft, Menu, Check, Copy, PanelLeftClose, PanelRightClose, PanelLeftOpen, PanelRightOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 // === Types ===
@@ -27,6 +27,7 @@ interface AppSettings {
   sidebarWidth: number;
   theme: 'navy' | 'dark' | 'light';
   language: 'jp' | 'en';
+  folderIconColor?: string;
 }
 
 interface TabData {
@@ -192,6 +193,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   sidebarWidth: 320,
   theme: 'navy',
   language: 'jp',
+  folderIconColor: '#06b6d4',
 };
 
 // === Main App Component ===
@@ -457,7 +459,50 @@ export default function App() {
     return groups;
   }, [locations, searchQuery, sortOrder]);
 
-  const allFolders = useMemo(() => Array.from(new Set(locations.map(i => i.folderName))), [locations]);
+  const allFolders = useMemo(() => Array.from(new Set(locations.map(i => i.folderName))).sort(), [locations]);
+
+  // 階層化したフォルダ構造の定義
+  const hierarchicalFolders = useMemo(() => {
+    const parents: Record<string, {
+      name: string;
+      subGroups: { subName: string; fullName: string; items: LocationItem[] }[];
+      directItems: LocationItem[];
+      totalCount: number;
+    }> = {};
+
+    Object.entries(folderGroups).forEach(([folderName, items]) => {
+      const parts = folderName.split(' / ');
+      const parentName = parts[0].trim();
+      
+      if (!parents[parentName]) {
+        parents[parentName] = {
+          name: parentName,
+          subGroups: [],
+          directItems: [],
+          totalCount: 0
+        };
+      }
+      
+      parents[parentName].totalCount += items.length;
+
+      if (parts.length > 1) {
+        const subName = parts.slice(1).join(' / ').trim();
+        parents[parentName].subGroups.push({
+          subName: subName,
+          fullName: folderName,
+          items: items
+        });
+      } else {
+        parents[parentName].directItems.push(...items);
+      }
+    });
+
+    // ソート
+    return Object.values(parents).sort((a, b) => a.name.localeCompare(b.name)).map(p => {
+      p.subGroups.sort((a, b) => a.subName.localeCompare(b.subName));
+      return p;
+    });
+  }, [folderGroups]);
 
   // Handlers
   const toggleFolder = (folderName: string) => {
@@ -556,6 +601,52 @@ export default function App() {
     const target = bulkTargetFolder.trim();
     setLocations(prev => prev.map(item => selectedIds.has(item.id) ? { ...item, folderName: target } : item));
     setSelectedIds(new Set());
+  };
+
+  const editParentFolder = async (parentName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newName = await customPrompt('新しい親フォルダ名を入力してください', parentName);
+    if (newName && newName.trim() && newName.trim() !== parentName) {
+      const trimmed = newName.trim();
+      setLocations(prev => prev.map(item => {
+        if (item.folderName === parentName) {
+          return { ...item, folderName: trimmed };
+        }
+        if (item.folderName.startsWith(parentName + ' / ')) {
+          return { ...item, folderName: item.folderName.replace(parentName + ' / ', trimmed + ' / ') };
+        }
+        return item;
+      }));
+      setFolderState(prev => {
+        const next = { ...prev };
+        if (next[parentName] !== undefined) {
+          next[trimmed] = next[parentName];
+          delete next[parentName];
+        }
+        Object.keys(next).forEach(key => {
+          if (key.startsWith(parentName + ' / ')) {
+            const newKey = key.replace(parentName + ' / ', trimmed + ' / ');
+            next[newKey] = next[key];
+            delete next[key];
+          }
+        });
+        return next;
+      });
+    }
+  };
+
+  const deleteParentFolder = async (parentName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (await customConfirm(`親フォルダ「${parentName}」に含まれるすべての子フォルダと場所を削除しますか？`)) {
+      const isTarget = (folder: string) => folder === parentName || folder.startsWith(parentName + ' / ');
+      setLocations(prev => prev.filter(item => !isTarget(item.folderName)));
+      setTabs(prev => prev.filter(t => !t.location || !isTarget(t.location.folderName)));
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        locations.filter(i => isTarget(i.folderName)).forEach(i => next.delete(i.id));
+        return next;
+      });
+    }
   };
 
   const editFolder = async (folderName: string, e: React.MouseEvent) => {
@@ -723,39 +814,133 @@ export default function App() {
                 {t('noMatch')}
               </div>
             ) : (
-              (Object.entries(folderGroups) as [string, LocationItem[]][]).sort().map(([folderName, items]) => {
-                const isOpen = searchQuery ? true : !!folderState[folderName];
-
+              hierarchicalFolders.map(parent => {
+                const isParentOpen = searchQuery ? true : !!folderState[parent.name];
+                
                 return (
-                  <div key={folderName} className="mb-2">
+                  <div key={parent.name} className="mb-2">
+                    {/* 親フォルダ */}
                     <div className="flex items-center group relative p-1 rounded-sm transition-colors hover:bg-slate-800/50">
                       <button 
-                        className="flex-1 flex items-center text-slate-400 hover:text-white transition-colors text-left min-w-0"
-                        onClick={() => toggleFolder(folderName)}
+                        className="flex-1 flex items-center text-slate-300 hover:text-white transition-colors text-left min-w-0"
+                        onClick={() => toggleFolder(parent.name)}
                       >
-                        <ChevronRight size={14} className={`mr-1 transition-transform shrink-0 ${isOpen ? 'rotate-90' : ''}`} />
-                        <Folder size={14} className="mr-2 opacity-50 shrink-0" />
+                        <ChevronRight size={14} className={`mr-1 transition-transform shrink-0 ${isParentOpen ? 'rotate-90' : ''}`} />
+                        <Folder size={14} className="mr-2 opacity-80 shrink-0" style={{ color: settings.folderIconColor || '#06b6d4' }} />
                         <span className="flex-1 truncate uppercase text-[11px] font-bold tracking-wider">
-                          {folderName}
+                          {parent.name}
                         </span>
-                        <span className="text-[9px] bg-slate-800 px-1.5 rounded-sm opacity-50 shrink-0 mr-2">{items.length}</span>
+                        <span className="text-[9px] bg-slate-800 px-1.5 rounded-sm opacity-50 shrink-0 mr-2">{parent.totalCount}</span>
                       </button>
                       <div className="absolute right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 px-1 rounded-sm">
-                        <button onClick={(e) => editFolder(folderName, e)} className="p-1 hover:text-cyan-400 text-slate-500 transition-colors cursor-pointer"><Edit2 size={12}/></button>
-                        <button onClick={(e) => deleteFolder(folderName, e)} className="p-1 hover:text-red-400 text-slate-500 transition-colors cursor-pointer"><Trash2 size={12}/></button>
+                        <button onClick={(e) => editParentFolder(parent.name, e)} className="p-1 hover:text-cyan-400 text-slate-500 transition-colors cursor-pointer"><Edit2 size={12}/></button>
+                        <button onClick={(e) => deleteParentFolder(parent.name, e)} className="p-1 hover:text-red-400 text-slate-500 transition-colors cursor-pointer"><Trash2 size={12}/></button>
                       </div>
                     </div>
-                    
-                    {isOpen && (
-                      <div className="mt-1 flex flex-col gap-0.5 pl-5 pr-2">
-                        {items.map(item => {
+
+                    {isParentOpen && (
+                      <div className="mt-1 pl-3 flex flex-col gap-1">
+                        {/* 子フォルダ */}
+                        {parent.subGroups.map(sub => {
+                          const isSubOpen = searchQuery ? true : !!folderState[sub.fullName];
+                          
+                          return (
+                            <div key={sub.fullName} className="mb-1">
+                              <div className="flex items-center group/sub relative p-1 rounded-sm transition-colors hover:bg-slate-800/30">
+                                <button 
+                                  className="flex-1 flex items-center text-slate-400 hover:text-white transition-colors text-left min-w-0"
+                                  onClick={() => toggleFolder(sub.fullName)}
+                                >
+                                  <ChevronRight size={12} className={`mr-1 transition-transform shrink-0 ${isSubOpen ? 'rotate-90' : ''}`} />
+                                  <FolderOpen size={12} className="mr-2 opacity-50 shrink-0 text-slate-400" />
+                                  <span className="flex-1 truncate text-[10px] font-bold tracking-wide">
+                                    {sub.subName}
+                                  </span>
+                                  <span className="text-[9px] bg-slate-800/50 px-1.5 rounded-sm opacity-40 shrink-0 mr-2">{sub.items.length}</span>
+                                </button>
+                                <div className="absolute right-1 flex gap-1 opacity-0 group-hover/sub:opacity-100 transition-opacity bg-slate-900 px-1 rounded-sm">
+                                  <button onClick={(e) => editFolder(sub.fullName, e)} className="p-1 hover:text-cyan-400 text-slate-500 transition-colors cursor-pointer"><Edit2 size={10}/></button>
+                                  <button onClick={(e) => deleteFolder(sub.fullName, e)} className="p-1 hover:text-red-400 text-slate-500 transition-colors cursor-pointer"><Trash2 size={10}/></button>
+                                </div>
+                              </div>
+
+                              {isSubOpen && (
+                                <div className="mt-1 flex flex-col gap-0.5 pl-4 pr-1 border-l border-slate-800/60 ml-2">
+                                  {sub.items.map(item => {
+                                    const isActive = currentItem?.id === item.id;
+                                    const isChecked = selectedIds.has(item.id);
+                                    return (
+                                      <div 
+                                        key={item.id} 
+                                        className={`
+                                          flex items-center py-1.5 px-2 rounded-sm cursor-pointer border-l-2 transition-colors group/item relative
+                                          ${isActive ? 'bg-cyan-900/20 border-cyan-500 text-cyan-400' : 'border-transparent text-slate-400 hover:bg-slate-800 hover:text-slate-200'}
+                                        `}
+                                        onClick={() => {
+                                          if (isSelectMode) {
+                                            const newSet = new Set(selectedIds);
+                                            if (newSet.has(item.id)) newSet.delete(item.id);
+                                            else newSet.add(item.id);
+                                            setSelectedIds(newSet);
+                                          } else {
+                                            handleItemClick(item);
+                                          }
+                                        }}
+                                      >
+                                        {isSelectMode && (
+                                          <div className="mr-3 flex items-center justify-center shrink-0">
+                                            <input 
+                                              type="checkbox" 
+                                              className="custom-checkbox pointer-events-none"
+                                              checked={isChecked}
+                                              readOnly
+                                            />
+                                          </div>
+                                        )}
+                                        <div className="flex-1 min-w-0 flex flex-col">
+                                          <span className="truncate text-xs font-semibold">{item.title}</span>
+                                          <div className="flex items-center gap-2 mt-0.5">
+                                            <span className="truncate text-[9px] opacity-60">
+                                              {item.parsed?.isValid ? `🧭 ${item.parsed.lat}, ${item.parsed.lng}` : '🗺️ 通常URL'}
+                                            </span>
+                                            {item.capturedDate && (
+                                              <span className="text-[9px] bg-slate-950/50 text-cyan-400 px-1 rounded-sm border border-slate-800 shrink-0 uppercase tracking-widest font-mono">
+                                                {item.capturedDate}
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                        <div className="absolute right-2 opacity-0 group-hover/item:opacity-100 transition-opacity flex bg-slate-900 rounded-sm">
+                                          <button 
+                                            className="hover:text-cyan-400 p-1.5 transition-colors shrink-0 disabled:opacity-50"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setEditTarget(item);
+                                              setIsEditModalOpen(true);
+                                            }}
+                                            disabled={isSelectMode}
+                                          >
+                                            <Edit2 size={12} />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+
+                        {/* 親フォルダ直下のアイテム */}
+                        {parent.directItems.map(item => {
                           const isActive = currentItem?.id === item.id;
                           const isChecked = selectedIds.has(item.id);
                           return (
                             <div 
                               key={item.id} 
                               className={`
-                                flex items-center py-1.5 px-2 rounded-sm cursor-pointer border-l-2 transition-colors group relative
+                                flex items-center py-1.5 px-2 rounded-sm cursor-pointer border-l-2 transition-colors group/item relative
                                 ${isActive ? 'bg-cyan-900/20 border-cyan-500 text-cyan-400' : 'border-transparent text-slate-400 hover:bg-slate-800 hover:text-slate-200'}
                               `}
                               onClick={() => {
@@ -792,7 +977,7 @@ export default function App() {
                                   )}
                                 </div>
                               </div>
-                              <div className="absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity flex bg-slate-900 rounded-sm">
+                              <div className="absolute right-2 opacity-0 group-hover/item:opacity-100 transition-opacity flex bg-slate-900 rounded-sm">
                                 <button 
                                   className="hover:text-cyan-400 p-1.5 transition-colors shrink-0 disabled:opacity-50"
                                   onClick={(e) => {
@@ -811,7 +996,7 @@ export default function App() {
                       </div>
                     )}
                   </div>
-                )
+                );
               })
             )}
           </div>
@@ -1166,6 +1351,30 @@ export default function App() {
                     >
                       {t('light')}
                     </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">
+                    フォルダー色 (Folder Color)
+                  </label>
+                  <div className="flex items-center gap-3 bg-slate-800 rounded-md p-2 border border-slate-700">
+                    <input 
+                      type="color" 
+                      value={settings.folderIconColor || '#06b6d4'} 
+                      onChange={(e) => saveSettings({ ...settings, folderIconColor: e.target.value })}
+                      className="w-8 h-8 rounded border border-slate-600 bg-transparent cursor-pointer shrink-0"
+                    />
+                    <div className="flex-1 flex flex-wrap gap-1.5">
+                      {['#06b6d4', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6', '#a1a1aa'].map(c => (
+                        <button
+                          key={c}
+                          style={{ backgroundColor: c }}
+                          onClick={() => saveSettings({ ...settings, folderIconColor: c })}
+                          className={`w-5 h-5 rounded-full border transition-transform ${settings.folderIconColor === c ? 'scale-110 border-white' : 'border-transparent hover:scale-105'}`}
+                        />
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
