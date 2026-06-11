@@ -1,64 +1,357 @@
-# 00_【進行】_プロジェクト進捗マップ
+進捗マップ／更新日時 2026-06-11 15:30 (木曜日)
+=======================================================================
+   00_【進行】_プロジェクト進捗マップ
+=======================================================================
+管理対象環境 : 事務所PC ＆ 自宅PC（2台）共通同期用
+※本ファイルはプレーンテキストビューアーでの視認性を最優先に設計しています。
 
-最終更新日時: 2026-06-06 02:06
 
----
+■ 1. 開発中・アクティブプロジェクト一覧 (優先順)
+=======================================================================
+【No.01】 SPACE-ROBOTMAN WORLD (スペースロボットマン)
+------------------------------------------------------------------------
+  ● 開発状態 : 🔵 開発中 (デザイン・演出強化)
+  ● 優先度   : 🔥 【最優先・極大】
+  ● 最終更新 : 06/09
+  ● 開発パス : SPACE-ROBOTMAN-WORLD-WEB-SITE/ (※旧space-robotman-world/はold退避済み)
+  ● PWA対応   : 🟡 未定
+  ● 次のアクション / 主要未完了タスク :
+     1. 起動シーケンスの実装（ローディング演出の追加）
+     2. 色彩の再調整（メタリックトーンを明るく、反射面を強調して清潔感を出す）
+     3. サウンド実装（ボタンクリック時のシステムSE）
 
-## 1. 現在進行中の最優先プロジェクト
-### スーパーフォルダログビューアー (SUPER FOLDER LOG VIEWER)
-- **目的**: フォルダやログの閲覧・管理を効率化するビューアー。AI（Antigravity）への「丸投げ・自動化」による開発・運用を最優先方針とする。
-- **最新 of 最新 (2026-06-05 21:12)**:
-  - [x] 物理フォルダー階層化・移動機能の実装および「00_AIエージェント専用」仮想フォルダ表示のハイブリッド化が完了。一般フォルダーでは物理的な親・子・孫階層をサポートし、親フォルダー数には配下の子フォルダー内ファイル合計数を合算表示。子フォルダーからはフォルダーアイコンを消去しスッキリと表示。
-  - [x] 設定パネルに「カテゴリー文字サイズ調整」スライダー（8px〜18px）および「フォルダーアイコン色」のカラーピッカー・パレット選択UIを統合。
-  - [x] フォルダー移動時の「選んで移動」ダイアログおよびフォルダー編集リストで、はみ出た要素がスクロールできるよう最大高さ（max-height: 40vh）を制限し、薄く目立たないカスタムスクロールバー（CSS/Webkit）を実装。
-  - [x] 修正済みコードをGitHub（`origin/main`）に同期・プッシュ完了し、PWAを最新版にアップデート。
-- **最新の進捗 (2026-06-05 02:10)**:
-  - [x] 仮想フォルダ（プロジェクト別）の高度なネスト表示ロジックを、ユーザー指定に基づき『00_AIエージェント専用』フォルダ（カテゴリーまたはルート）の中身だけに限定して適用されるよう制限。他の一般カテゴリー（STOCK MEMO ETC等）はスッキリとした1階層フラットなリスト表示に完全回帰・最適化完了。
-  - [x] Google Drive内の既存ファイルを新しい命名規則（アンダーバー区切り、日付＋仮想フォルダプレフィックス）に一括移行し、AGENTS.mdのプロトコルも完全同期更新。
-- **最新の進捗 (2026-06-04 22:36)**:
-  - [x] モード切り替え時の1px微小ズレ（サブピクセル丸め誤差）をさらに抑制・安定化させるため、レイアウト設定の「ページ左右余白（`lv_pagePad`）」のデフォルト（初期値およびフォールバック）値を最大の 120px に変更完了。バージョンを `v3.14` へバンプ。
-  - [x] モード切り替え時（HORIZ↔VERT）に、ブラウザのサイズによって発生していたタイトルとカード枠の「1ピクセル程度の微小なズレ（サブピクセル丸め誤差）」を完全に解消。横書き時と縦書き時で #content-area の display モードを flex; flex-direction: column; に統一し、中央寄せ位置の丸め計算ロジックを完全一致させることでズレの発生を完全に防止完了。あわせてデバッグ用の PWA コメントアウトを解除し、PWA（Service Worker）機能を正常に復活。
-  - [x] 縦書きテキストの各行（<span>）がカード枠の下端を突き抜けて表示されてしまうブラウザのレイアウトバグを修正。React のインラインスタイルで動的に display: 'block' を付与するのを廃止し、CSSの静的クラス指定（.vertical-writing-text-inner span）に一元化。これにより、切り替え時も max-height: 100% が確実に実行され、縦書きテキストがカード枠内にきれいに収まるよう最適化完了。
-  - [x] HORIZ→VERT切り替え時に、カード枠の高さが2回目以降 60vh 程度に縮んでしまうリフロー不具合を解消。#content-area の style={{display: ...}} というインラインスタイルが CSS クラスの !important 指定と競合してブラウザの高さ再計算（Reflow）を阻害していたため、インラインスタイルを廃止し、すべて CSS のクラス（.vertical-mode-active）のみで表示切り替えを完結するよう修正完了。これにより、何度切り替えても100%の高さがクリーンに維持されます。
-  - [x] 縦書き（VERT）モード時にテキスト量が多いと、カード枠が 1400px（設定幅）を超えて右側にはみ出し、ブラウザ（特にエミュレータ）のオートズームアウトによって画面全体が小さく縮小されて表示されてしまうバグを修正。縦書きレイアウトの Flex コンテナ全体に `max-width: 100%` と `min-width: 0` を指定し、横幅を 1400px（設定された max-width）に完全に固定完了。これにより、横書き時と全く同じタイトル・ボタンサイズ、カード幅のまま、中身だけが綺麗に横スクロールする挙動に最適化。
-  - [x] 縦書き（VERT）モードと横書き（HORIZ）モード切り替え時のカード枠サイズ縮小バグを完全解消。レイアウト実測によるJS制御を廃止し、ピュアな CSS Flexbox レイアウトチェーンに移行。これにより、HORIZ↔VERTを何度切り替えてもカード枠が潰れず、画面残りの高さのまま、瞬時に追従するよう最適化。
-  - [x] 設定スライダー（`lv_verticalHeight`）でパーセント高さを指定した際、CSS変数名（`--vertical-card-height`）の不一致バグを修正し、正しくカード高さがスムーズに変更されるように同期完了。
-- **最新の進捗 (2026-06-04)**:
-  - [x] 縦書き（VERT）モードの実装、および長押し連続スクロール機能の追加
-  - [x] 縦書き時のカード高さ調整スライダー（40%〜100%）の実装。高さを縮小した際、テキスト描画領域が上下いっぱいに追従するようにレイアウト最適化
-  - [x] 横書きから縦書きへ切り替える際に、スクロール位置を自動でリセットする処理を追加し、切り替え時の沈み込みズレを解消
-  - [x] 縦書き時もカードの横幅をメイン幅（1400pxなど）いっぱいに強制引き伸ばす（align-items: stretch !important;）ことで、左端のラインが「編集」ボタンとピッタリ揃うよう調整
-  - [x] 縦書き（VERT）モード時のコンテンツカード（`.vertical-scroll-wrapper`）が左側に潰れ・縮小して不自然な隙間が空く現象を完全に解消。ラッパーに `width: 100% !important;` を指定し、横幅を常に100%一杯に引き伸ばし完了。
-  - [x] 縦書き（VERT）時の「上の空間が潰れる（狭まる）」レイアウトの差異を修正。縦書き時に上部余白（padding-top/bottom）やタイトル下・ツールバー下のマージンを16pxに狭めていた設定ファイルの記述（`src/settingsSync.ts`の条件分岐）をすべて撤廃。これにより、何度スーパーリロードを行っても、横書き（HORIZ）と全く同じ広々とした上部余白とボタン間隔が完全に一致して維持されるよう調整。
-  - [x] 横書きと縦書きモード間で、インナーコンテナ `#content-inner` の横幅の基本定義（`width: 100%`）および `display: flex; flex-direction: column; align-items: stretch;` のレイアウト構成を完全に共通化。切り替え時に左側のボタンやテキスト、カード枠が1pxもズレずに完全に同じ垂直軸上に整列するよう修正。
-  - [x] 縦書きモード時のカード内側余白（パディング）が横書き時の設定（`cp`変数による動的パディング）と一致せず二重定義で競合する問題を解消。CSS側の固定余白（`padding: 24px 32px;`）を取り除き、設定同期JSで縦書きカードにも同一のパディング変数を適用。
-  - [x] 縦書きモード時のbox-sizing崩れによるガタつきや位置ズレを防ぐため、コンテナのインナークラスに `box-sizing: border-box;` を厳格に適用。
-- **最新の進捗 (2026-06-03)**:
-  - [x] PWA起動時の画面サイズ固定（横長）の実装
-  - [x] 前回開いたフォルダ・テキストの自動復元機能（localStorage連携）の実装
-  - [x] ソート切り替え機能（日付順/名前順）および昇降順トグル機能の実装（グループ開閉状態維持、名前順ソート時の14文字タイムスタンプ除外比較対応）
-- **次のフェーズ / タスク**:
-  - [ ] 起動シーケンスの実装（トップページからメイン画面へのローディング演出）
-  - [ ] 色彩の再調整（メタリックグレーのトーンを明るくし、反射面を強調して清潔感を出す）
-  - [ ] サウンド実装（ボタンクリック時の小気味よいシステムSE）
+=======================================================================
+【No.02】 SUPER FOLDER LOG VIEWER (フォルダログビューアー)
+------------------------------------------------------------------------
+  ● 開発状態 : 🔵 開発中 (基盤整理・UI調整)
+  ● 優先度   : ⚡ 【高】
+  ● 最終更新 : 06/11
+  ● 開発パス : super-folder-log-viewer/
+  ● PWA対応   : 🟢 完了 (PWA化済み)
+  ● 次のアクション / 主要未完了タスク :
+     1. 設定保存や物理階層化、縦書き、複数行タイトル段差ズレ、PAPERモード・前後ファイル移動機能は解消・実装完了。
+     2. 次回、起動画面（ローディング演出）等の追加要望を検討。
 
----
+========================================================================
+【No.03】 SOLID SQUARE EDITOR (ソリッドスクエア・エディター)
+------------------------------------------------------------------------
+  ● 開発状態 : 🟡 開発待機中 (機能拡張期)
+  ● 優先度   : 💤 【低】
+  ● 最終更新 : 06/08
+  ● 開発パス : solid square editor/
+  ● PWA対応   : 🟢 完了 (PWA化済み)
+  ● 次のアクション / 主要未完了タスク :
+     1. インフォパネルへの「LINE（行数）表示」追加まで完了。
+     2. 次回、新規の追加要望に応じて拡張機能を実装。
 
-## 2. その他の開発中プロジェクト状況
-| プロジェクト名 | パス | 状態・最新進捗 |
-|---|---|---|
-| SOLID STUDIO AI SEARCH | `-SOLID-STUDIO-AI-SEARCH/` | **完了** (2026-06-01: 設定保存・強制センター解除実装、PWA v3) |
-| SOLID SUPER GATE ESCAPER | `SOLID-SUPER-GATE-ESCAPER-/` | **完了** (2026-06-01: PWA化、起動用バッチ追加) |
-| SOLID COLOR EXTRACT DESIGNER | `-SOLID-SOLID-COLOR-EXTRACT-DESIGNER/` | **完了** (2026-05-29: Windows黒枠アイコン最適化、PWA対応) |
-| Solid Square Editor | `solid square editor/` | **開発中** (2026-06-01: UIフラット化、高さ統一、Focus Mode改善) |
-| SPACE-ROBOTMAN WORLD | `space-robotman-world/` | **開発中** (2026-04-15: UI精密調整、キャラ詳細隠れ防止対応) |
-| Voicevox Simple Studio | `voicevox-simple-studio/` | **開発完了** (2026-06-03: VOICEVOX起動不良修正、各種UI・機能追加完了 / 2026-06-04: 最新データのGitHubプッシュ・同期完了 / 2026-06-05: パネル初期表示オープン化・ボタンのSolid Square Editorスタイル化対応完了) |
+========================================================================
 
----
 
-## 3. 同期および定型パターン処理プロトコル
-- 別のPCや新しいセッションでAntigravityが起動した際は、まず本フォルダ（`00_AIエージェント専用`）内のファイルを最優先で読み込み、進捗を同期してください。
-- チャットで「〇〇のパターンで処理して」と指示が出た場合は、フォルダ直下の `【定型】_01_タスク名.txt` などのファイルに従い、自律的にタスクを処理してください。
-- **実装済みの定型パターン**:
-  - [x] [【定型】_01_ライブドアブログ自動投稿.txt](file:///G:/マイドライブ/00_AI-SEARCH/00_AIエージェント専用/【定型】_01_ライブドアブログ自動投稿.txt) — Playwrightを使ったブログ下書き自動作成手順
-  - [x] [【定型】_02_WebアプリPWA化および起動バッチ自動構築.txt](file:///G:/マイドライブ/00_AI-SEARCH/00_AIエージェント専用/【定型】_02_WebアプリPWA化および起動バッチ自動構築.txt) — PWA設定（manifest, sw.js, アイコン生成）および起動バッチ自動生成手順
+■ 2. 開発完了・安定稼働プロジェクト一覧 (PWA化および完了状態)
+========================================================================
+【No.04】 AIエージェント（ファイル仕分け）
+  ● 状態: 🟢 完了・同期中    ● 完了時期: 2026-06-08    ● パス: data/00_AI-SEARCH/
+  ● PWA対応: ❌ 対象外 (データ整理)
+  ● 概要: 全680ファイルの総点検、技術書類124ファイルの適正配置。Gドライブ同期。
+------------------------------------------------------------------------
+【No.05】 SOLID SUPER GATE ESCAPER (ゲートエスケーパー)
+  ● 状態: 🟢 完了・デプロイ済  ● 完了時期: 2026-06-06    ● パス: SOLID-SUPER-GATE-ESCAPER-/
+  ● PWA対応: 🟢 完了 (PWA化済み)
+  ● 概要: 2階層ツリーナビ表示、親フォルダ一括編集・削除、カラーピッカー統合、v4バンプ。
+------------------------------------------------------------------------
+【No.06】 SOLID STUDIO AI SEARCH (検索アシスト)
+  ● 状態: 🟢 完了・デプロイ済  ● 完了時期: 2026-06-01    ● パス: -SOLID-STUDIO-AI-SEARCH/
+  ● PWA対応: 🟢 完了 (PWA化済み)
+  ● 概要: ウィンドウ位置/幅/高さのLocalStorage保存、強制センター解除、PWA v3。
+------------------------------------------------------------------------
+【No.07】 Voicevox Simple Studio (ボイスボックス・シンプル)
+  ● 状態: 🟢 完了・同期済    ● 完了時期: 2026-06-05    ● パス: voicevox-simple-studio/
+  ● PWA対応: ❌ 未実装
+  ● 概要: 起動不良の修正、コントロールパネル初期オープン、ボタンデザインのソリッド化。
+------------------------------------------------------------------------
+【No.08】 SOLID COLOR EXTRACT DESIGNER (カラー抽出)
+  ● 状態: 🟢 完了・デプロイ済  ● 完了時期: 2026-05-29    ● パス: -SOLID-SOLID-COLOR-EXTRACT-DESIGNER/
+  ● PWA対応: 🟢 完了 (PWA化済み)
+  ● 概要: Windows黒枠アイコン最適化、ウィンドウサイズ・配置位置（X・Y）の永続化。
+------------------------------------------------------------------------
+【No.09】 ライブドアブログ自動投稿システム
+  ● 状態: 🟢 完了・運用中    ● 完了時期: 2026-05-26    ● パス: livedoor_poster.py
+  ● PWA対応: ❌ 対象外 (Pythonスクリプト)
+  ● 概要: Playwrightを用いた自動下書き作成スクリプトの構築、ログインセッション維持。
+------------------------------------------------------------------------
+【No.10】 SOLID AUDIO MUSIC PLAYER (音楽プレイヤー)
+  ● 状態: 🟢 完了・デプロイ済  ● 完了時期: 2026-06-01    ● パス: SOLID-AUDIO-MUSIC-PLAYER-/
+  ● PWA対応: 🟢 完了 (PWA化済み)
+  ● 概要: PWA化対応、タイトル大文字化および各種アセットの整合性調整・GitHub Pagesデプロイ完了。
+------------------------------------------------------------------------
+【No.11】 SOLID SQUARE CALENDAR + (カレンダーログビューアー)
+  ● 状態: 🟢 完了・同期済      ● 完了時期: 2026-06-11    ● パス: SOLID-SQUARE-CALENDAR-/
+  ● PWA対応: 🟢 完了 (PWA化済み)
+  ● 概要: テキスト表示時のPAPERモード（ベージュ背景・黒文字）、Prev/Nextファイル移動、j/kショートカット、およびPWAアイコン（pwa-icon.jpg）の適用・同期完了。
+=======================================================================
+
+
+■ 3. 各プロジェクトの時系列詳細進捗ログ（※新しい進捗が上）
+========================================================================
+
+▼ 01. SPACE-ROBOTMAN WORLD (スペースロボットマン)
+------------------------------------------------------------------------
+  【未着手】次期フェーズ・タスク (2026-06-09 追加)
+    [ ] 起動シーケンスの実装 : トップページからメイン画面へのローディング演出。
+    [ ] 色彩の再調整         : メタリックグレーのトーンを明るくし、反射面を強調。
+    [ ] サウンド実装         : ボタンクリック時の小気味よいシステムSE。
+
+  【完了】進捗 (2026-06-10 11:25)
+    [x] 事務所PCへ新しい本式リポジトリ「SPACE-ROBOTMAN-WORLD-WEB-SITE」をクローンし、開発環境を整備（npm install / build確認）
+    [x] 旧フォルダから全アセット（characters, motion, new_image）を新プロジェクトのpublic/assets/へ完全コピー
+    [x] プレビュー起動用のバッチを、APIサーバー（Express）も同時に立ち上がる仕様へアップグレード（プレビュー.bat）
+    [x] 開発・プレビューのバッチ実行時に自動でブラウザ（http://localhost:3000）を開く処理を追加
+    [x] index.htmlのタイトル表示を「SPACE ROBOTMAN WORLD」に修正
+    [x] ADMINでの保存時におけるVite開発サーバーの自動リロードを防ぐため、vite.config.tsでwatch.ignoredにdata.jsonを追加
+
+  【完了】進捗 (2026-06-09 23:25)
+    [x] ブラウザタブのタイトル表記を「My Google AI Studio App」から「SPACE ROBOTMAN WORLD」へ適正化
+    [x] 管理画面での保存時（data.jsonや画像変更時）にVite開発サーバーが自動リロードを発生させてトップに戻ってしまうバグを、Vite監視除外（watch.ignored）設定により解消
+    
+  【完了】進捗 (2026-04-15)
+    [x] デザイン統合（new_design.htmlのボタン黄金律と明るめメタリック質感を適用）
+    [x] キャラ詳細隠れ防止（ボタン幅を140pxに縮小し、詳細ボードと重ならないよう調整）
+    [x] UI精密調整（ヘッダーサブタイトル右端移動、管理ボタン最下部固定、不要装飾の排除）
+    [x] デザイン原点回帰（ロゴのOrbitron復元、サイドバー簡素化、キャラリスト不備解消）
+
+  【完了】進捗 (2026-04-12 夜)
+    [x] Admin管理ダッシュボード実装（CGアート・ユニットアーカイブ・モーションの3タブ）
+    [x] ドラッグ＆ドロップ ファイルアップロード対応（ Flask側API実装、assets自動振分）
+    [x] データ自動保存機能（保存時にdata.jsonとdata.jsを同時自動更新）
+    [x] サーバー死活チェック機能（ADMINログイン時の接続確認とオフライン警告表示）
+    [x] 20機目の最終ユニット「GUARDIAN & CHILD」を追加し、全20体アーカイブ完成
+
+  【完了】進捗 (2026-04-12 朝)
+    [x] UIのソリッド化（ヘッダー最上部固定、せり上がるシネマティック文字復元）
+    [x] 全19キャラクターの完全同期（画像ファイルと日本語解説文の完璧なマッピング）
+
+  【完了】進捗 (2026-04-07)
+    [x] プロジェクト始動、space-robotman-world/ ディレクトリ作成
+    [x] メカニカルUIプロトタイプ作成（CSS Bevel/EmbossとSVGフィルタによる立体ボタン）
+
+
+▼ 02. SUPER FOLDER LOG VIEWER (フォルダログビューアー)
+------------------------------------------------------------------------
+  【完了】進捗 (2026-06-11 15:30)
+    [x] カレンダー側と同様に、テキスト表示時の「PAPERモード（ベージュ背景：#f4ebe1、黒文字）」を実装
+    [x] テキスト閲覧中に前後のファイルに移動できる「Prev/Next」ボタンおよびキーボードショートカット（jで次、kで前）を移植・追加
+    [x] タイトル行数が1〜3行に変動することによるレイアウトのガタつき（段差ズレ）を解消するため、CSSで高さを「2.3em固定」かつ「最大2行（3行以上は省略）」に制限・最適化
+    [x] PWAキャッシュ更新ビルドおよびGitHub（origin/main）への同期・プッシュ完了
+
+  【完了】進捗 (2026-06-09 22:35)
+    [x] 縦書き（VERT）モードにおける、マウスホイール縦回転での左右（横方向）スクロール機能の実装およびGitHub（origin/main）への同期・プッシュ完了
+    
+  【完了】進捗 (2026-06-06 02:15)
+    [x] フォルダー名変更（00_AIエージェント専用）に伴うPWAソース判定ロジックの修正完了
+    [x] ビルドおよびGitHub（origin/main）への同期・プッシュ完了
+
+  【完了】進捗 (2026-06-05 21:12)
+    [x] 物理フォルダー階層化・移動機能の実装および仮想フォルダ表示のハイブリッド化
+    [x] 設定パネルに「カテゴリー文字サイズ調整」スライダー、フォルダーアイコン色選択UI統合
+    [x] 移動ダイアログ等の最大高さ（max-height: 40vh）制限およびカスタムスクロールバー実装
+
+  【完了】進捗 (2026-06-05 02:10)
+    [x] 仮想フォルダのネスト表示ロジックを「00_AIエージェント専用」内だけに制限
+    [x] ファイル名一括移行（アンダーバー区切り、日付＋仮想フォルダプレフィックス）完了
+
+  【完了】進捗 (2026-06-04 22:36)
+    [x] 左右余白（lv_pagePad）初期値を120pxに拡張し、サブピクセルズレを解消
+    [x] 縦書きテキストの下端突き抜けバグ修正（インラインスタイル廃止、静的CSSクラス統一）
+    [x] VERT切り替え時のカード枠高さ縮小バグ（!important競合）の解消
+    [x] 縦書き時の横幅はみ出しバグ修正（コンテナ幅を1400pxに完全に固定）
+
+  【完了】進捗 (2026-06-04)
+    [x] 縦書き（VERT）モードの実装、および長押し連続スクロール機能の追加
+    [x] 縦書き時のカード高さ調整スライダー（40%〜100%）の実装
+    [x] 横書きから縦書きへ切り替える際のスクロール位置自動リセット
+
+  【完了】進捗 (2026-06-03)
+    [x] PWA起動時の画面サイズ固定（横長）および前回開いたフォルダ復元機能の実装
+    [x] ソート機能（日付順/名前順/昇降トグル）の実装
+
+
+▼ 03. Solid Square Editor (ソリッドスクエア・エディター)
+------------------------------------------------------------------------
+  【完了】進捗 (2026-06-08)
+    [x] インフォパネルにカーソル位置の行番号（LINE）を表示する機能を追加
+  
+  【完了】進捗 (2026-05-29)
+    [x] ツールバーのコントロール配置の高さ統一（FONT FAMILYとREADING FOCUS）
+    [x] Focus ModeのUI調整（EXIT FOCUSボタン幅拡張、テーマ選択ドット削除）
+
+  【完了】進捗 (2026-05-25)
+    [x] HISTORY SNAPSHOTを廃止してINFORMATION PANELへ統合し、テキスト領域拡張
+    [x] MINIMUM MODEの操作性向上（ミニHUD内のツール順序整理）
+
+  【完了】進捗 (2026-05-18)
+    [x] タブ機能の改善（最大数を16に制限）
+    [x] プレビュー残存バグの修正（新規タブ作成時・切り替え時に前タブプレビューをリセット）
+
+  【完了】進捗 (2026-05-12)
+    [x] 横縦書き切り替え機能（Writing Mode）の実装
+    [x] HTMLストリップ処理における<iframe>タグ消失バグの修正
+    [x] 太字判定ブラケット（【 】）の廃止（プレーンテキスト抽出へ適正化）
+
+  【完了】進捗 (2026-05-11)
+    [x] CHAT（チャット整形）機能の大幅強化（見出し、リスト、ラベルの自動判別）
+    [x] インテリジェントな強調表示（透明マーカーを用いた太字情報維持）
+    [x] 参照リンクの自動連結（「+1」等の記号を直前の行に結合）
+
+  【完了】進捗 (2026-04-27)
+    [x] タブの上書き保存、全タブクローズ、FilePicker永続性の強化
+
+  【完了】進捗 (2026-04-26)
+    [x] マルチタブ・インターフェースの実装。sw.js v12キャッシュ問題解決
+
+  【完了】進捗 (2026-04-23)
+    [x] Minimum Modeの実装（フローティングHUDからツールバー統合ストリップへ移行）
+
+
+▼ 11. SOLID SQUARE CALENDAR + (カレンダーログビューアー)
+------------------------------------------------------------------------
+  【完了】進捗 (2026-06-11 15:30)
+    [x] 「SOLID-SQUARE-CALENDAR-」を「A-App」フォルダ内に新規クローンし、依存関係の解決と「.env.local」の設定を実施
+    [x] PWA用アイコン画像「pwa-icon.jpg」の配置（ローカル・アップロード先の両方に保存）
+    [x] テキストモードに「PAPERモード（ベージュ背景・黒文字）」を追加
+    [x] テキスト閲覧時に前後のファイルに移動できる「Prev/Next」ボタンおよびキーボードショートカット（j/k）を新規実装
+    [x] PWAキャッシュ更新ビルドおよびGitサブモジュールとしての登録、リモートへの同期プッシュ完了
+
+=======================================================================
+
+========================================================================
+■ 5. 将来のツール企画案・レパートリー (将来検討用)
+========================================================================
+以下は、今後制作・拡張する可能性のあるツールの企画案およびレパートリーの一覧です。
+（※仕様や文章は随時変更・アップデートされる可能性があります）
+
+【日本語版】
+------------------------------------------------------------------------
+● SOLID SQUARE CALENDAR +
+  概要: File System Access APIベースのカレンダー思考型のカスタマイズ可能なログビューアおよびエディタ。
+
+● SOLID IMAGE ENGINE CONVERTER
+  概要: ブラウザ上で完全に動作する、プロフェショナルな画像バッチ処理・変換ソフト。
+
+● SOLID COLOR STUDIO DESIGNER
+  概要: 開発者向けのプロフェッショナルツール。HEX、RGB、RGBA、HSLなどのカラーコードを瞬時に生成・コピーできます。
+
+● SOLID LOGO & TYPOGRAPHY CREATOR
+  概要: プロフェッショナルな3Dタイポグラフィスタジオ。テキストを入力し、アルゴリズム効果（ボクセル、ネオン、サイバーなど）を選択して、編集済みロゴを生成できます。
+
+● SOLID DESIGN EDITORIALIZER
+  概要: プロフェッショナルなタイポグラフィ＆フォーメーションスタジオ。テキストを入力すると、アルゴリズムレイアウトエンジンがシームレスにレイアウトを生成していきます。
+
+● SOLID DESKTOP IMAGE VIEWER
+  概要: ファイルシステムアクセスAPIとIndexedDBキャッシュを備えたハイエンドなローカル画像ビューア。物理慣性アニメーション機能を搭載。
+
+● SOLID GRAPHIC ART DESIGNER
+  概要: 次世代のグラフィックデザインを解き放ちましょう。この高度なスタジオは、日常の画像を息を呑むようなベクターグラフィックや質感豊かなモザイク作品へと変換します。タイル形状、配置、ベクターレイヤーを完全にコントロールすることで、デジタルイラストレーションと実際のモザイク工芸のギャップを埋めることができます。
+
+● SOLID VISUAL ANIMATION COMPOSER
+  概要: 音声と同期したSVGベースのアニメーションを作成するための軽量エディタ。出力はJSON形式で、Vanilla JSプレーヤーで再生できます。
+
+● SOLID BLOCKPOSE STUDIO BGM+2026 / ブロックポージングスタジオ+サウンド設定
+  概要: ブロックで作られたような3D的な人間が、ワンクリックで体のポーズをいろいろ変えるようなポージングツール。
+
+● SOLID SABIAN SYMBOLIC READING
+  概要: 人の出生情報に基づきサビアン・シンボルを用いてその人の宿命や才能を読み解く、多層的な占星術鑑定書。
+
+● K-NAVIGATOR EXPLORER FORMATION MAP
+  概要: K-Navigatorに基づいた2026年の日本株式銘柄俯瞰マップ。 カテゴリー・セクター・資本関係に基づく構造化体験…
+
+● AI SYSTEM MAP EXPLORER / ALサービス関連図マップエクスプローラー
+  概要: 機能と能力別に分類された、AL サービスの構造化エクスプローラー。
+
+● 12星座の特徴フォーメーションマップ
+  概要: 十二星座の特徴と各デーク(区別)ごとの詳細な性質を俯瞰するマップ。火・地・風・水の属性に基づく構造化エク…
+
+● ブロック崩しワイド版 ／ RETRO ATARI BREAKOUT
+  概要: HTML5 CANVAS と WEB AUDIO API を使用して、1976 年の ATARI アーケード クラシック「BREAKOUT」を忠実に再現しました。
+
+● アルカノイド:ワイド版 ／ ARKANOID WIDE
+  概要: 1986 年の古典的なアーケード ゲーム ARKANOID のクローンで、アイテム、銀のブロック、効果音が特徴です。
+
+● レトロインベーダーゲーム ／ 2026:RETRO SPACE INVADERS
+  概要: カスタマイ感の可能な色を備えたクラシックなレトロなスペース インベーダー ゲーム。
+
+● サブスクリプションマネージャーⅡ
+  概要: サブスクリプションの合計コストを簡単に計算できます。人気のサービスとプランから選択して、毎月の料金を確認してください...
+
+● フォーカスタイマー
+  概要: 集中力と生産性を高めるクリーンで最小限のカウントダウン タイマー。
+
+● にほんごヘルパー
+  概要: 漢字翻訳の総合日本語アシスタント検索機能と文法解説機能を搭載...
+
+● AI DESIGN SYSTEM EXPLORER
+  概要: AI企業ウェブサイト向けに10種類のデザインシステムを比較できるツール。
+
+
+【英語版 (English Version)】
+------------------------------------------------------------------------
+● SOLID SQUARE CALENDAR +
+  Desc: File System Access API based calendar thinking log viewer and editor.
+
+● SOLID IMAGE ENGINE CONVERTER
+  Desc: Professional image batch processor and converter working entirely in the browser.
+
+● SOLID COLOR STUDIO DESIGNER
+  Desc: A professional tool for developers to generate and copy instant color codes (HEX, RGB, RGBA, HSL).
+
+● SOLID LOGO & TYPOGRAPHY CREATOR
+  Desc: Professional 3D typography studio. Input text, pick an algorithmic effect (voxels, neon, cyber), and generate edited logos.
+
+● SOLID DESIGN EDITORIALIZER
+  Desc: Professional Typography & Formation Studio. Input text and watch the algorithmic layout engine seamlessly morph layouts.
+
+● SOLID DESKTOP IMAGE VIEWER
+  Desc: High-end local image viewer with File System Access API and IndexedDB caching. Features physical inertia animations.
+
+● SOLID GRAPHIC ART DESIGNER
+  Desc: Unlock the next generation of graphic design. This advanced studio converts everyday images into stunning vector graphics and textured mosaic masterpieces. Take full control over tile shapes, alignment, and vector layers to bridge the gap between digital illustration and physical mosaic craftsmanship.
+
+● SOLID VISUAL ANIMATION COMPOSER
+  Desc: A lightweight editor for creating SVG-based animations synced with audio, outputting JSON for a Vanilla JS player.
+
+● SOLID BLOCKPOSE STUDIO BGM+2026 / Block Posing Studio + Sound Settings
+  Desc: A posing tool that lets you change the body pose of a 3D human figure, which looks like it's made of blocks, with a single click.
+
+● SOLID SABIAN SYMBOLIC READING
+  Desc: A multi-layered astrological reading that interprets a person's destiny and talents using Sabian symbols based on their birth information.
+
+● AL DESIGN SYSTEM EXPLORER
+  Desc: A tool to compare 10 distinct design systems for an Al corporate website.
+
+● K-NAVIGATOR EXPLORER FORMATION MAP
+  Desc: K-Navigator-based 2026 Japanese stock overview map. Structured exploration based on category, sector, and capital relations.
+
+● AI SYSTEM MAP EXPLORER / AI System Map Explorer
+  Desc: A structured explorer for Al services, categorized by function and capability.
+
+● SUBSCRIPTION MANAGER II
+  Desc: Calculate your total subscription costs with ease. Select from popular services and plans to see your monthly amount.
+
+● 12星座の特徴 フォーメーションマップ
+  Desc: A map to overview the characteristics of the twelve zodiac signs and detailed qualities of each decan. Structured exploration based on Fire, Earth, Wind, and Water attributes.
+
+● ブロック崩しワイド版 / Retro Atari Breakout
+  Desc: A faithful reproduction of the 1976 Atari arcade classic 'Breakout' using HTML5 Canvas and Web Audio API.
+
+● アルカノイド:ワイド版 / Arkanoid Wide
+  Desc: A clone of the classic 1986 arcade game Arkanoid, featuring items, silver blocks, and sound effects.
+
+● レトロインベーダーゲーム2026:Retro Space Invaders
+  Desc: A classic retro Space Invaders game with customizable colors.
+
+● Focus Timer
+  Desc: A clean, minimal countdown timer for focus and productivity.
+
+● Nihongo Helper
+  Desc: A comprehensive Japanese language assistant for translation, kanji lookup, and grammar explanations.
+
+========================================================================
