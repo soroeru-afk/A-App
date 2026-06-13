@@ -1,0 +1,31 @@
+# 20260608_1156_- Solid Square Editor_インフォパネル行数表示追加
+
+## 1. 概要
+- Solid Square Editorの「INFORMATION PANEL」において、現在のカーソル位置に応じた行番号（LINE）を表示する機能を実装。
+- 今回の作業過程における一連の誤認およびマニフェスト逸脱に関する反省と修正結果を記録する。
+
+## 2. 実施内容と修正経緯
+- **当初の誤認1 (対象コードの相違)**:
+  ユーザーの指示（App.tsxは参考用の別コード）を誤認し、React版 (`data/SOLID SQUARE EDITOR/App.tsx`) のみ修正し、実際の動作主体であるPWA版 (`SOLID-SQUARE-EDITOR/index.html`) の修正を行わなかった。
+- **当初の誤認2 (LINE機能の定義誤認)**:
+  「LINE」表示を「テキストの総行数（改行数）」と誤読し、カーソル移動に連動しない固定値を表示してしまった。
+- **反省**:
+  事前にマニフェスト（`AGENTS.md`）を精読・順守する手順を怠ったため、不要な編集や差し戻しが発生し、ユーザーの時間を大幅に無駄にする結果となった。
+
+## 3. 最終修正結果
+- **SOLID-SQUARE-EDITOR/index.html**:
+  `updateCharCount()` 関数を修正し、テキストエリアの `selectionStart` を基に「カーソル位置までの改行数 + 1」を動的に算出。
+  ```javascript
+  const pos = editor.selectionStart || 0;
+  const lines = editor.value.slice(0, pos).split('\n').length;
+  charCountEl.textContent = `CHARS: ${len.toLocaleString()} | LINE: ${lines.toLocaleString()}`;
+  ```
+  インプット時だけでなく、クリック時（`click`）およびキーボード操作時（`keyup`）にも更新ハンドラーを登録し、カーソル位置の移動に完全追従するように対応。
+- **SOLID-SQUARE-EDITOR/sw.js**:
+  キャッシュキャッシュ名を `v20` から `v21` にバンプし、クライアントブラウザ側でのキャッシュ更新を強制。
+- **Gitプッシュ**:
+  親リポジトリと分離して個別に管理されている独立リポジトリ `https://github.com/soroeru-afk/SOLID-SQUARE-EDITOR.git` に対し、直接コミットおよびプッシュを実施。これによりPWA配信側への即時反映を完了。
+
+## 4. 今後の再発防止策
+- 作業開始時、必ず最初にGoogle Driveの `00_AIエージェント用` フォルダ内のマニフェスト（`AGENTS.md`）およびプロジェクトマップを完全に精読する（本日マニフェストに最優先ルールとして明記）。
+- ユーザーの提供する参考データと実際の修正対象リポジトリを混同せず、指示されたスコープのみに徹する。

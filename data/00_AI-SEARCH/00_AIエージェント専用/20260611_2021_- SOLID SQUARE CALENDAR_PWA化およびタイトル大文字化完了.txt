@@ -1,0 +1,25 @@
+# 20260611_2021_- SOLID SQUARE CALENDAR_PWA化およびタイトル大文字化完了
+
+`SOLID SQUARE CALENDAR`（カレンダーログビューアー）のPWA（Progressive Web App）対応、ブラウザタブタイトルの大文字化、およびルートURL（`/dist/` なし）での自動デプロイ設定が完了しました。
+
+## 実施した作業概要
+
+- **PWA用パッケージの追加**: `vite-plugin-pwa` を `devDependencies` に追加・インストールしました。
+- **PWA設定の構成 (`vite.config.ts`)**:
+  - `vite-plugin-pwa` を統合し、サービスワーカーの自動更新（`autoUpdate`）を有効にしました。
+  - アセット読み込みパスの整合性を保つため、`base: './'` を指定しました。
+  - マニフェストにアプリ名、テーマカラー（`#0e1014`）等を定義しました。
+- **PWA用アイコンの生成**:
+  - プロジェクトルートに配置されていた `pwa-icon.jpg` をもとに、PowerShell の画像処理スクリプト（GDI+）を用いて、PWA必須要件である `192x192` および `512x512` サイズの PNG アイコンを高品質リサイズで自動生成し、`public/` ディレクトリ配下に配置しました。
+- **タブタイトルの大文字化**:
+  - `index.html` 内の `<title>` タグを、ご要望通り大文字の `SOLID SQUARE CALENDAR` に変更しました。
+- **GitHub Actionsによる自動デプロイ移行（`/dist/` の排除）**:
+  - `main` ブランチへのプッシュ時に自動ビルドと `dist` フォルダの中身のみを公開する GitHub Actions ワークフロー（`.github/workflows/deploy.yml`）を構築しました。
+  - リポジトリから `dist/` ディレクトリのGit追跡を削除し、`.gitignore` に追加してリポジトリ構造をクリーン化しました。
+  - これにより、URLの末尾に `/dist/` を付けることなく、リポジトリのルートURL（`https://soroeru-afk.github.io/SOLID-SQUARE-CALENDAR-/`）で直接動作させることが可能になりました。
+
+## ユーザー対応事項
+
+> [!IMPORTANT]
+> - GitHubのリポジトリの **Settings** > **Pages** タブを開き、「Build and deployment」セクションの **Source** を **`GitHub Actions`** に変更してください。
+> - これにより、GitHub Actions ワークフローが動き出し、ルートURLでカレンダーアプリが自動公開されます。

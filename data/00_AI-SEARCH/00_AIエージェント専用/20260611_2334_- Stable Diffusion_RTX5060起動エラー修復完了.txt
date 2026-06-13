@@ -1,0 +1,26 @@
+# 20260611_2334_- Stable Diffusion_RTX5060起動エラー修復完了
+
+最終更新日時: 2026-06-11 23:34
+
+---
+
+## 1. 完了したタスクの概要と成果
+デスクトップの `Stable Diffusion` フォルダ内にある **Stable Diffusion WebUI Forge** (`webui_forge_cu121_torch231`) について、新型グラフィックボード（NVIDIA GeForce RTX 5060）環境で発生していた起動時エラーを修復し、GPUをネイティブ認識して正常に起動プロセスが進む状態にアップデートしました。
+
+## 2. 発生した課題とその解決策
+- **課題**: 
+  起動時に以下のエラー（UserWarning）が発生し、PyTorchがGPU（RTX 5060）を認識できない、または互換性エラーで起動が停止していました。
+  `NVIDIA GeForce RTX 5060 with CUDA capability sm_120 is not compatible with the current PyTorch installation.`
+  原因は、ポータブルパッケージに元々含まれていた PyTorch のビルド（`2.3.1+cu121`）が、最新の Blackwell アーキテクチャ（sm_120、GeForce RTX 50シリーズ）に対応していなかったためです。
+- **解決策**:
+  ポータブル環境内の Python を使用し、最新の Blackwell アーキテクチャに対応した `PyTorch 2.6.0+cu124` へのアップグレードパッケージを適用しました。
+  ```bash
+  system\python\python.exe -m pip install --upgrade torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+  ```
+  これにより、エラーが解消され、デバイス名 `NVIDIA GeForce RTX 5060 : native` として正常にGPUが認識されるようになりました。
+
+## 3. 次のフェーズへの申し送り事項
+- **起動手順**:
+  1. デスクトップの `Stable Diffusion/webui_forge_cu121_torch231` フォルダ内にある `run.bat` をダブルクリックして起動します。
+  2. 初回起動時は、OneDrive上にあるモデルファイル（`realisticVisionV51_v51VAE.safetensors` 等、約2GB）の同期ダウンロードや初期チェックが走るため、コマンドプロンプトの読み込み画面で少し時間がかかる場合があります。
+  3. ロードが完了すると、ブラウザが自動的に立ち上がり `http://127.0.0.1:7860` で画像生成画面（WebUI）が利用可能になります。

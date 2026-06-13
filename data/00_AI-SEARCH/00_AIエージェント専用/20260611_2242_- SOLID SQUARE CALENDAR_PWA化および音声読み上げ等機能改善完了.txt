@@ -1,0 +1,30 @@
+# 20260611_2242_- SOLID SQUARE CALENDAR_PWA化および音声読み上げ等機能改善完了
+
+本プロジェクトにおける「SOLID SQUARE CALENDAR +（カレンダーログビューアー）」のPWA化対応、セルアスペクト比固定機能の実装、および音声読み上げ機能のバグ修正と各種調整がすべて完了し、ユーザーによる最終動作検証を通過しました。
+
+## 1. 完了したシステム・成果の概要
+- **PWA化とアイコンの高品質化**: 
+  - `vite-plugin-pwa` を導入し、オフライン動作およびアプリインストールに対応。
+  - `pwa-icon.jpg` から PowerShell を用いて高品質な 192x192 / 512x512 の透過 PNG アイコンを自動生成・適用。
+  - ブラウザタブのタイトル表記を大文字の `SOLID SQUARE CALENDAR` に変更。
+- **GitHub Pagesデプロイ最適化**:
+  - `dist/` ディレクトリを Git 管理から除外し、GitHub Actions による自動ビルド・デプロイワークフローを構築。
+  - これにより、URL 末尾に `/dist/` を付ける必要がなくなり、リポジトリルート URL で直接起動可能になりました。
+- **カレンダーセルのアスペクト比固定機能**:
+  - 設定パネル（GENERAL）から「CELL RATIO (FREE, 1:1, 4:3, 3:2)」を選択可能にし、`localStorage` に設定を永続化。
+  - `ResizeObserver` を用いて、ウィンドウのサイズ変更時に曜日を含めたコンテナ全体が上端固定（`items-start`）のままで自動的に最大スケーリングされるレスポンシブ配置を実装。
+- **音声読み上げ機能（SpeechSynthesis）の改善**:
+  - ページ読み込み時および編集ダイアログ表示時に `getVoices()` を空撃ち呼び出しし、初回発声時のロード遅延バグを解消。
+  - 静的な固定ボイスリストを廃止し、実行環境が保持する `ja-JP` ボイスを動的に取得する設計へ移行。
+  - 発音が不自然な低品質の汎用「日本語」ボイス、`Google 日本語`、`Microsoft Server Speech` などの開発用音声を除外する厳格な動的フィルターを実装（イチローやアユミなど高品質な音声のみが維持される状態を確立）。
+
+## 2. 変更・調整した主要ファイル
+- [`vite.config.ts`](file:///c:/Users/soroe/A-App/SOLID-SQUARE-CALENDAR-/vite.config.ts) : PWA プラグインの構成およびビルド設定。
+- [`index.html`](file:///c:/Users/soroe/A-App/SOLID-SQUARE-CALENDAR-/index.html) : 大文字タイトル表記とマニフェストリンクの調整。
+- [`src/App.tsx`](file:///c:/Users/soroe/A-App/SOLID-SQUARE-CALENDAR-/src/App.tsx) : アスペクト比ステート、音声のプリロード、および日本語音声の厳格な除外フィルターの実装。
+- [`components/GridSqView.tsx`](file:///c:/Users/soroe/A-App/SOLID-SQUARE-CALENDAR-/components/GridSqView.tsx) : 比率固定時のグリッドおよび曜日ヘッダーの上寄せレイアウトの最適化。
+- [`components/EditorModal.tsx`](file:///c:/Users/soroe/A-App/SOLID-SQUARE-CALENDAR-/components/EditorModal.tsx) : テキストエリアフォーカス時およびロード時の音声プリロード処理。
+
+## 3. 次フェーズへの申し送り
+- 本マイルストーンのすべての要件が検証完了し、安定稼働状態に移行しました。
+- 次回以降、他のプロジェクト（SPACE-ROBOTMAN WORLD の演出強化や、SUPER FOLDER LOG VIEWER の起動ローディング追加等）の開発フェーズを優先して進める予定です。

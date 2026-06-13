@@ -1,0 +1,24 @@
+# 20260606_1308_- SOLID SUPER GATE ESCAPER_v3 最新アップデート反映
+
+本日、ユーザー指定のAI Studio修正データディレクトリ（`data/■-solid-super-gate-escaper/`）より `App.tsx` および `index.css` を適用し、タブ機能やブックマーク個別のチェックボックス表示仕様を完全な形で反映・同期完了しました。
+
+## 主な実施内容
+
+### 1. AI Studio データの完全適用
+- `data/■-solid-super-gate-escaper/src/` 配下より、AI Studioで精緻に調整された最新の **`App.tsx`** (約63KB) および **`index.css`** をプロジェクトにコピーし、完全同期しました。
+
+### 2. タブバー機能の完全実装 (`App.tsx`)
+- 複数ロケーション（Street View）を管理するためのタブデータ管理（`TabData`）、タブ追加・削除、全て閉じるボタンが正常に実装されています。
+- タブバーのスクロール矢印 (`[ < ]` / `[ > ]`) に対するホバー／クリックでの連続スクロール処理 (`startScroll` / `stopScroll`) を適用。
+- タブの状態（`tabs` / `activeTabId`）は `localStorage` （`sv_tabs` および `sv_active_tab_id`）に保存・復元されます。
+
+### 3. チェックボックス表示仕様の制御 (`App.tsx`)
+- 選択モード (`isSelectMode`) 中に、**フォルダ側のチェックボックスは非表示**とし、**通常のブックマークアイテム（場所名）の前にのみ個別チェックボックスを表示**させる仕様を適用しました。
+- 選択モード時の個別項目は `custom-checkbox pointer-events-none` で `readOnly` のチェックボックスとされ、行全体のクリックで選択のトグル連動が行われます。
+
+### 4. PWA構成・バッチ・GitHub同期
+- PWAキャッシュ名 `gate-escaper-v3` によるサービスワーカーキャッシュ制御。
+- `index.html` にて `/SOLID-SUPER-GATE-ESCAPER-/sw.js?v=3` のようにキャッシュバスター用のクエリパラメータを追加し、古いPWAキャッシュを掴んでいるクライアントに強制アップデートを促す設定を実装しました。
+- `index.html` 内の各参照パスを絶対ベースパス参照に変更し、パス解決不整合を解消。
+- 本番ビルドを実行し、正常にアセットファイル群がコンパイルされることを確認。
+- 最新コードを `origin/main` (GitHub) へコミット・プッシュを完了しました。

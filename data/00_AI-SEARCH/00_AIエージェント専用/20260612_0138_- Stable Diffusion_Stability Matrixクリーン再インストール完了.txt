@@ -1,0 +1,36 @@
+# 20260612_0138_- Stable Diffusion_Stability Matrixクリーン再インストール完了
+
+最終更新日時: 2026-06-12 01:38
+
+---
+
+## 1. 完了したタスクの概要と成果
+RTX 5060環境における Stable Diffusion WebUI の起動不具合および ControlNet の内部エラー (`TypeError: 'NoneType' object is not iterable`) を抜本的に解消するため、破損した古い WebUI フォルダ群をすべてクリーンアップし、新世代のパッケージ管理ソフトである **Stability Matrix** を導入しました。
+
+## 2. 実施した作業内容
+- **モデルファイルの退避保護**:
+  ダウンロードに非常に時間がかかる大容量のモデルファイル（`.safetensors`）計4枚（計約18.1GB）を、削除前に **`C:\StableDiffusion_backup_models\`** に退避・保護しました。
+  - `epicrealismXL_pureFix.safetensors` (約6.9GB)
+  - `realisticVisionV51_v51VAE.safetensors` (約2.1GB)
+  - `realisticVisionV60B1_v51HyperVAE.safetensors` (約2.1GB)
+  - `realvisxlV50_v50LightningBakedvae.safetensors` (約6.9GB)
+- **破損フォルダの完全クリーンアップ**:
+  エラーの原因となっていた以下の古い WebUI ディレクトリを完全に削除しました。
+  - デスクトップの `Stable Diffusion\webui_forge_cu121_torch231\`
+  - Cドライブ直下の `C:\webui_forge_cu121_torch231\`
+- **Stability Matrix の新規導入**:
+  - Cドライブ直下に **`C:\StabilityMatrix\`** フォルダを作成しました（OneDriveの同期競合を防ぎ、動作の安定性を高めるため）。
+  - Stability Matrixの最新安定リリース版（v2.16.0）をダウンロード・展開し、起動用EXE（`StabilityMatrix.exe`）の配置を完了しました。
+
+## 3. 次のフェーズへの申し送り事項・起動後の手順
+1. **Stability Matrix の初回起動**:
+   - `C:\StabilityMatrix\StabilityMatrix.exe` をダブルクリックして起動します。
+   - 初回起動時のセットアップ画面で、データフォルダの場所を指定します（デフォルトの `C:\StabilityMatrix\Data` で問題ありません）。
+2. **WebUI のインストール**:
+   - Stability Matrix の画面内の「Packages」タブから、左下の「Add Package」ボタンを押し、**「Stable Diffusion WebUI Forge」**を選択してインストールしてください。
+   - 自動的に、最新のRTX 50シリーズ（sm_120）にネイティブ対応した環境（最新の PyTorch / CUDA ビルド）が構築されます。
+3. **退避モデルファイルの引っ越し**:
+   - WebUI Forge のインストール完了後、退避させておいたモデルファイル（`C:\StableDiffusion_backup_models\` の中身）を、以下の Stability Matrix 共通モデルフォルダに移動（カット＆ペースト）してください。
+     `C:\StabilityMatrix\Data\Models\Stable-diffusion\`
+     （※データフォルダの場所を変更した場合は、指定した場所の配下になります）
+   - モデルを配置後、Stability Matrix の画面で「Launch」ボタンを押すことで、最新・安定した WebUI Forge が正常に立ち上がります。
