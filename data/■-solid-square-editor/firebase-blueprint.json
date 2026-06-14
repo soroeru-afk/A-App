@@ -1,0 +1,41 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and settings.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "description": "User's email address" },
+        "displayName": { "type": "string", "description": "User's display name" },
+        "createdAt": { "type": "string", "format": "timestamp", "description": "Creation timestamp" },
+        "updatedAt": { "type": "string", "format": "timestamp", "description": "Last update timestamp" },
+        "subscriptionStatus": { "type": "string", "description": "Status of the user's subscription (e.g. free, active)" },
+        "stripeCustomerId": { "type": "string", "description": "Stripe customer ID" }
+      },
+      "required": ["email", "createdAt", "updatedAt"]
+    },
+    "Document": {
+      "title": "Document",
+      "description": "A saved editor document/tab.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "textContent": { "type": "string" },
+        "createdAt": { "type": "string", "format": "timestamp" },
+        "updatedAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["userId", "title", "textContent", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores user profiles."
+    },
+    "/documents/{documentId}": {
+      "schema": { "$ref": "#/entities/Document" },
+      "description": "Stores text documents for users."
+    }
+  }
+}
