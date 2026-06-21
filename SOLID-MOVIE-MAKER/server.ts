@@ -14,8 +14,8 @@ async function startServer() {
   });
 
   app.get("/api/select-folder", (req, res) => {
-    // PowerShell command to open FolderBrowserDialog as TopMost with UTF-8 encoding
-    const psCommand = `powershell -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Add-Type -AssemblyName System.Windows.Forms; $form = New-Object System.Windows.Forms.Form; $form.TopMost = $true; $form.Opacity = 0; $form.ShowInTaskbar = $false; $form.Show(); $form.Activate(); $f = New-Object System.Windows.Forms.FolderBrowserDialog; $f.Description = '動画フォルダーを選択してください'; if ($f.ShowDialog($form) -eq 'OK') { $f.SelectedPath }; $form.Close();"`;
+    // PowerShell command to open FolderBrowserDialog modal to the active window (browser)
+    const psCommand = `powershell -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.FolderBrowserDialog; $f.Description = '動画フォルダーを選択してください'; $w = New-Object System.Windows.Forms.NativeWindow; $owner = Get-Process | Where-Object { $_.MainWindowTitle -and $_.MainWindowHandle -ne [IntPtr]::Zero } | Sort-Object -Property LastProcessorTime -Descending | Select-Object -First 1; if ($owner) { $w.AssignHandle($owner.MainWindowHandle); }; if ($f.ShowDialog($w) -eq 'OK') { $f.SelectedPath }"`;
     
     exec(psCommand, (error, stdout, stderr) => {
       if (error) {
