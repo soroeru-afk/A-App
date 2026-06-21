@@ -21,6 +21,31 @@ export default function VideoList({ videos, categories, onDelete, onUpdateTitle,
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
+  const [titleWidth, setTitleWidth] = useState<number>(() => {
+    const saved = localStorage.getItem('solid_title_width');
+    return saved ? parseInt(saved, 10) : 400;
+  });
+
+  const startTitleResize = (mouseDownEvent: React.MouseEvent) => {
+    mouseDownEvent.preventDefault();
+    const startWidth = titleWidth;
+    const startX = mouseDownEvent.clientX;
+
+    const doDrag = (mouseMoveEvent: MouseEvent) => {
+      const newWidth = Math.max(150, Math.min(1200, startWidth + (mouseMoveEvent.clientX - startX)));
+      setTitleWidth(newWidth);
+      localStorage.setItem('solid_title_width', newWidth.toString());
+    };
+
+    const stopDrag = () => {
+      document.removeEventListener('mousemove', doDrag);
+      document.removeEventListener('mouseup', stopDrag);
+    };
+
+    document.addEventListener('mousemove', doDrag);
+    document.addEventListener('mouseup', stopDrag);
+  };
+
   const getCategoryName = (id: string) => {
     const name = categories.find(c => c.id === id)?.name;
     if (!name || name === '未割り当て') return txt.uncategorized;
@@ -96,7 +121,10 @@ export default function VideoList({ videos, categories, onDelete, onUpdateTitle,
       </div>
       
       <div className="flex-1 border border-border-main bg-panel-bg flex flex-col overflow-hidden">
-        <div className="grid grid-cols-[auto_1fr_4fr_2fr_2fr_auto] gap-2 p-2 border-b border-border-main text-[10px] text-text-dim font-bold bg-base-bg items-center">
+        <div 
+          className="grid gap-2 p-2 border-b border-border-main text-[10px] text-text-dim font-bold bg-base-bg items-center"
+          style={{ gridTemplateColumns: `40px 70px ${titleWidth}px 1fr 100px 190px` }}
+        >
           <div className="flex justify-center px-2">
               <input 
                   type="checkbox" 
@@ -106,7 +134,14 @@ export default function VideoList({ videos, categories, onDelete, onUpdateTitle,
               />
           </div>
           <div className="text-center">{txt.colPlay}</div>
-          <div>{txt.colTitle}</div>
+          <div className="relative pr-4 flex items-center h-full">
+            <span>{txt.colTitle}</span>
+            <div 
+              onMouseDown={startTitleResize}
+              className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-text-bright/20 active:bg-text-bright z-30"
+              style={{ marginRight: '-4px' }}
+            />
+          </div>
           <div>{txt.colCategory}</div>
           <div className="text-right">{txt.colDate}</div>
           <div className="text-center w-44 shrink-0">{txt.colEdit}</div>
@@ -119,7 +154,11 @@ export default function VideoList({ videos, categories, onDelete, onUpdateTitle,
                 </div>
             ) : (
                 videos.map(video => (
-                    <div key={video.id} className="grid grid-cols-[auto_1fr_4fr_2fr_2fr_auto] gap-2 p-2 border-b border-border-main/50 text-xs items-center hover:bg-base-bg group">
+                    <div 
+                      key={video.id} 
+                      className="grid gap-2 p-2 border-b border-border-main/50 text-xs items-center hover:bg-base-bg group"
+                      style={{ gridTemplateColumns: `40px 70px ${titleWidth}px 1fr 100px 190px` }}
+                    >
                         
                         <div className="flex justify-center px-2">
                             <input 
