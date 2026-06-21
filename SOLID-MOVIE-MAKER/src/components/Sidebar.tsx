@@ -11,6 +11,7 @@ interface SidebarProps {
   onAddCategory: () => void;
   onEditCategory: (id: string, newName: string) => void;
   onDeleteCategory: (id: string) => void;
+  onMoveCategory: (id: string, direction: 'up' | 'down') => void;
   width: number;
   onWidthChange: (width: number) => void;
   lang: Language;
@@ -24,6 +25,7 @@ export default function Sidebar({
   onAddCategory,
   onEditCategory,
   onDeleteCategory,
+  onMoveCategory,
   width,
   onWidthChange,
   lang
@@ -171,12 +173,14 @@ export default function Sidebar({
                               <button onClick={() => setDeleteConfirmId(null)} className="text-text-dim px-1 hover:text-text-bright">{txt.cxl}</button>
                          </div>
                      ) : (
-                         <div className="flex items-center gap-2 shrink-0 opacity-40 hover:opacity-100 transition-opacity">
+                         <div className="flex items-center gap-1.5 shrink-0 opacity-40 hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                             <button onClick={() => onMoveCategory(cat.id, 'up')} className="text-text-dim hover:text-text-bright text-[10px] font-bold px-0.5" title="上へ">▲</button>
+                             <button onClick={() => onMoveCategory(cat.id, 'down')} className="text-text-dim hover:text-text-bright text-[10px] font-bold px-0.5" title="下へ">▼</button>
                              <button onClick={(e) => startEdit(e, cat)} className="text-text-dim hover:text-text-bright" title={txt.rename}>
-                                 <Edit2 size={12} />
+                                 <Edit2 size={11} />
                              </button>
                              <button onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(cat.id); }} className="text-text-dim hover:text-red-400" title={txt.delete}>
-                                 <Trash2 size={12} />
+                                 <Trash2 size={11} />
                              </button>
                          </div>
                      )

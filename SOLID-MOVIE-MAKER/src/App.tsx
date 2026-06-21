@@ -260,6 +260,51 @@ export default function App() {
     }
   };
 
+  const handleMoveVideo = (id: string, direction: 'up' | 'down' | 'top' | 'bottom') => {
+    setVideos(prev => {
+      const index = prev.findIndex(v => v.id === id);
+      if (index === -1) return prev;
+      const next = [...prev];
+      
+      if (direction === 'up' && index > 0) {
+        const temp = next[index];
+        next[index] = next[index - 1];
+        next[index - 1] = temp;
+      } else if (direction === 'down' && index < next.length - 1) {
+        const temp = next[index];
+        next[index] = next[index + 1];
+        next[index + 1] = temp;
+      } else if (direction === 'top' && index > 0) {
+        const [element] = next.splice(index, 1);
+        next.unshift(element);
+      } else if (direction === 'bottom' && index < next.length - 1) {
+        const [element] = next.splice(index, 1);
+        next.push(element);
+      }
+      return next;
+    });
+  };
+
+  const handleMoveCategory = (id: string, direction: 'up' | 'down') => {
+    setCategories(prev => {
+      const index = prev.findIndex(c => c.id === id);
+      if (index === -1) return prev;
+      const next = [...prev];
+      
+      if (direction === 'up' && index > 0) {
+        // Prevent moving default category down if it is at 0, or just regular swap
+        const temp = next[index];
+        next[index] = next[index - 1];
+        next[index - 1] = temp;
+      } else if (direction === 'down' && index < next.length - 1) {
+        const temp = next[index];
+        next[index] = next[index + 1];
+        next[index + 1] = temp;
+      }
+      return next;
+    });
+  };
+
   // Filter videos based on selection
   const displayedVideos = activeCategoryId 
     ? videos.filter(v => v.categoryId === activeCategoryId)
@@ -277,6 +322,7 @@ export default function App() {
         onAddCategory={handleAddCategory}
         onEditCategory={handleUpdateCategory}
         onDeleteCategory={handleDeleteCategory}
+        onMoveCategory={handleMoveCategory}
         width={sidebarWidth}
         onWidthChange={setSidebarWidth}
       />
@@ -319,10 +365,10 @@ export default function App() {
             lang={lang}
             videos={displayedVideos}
             categories={categories}
-            onPlay={setPlayingVideo}
             onDelete={handleDeleteVideo}
             onUpdateTitle={handleUpdateTitle}
             onBulkDelete={handleBulkDelete}
+            onMoveVideo={handleMoveVideo}
         />
       </div>
 

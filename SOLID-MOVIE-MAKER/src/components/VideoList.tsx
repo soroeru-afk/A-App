@@ -6,14 +6,14 @@ import { t } from '../translations';
 interface VideoListProps {
   videos: VideoInfo[];
   categories: Category[];
-  onPlay: (video: VideoInfo) => void;
   onDelete: (id: string) => void;
   onUpdateTitle: (id: string, newTitle: string) => void;
   onBulkDelete: (ids: string[]) => void;
+  onMoveVideo: (id: string, direction: 'up' | 'down' | 'top' | 'bottom') => void;
   lang: Language;
 }
 
-export default function VideoList({ videos, categories, onPlay, onDelete, onUpdateTitle, onBulkDelete, lang }: VideoListProps) {
+export default function VideoList({ videos, categories, onDelete, onUpdateTitle, onBulkDelete, onMoveVideo, lang }: VideoListProps) {
   const txt = t(lang).videoList;
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
@@ -109,7 +109,7 @@ export default function VideoList({ videos, categories, onPlay, onDelete, onUpda
           <div>{txt.colTitle}</div>
           <div>{txt.colCategory}</div>
           <div className="text-right">{txt.colDate}</div>
-          <div className="text-center w-12 shrink-0">{txt.colEdit}</div>
+          <div className="text-center w-28 shrink-0">{txt.colEdit}</div>
         </div>
 
         <div className="flex-1 overflow-y-auto">
@@ -118,7 +118,7 @@ export default function VideoList({ videos, categories, onPlay, onDelete, onUpda
                     {txt.noData}
                 </div>
             ) : (
-                videos.sort((a, b) => b.createdAt - a.createdAt).map(video => (
+                videos.map(video => (
                     <div key={video.id} className="grid grid-cols-[auto_1fr_4fr_2fr_2fr_auto] gap-2 p-2 border-b border-border-main/50 text-xs items-center hover:bg-base-bg group">
                         
                         <div className="flex justify-center px-2">
@@ -130,22 +130,19 @@ export default function VideoList({ videos, categories, onPlay, onDelete, onUpda
                             />
                         </div>
 
-                         <div className="flex justify-center gap-1">
-                             <button 
-                                 onClick={() => onPlay(video)}
-                                 className="w-6 h-6 flex items-center justify-center border border-border-main text-text-bright hover:bg-border-light hover:text-white transition-colors"
-                                 title={txt.colPlay}
-                             >
-                                 <Play size={10} className="ml-0.5" />
-                             </button>
-                             {video.localPath && (
+                         <div className="flex justify-center">
+                             {video.localPath ? (
                                  <a
                                      href={`solid-play://?path=${encodeURIComponent(video.localPath)}`}
                                      className="w-6 h-6 flex items-center justify-center border border-border-main text-blue-400 hover:bg-border-light hover:text-blue-300 transition-colors"
                                      title={txt.playExternalTooltip}
                                  >
-                                     <Tv size={10} />
+                                     <Play size={10} className="ml-0.5 fill-current" />
                                  </a>
+                             ) : (
+                                 <div className="w-6 h-6 flex items-center justify-center border border-border-main text-text-dim opacity-40" title="絶対パス未登録">
+                                     <Play size={10} className="ml-0.5" />
+                                 </div>
                              )}
                          </div>
                         
@@ -175,19 +172,23 @@ export default function VideoList({ videos, categories, onPlay, onDelete, onUpda
                             {new Date(video.createdAt).toLocaleDateString()}
                         </div>
                         
-                        <div className="flex justify-center w-12 shrink-0 gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex justify-end w-28 shrink-0 gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                             {deleteConfirmId === video.id ? (
                                 <div className="flex items-center gap-1">
-                                    <button onClick={() => handleDelete(video.id)} className="text-red-500 font-bold px-1 hover:text-red-400">{txt.delete}</button>
-                                    <button onClick={() => setDeleteConfirmId(null)} className="text-text-dim px-1 hover:text-text-bright">{txt.cancel}</button>
+                                    <button onClick={() => handleDelete(video.id)} className="text-red-500 font-bold px-1 hover:text-red-400 text-[10px]">{txt.delete}</button>
+                                    <button onClick={() => setDeleteConfirmId(null)} className="text-text-dim px-1 hover:text-text-bright text-[10px]">{txt.cancel}</button>
                                 </div>
                             ) : (
                                 <>
-                                    <button onClick={() => startEdit(video)} className="text-text-dim hover:text-text-bright" title={txt.rename}>
-                                        <Edit2 size={12} />
+                                    <button onClick={() => onMoveVideo(video.id, 'top')} className="text-text-dim hover:text-text-bright text-[9px] font-bold" title="一番上へ">▲▲</button>
+                                    <button onClick={() => onMoveVideo(video.id, 'up')} className="text-text-dim hover:text-text-bright text-[9px] font-bold" title="上へ">▲</button>
+                                    <button onClick={() => onMoveVideo(video.id, 'down')} className="text-text-dim hover:text-text-bright text-[9px] font-bold" title="下へ">▼</button>
+                                    <button onClick={() => onMoveVideo(video.id, 'bottom')} className="text-text-dim hover:text-text-bright text-[9px] font-bold" title="一番下へ">▼▼</button>
+                                    <button onClick={() => startEdit(video)} className="text-text-dim hover:text-text-bright ml-1" title={txt.rename}>
+                                        <Edit2 size={11} />
                                     </button>
                                     <button onClick={() => setDeleteConfirmId(video.id)} className="text-text-dim hover:text-red-400" title={txt.delete}>
-                                        <Trash2 size={12} />
+                                        <Trash2 size={11} />
                                     </button>
                                 </>
                             )}
