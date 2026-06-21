@@ -1,0 +1,2295 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SUPER FOLDER LOG VIEWER</title>
+<style>
+/* ─── CSS変数（テーマ） ─── */
+:root {
+  --sb-bg: #0F172A;
+  --sb-text: #F8FAFC;
+  --sb-accent: #3B82F6;
+  --sb-item-hover: rgba(255,255,255,0.05);
+  --sb-item-active: rgba(255,255,255,0.1);
+  --sb-border: rgba(255,255,255,0.15);
+  --sb-muted: rgba(255,255,255,0.35);
+  --sb-width: 280px;
+
+  --main-bg: #F8FAFC;
+  --main-text: #1E293B;
+  --main-muted: rgba(30,41,59,0.35);
+  --card-bg: #FFFFFF;
+  --card-border: #E2E8F0;
+  --footer-bg: rgba(255,255,255,0.6);
+  --footer-border: #E2E8F0;
+  --scrollbar-thumb: rgba(0,0,0,0.12);
+
+  --heading-color: #1E293B;
+  --speaker-color: rgba(30,41,59,0.4);
+  --date-accent: #60A5FA;
+  --summary-bg: #EFF6FF;
+  --summary-border: #3B82F6;
+  --summary-text: #1E3A8A;
+  --summary-label: #1D4ED8;
+
+  --btn-bg: #FFFFFF;
+  --btn-text: #1E293B;
+  --btn-border: rgba(0,0,0,0.12);
+  --btn-hover: #F1F5F9;
+  --btn-primary: #2563EB;
+  --btn-primary-hover: #1D4ED8;
+  --btn-success: #16A34A;
+  --btn-success-hover: #15803D;
+
+  --panel-bg: #1E293B;
+  --panel-border: rgba(255,255,255,0.15);
+
+  --font-body: 'Hiragino Sans', 'Yu Gothic UI', 'Meiryo', sans-serif;
+  --font-sidebar: inherit;
+  --sidebar-title-size: 13px;
+  --content-max-width: 900px;
+  --heading-font-size: 48px;
+  --heading-letter-spacing: -1px;
+}
+
+/* ─── アプリブランド ─── */
+#app-brand {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 24px 20px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+
+#app-name {
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 3.5px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.9);
+  line-height: 1.4;
+}
+
+#app-name span {
+  color: var(--sb-accent);
+  letter-spacing: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  display: block;
+  opacity: 0.85;
+}
+
+#app-version {
+  font-size: 10px;
+  font-family: monospace;
+  color: rgba(255,255,255,0.25);
+  letter-spacing: 1px;
+  padding-bottom: 3px;
+}
+
+/* ─── 再接続ボタン ─── */
+#reopen-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: rgba(59,130,246,0.12);
+  border: 1px solid rgba(59,130,246,0.3);
+  border-radius: 10px;
+  color: #60A5FA;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.15s;
+  margin-bottom: 10px;
+  font-family: var(--font-body);
+}
+#reopen-btn:hover { background: rgba(59,130,246,0.2); }
+#reopen-btn svg { flex-shrink: 0; opacity: 0.8; }
+
+/* ─── リセット ─── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--main-bg);
+  color: var(--main-text);
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  transition: background 0.25s, color 0.25s;
+}
+
+/* ─── サイドバー ─── */
+#sidebar {
+  width: var(--sb-width);
+  min-width: var(--sb-width);
+  max-width: var(--sb-width);
+  background: var(--sb-bg);
+  color: var(--sb-text);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  transition: width 0.2s, min-width 0.2s, max-width 0.2s, background 0.25s;
+}
+
+#sidebar-header {
+  padding: 28px 20px 16px;
+  flex-shrink: 0;
+}
+
+.sidebar-label {
+  font-size: 10px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  opacity: 0.4;
+  margin-bottom: 20px;
+}
+
+#open-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid var(--sb-border);
+  border-radius: 10px;
+  color: var(--sb-text);
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.15s;
+  margin-bottom: 14px;
+}
+#open-btn:hover { background: rgba(255,255,255,0.14); }
+#open-btn svg { flex-shrink: 0; opacity: 0.7; }
+
+#folder-name {
+  font-size: 11px;
+  opacity: 0.4;
+  margin-bottom: 10px;
+  padding: 0 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#search-box {
+  width: 100%;
+  padding: 8px 12px 8px 34px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  color: var(--sb-text);
+  font-size: 13px;
+  font-family: var(--font-body);
+  outline: none;
+  transition: border-color 0.15s;
+}
+#search-box::placeholder { color: rgba(255,255,255,0.2); }
+#search-box:focus { border-color: var(--sb-accent); }
+
+.search-wrap {
+  position: relative;
+  display: none;
+}
+.search-wrap svg {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0.35;
+}
+
+#file-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px 8px;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  opacity: 0.35;
+  flex-shrink: 0;
+}
+#refresh-btn {
+  background: none;
+  border: none;
+  color: var(--sb-text);
+  cursor: pointer;
+  opacity: 0.5;
+  padding: 2px;
+  transition: opacity 0.15s;
+}
+#refresh-btn:hover { opacity: 1; }
+
+#file-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 10px 16px;
+}
+#file-list::-webkit-scrollbar { width: 4px; }
+#file-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+.file-item {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 1px solid transparent;
+  color: var(--sb-text);
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.12s, opacity 0.12s, border-color 0.12s;
+  opacity: 0.5;
+  display: block;
+  margin-bottom: 2px;
+  font-family: var(--font-sidebar);
+}
+.file-item:hover { opacity: 0.85; background: var(--sb-item-hover); }
+.file-item.active {
+  opacity: 1;
+  background: var(--sb-item-active);
+  border-color: var(--sb-border);
+}
+.file-date {
+  font-size: 10px;
+  color: var(--date-accent);
+  font-family: monospace;
+  margin-bottom: 3px;
+}
+.file-title {
+  font-size: var(--sidebar-title-size);
+  font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+}
+.file-fname {
+  font-size: 10px;
+  opacity: 0.3;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#empty-msg {
+  text-align: center;
+  padding: 40px 16px;
+  font-size: 13px;
+  opacity: 0.25;
+  line-height: 1.8;
+}
+
+/* ─── メインコンテンツ ─── */
+#main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--main-bg);
+  transition: background 0.25s;
+}
+
+#content-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 48px 56px 40px;
+  position: relative;
+}
+#content-area::-webkit-scrollbar { width: 5px; }
+#content-area::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
+
+#content-inner {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+}
+
+#bg-date {
+  position: absolute;
+  top: 20px;
+  right: 32px;
+  font-size: 13vw;
+  font-weight: 900;
+  color: var(--heading-color);
+  opacity: 0.04;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+  letter-spacing: -4px;
+}
+
+#file-meta {
+  font-size: 11px;
+  opacity: 0.3;
+  font-family: monospace;
+  margin-bottom: 8px;
+  color: var(--main-text);
+}
+
+#file-heading {
+  font-size: var(--heading-font-size);
+  font-weight: 900;
+  letter-spacing: var(--heading-letter-spacing);
+  line-height: 1.15;
+  margin-bottom: 32px;
+  color: var(--heading-color);
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+#toolbar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.tool-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  border: 1px solid var(--btn-border);
+  transition: all 0.12s;
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  font-family: var(--font-body);
+}
+.tool-btn:hover { background: var(--btn-hover); }
+.tool-btn.primary { background: var(--btn-primary); color: white; border-color: transparent; }
+.tool-btn.primary:hover { background: var(--btn-primary-hover); }
+.tool-btn.success { background: var(--btn-success); color: white; border-color: transparent; }
+.tool-btn.success:hover { background: var(--btn-success-hover); }
+.tool-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+#messages {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.msg-block { width: 100%; }
+.msg-speaker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--speaker-color);
+  margin-bottom: 6px;
+}
+.msg-body {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 20px 24px;
+  line-height: 1.8;
+  font-size: 15px;
+  color: var(--main-text);
+  transition: background 0.25s, border-color 0.25s, color 0.25s;
+}
+.msg-body p { margin-bottom: 12px; }
+.msg-body p:last-child { margin-bottom: 0; }
+
+#plain-text {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 24px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  font-size: 15px;
+  color: var(--main-text);
+  transition: background 0.25s, border-color 0.25s;
+}
+
+#edit-area {
+  width: 100%;
+  min-height: 500px;
+  padding: 24px;
+  border: 2px solid var(--card-border);
+  border-radius: 16px;
+  font-family: monospace;
+  font-size: 14px;
+  line-height: 1.7;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.15s, background 0.25s;
+  display: none;
+  background: var(--card-bg);
+  color: var(--main-text);
+}
+#edit-area:focus { border-color: var(--sb-accent); }
+
+#summary-box {
+  border-left: 4px solid var(--summary-border);
+  background: var(--summary-bg);
+  padding: 16px 20px;
+  border-radius: 0 12px 12px 0;
+  margin-bottom: 24px;
+  display: none;
+}
+#summary-box .sum-label {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: var(--summary-label);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+#summary-box p { font-size: 14px; line-height: 1.7; color: var(--summary-text); }
+
+#welcome {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px;
+}
+#welcome-big {
+  font-size: 13vw;
+  font-weight: 900;
+  color: var(--heading-color);
+  opacity: 0.04;
+  letter-spacing: -4px;
+  line-height: 1;
+  margin-bottom: 24px;
+  user-select: none;
+}
+#welcome p {
+  font-size: 12px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  opacity: 0.3;
+  margin-bottom: 24px;
+  color: var(--main-text);
+}
+#welcome-open-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 28px;
+  background: var(--btn-primary);
+  color: white;
+  border: none;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: all 0.15s;
+}
+#welcome-open-btn:hover { background: var(--btn-primary-hover); transform: scale(1.03); }
+
+#footer {
+  padding: 12px 56px;
+  border-top: 1px solid var(--footer-border);
+  background: var(--footer-bg);
+  backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: space-between;
+  font-family: monospace;
+  font-size: 11px;
+  opacity: 0.35;
+  flex-shrink: 0;
+  color: var(--main-text);
+}
+
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── 設定パネルトリガーボタン ─── */
+#settings-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px;
+  background: none;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  color: rgba(255,255,255,0.45);
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+#settings-btn:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.8); }
+
+#sidebar-footer {
+  padding: 12px 16px 20px;
+  flex-shrink: 0;
+}
+
+/* ─── 設定パネル ─── */
+#settings-panel {
+  display: none;
+  position: fixed;
+  bottom: 72px;
+  left: 16px;
+  width: 300px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  padding: 0;
+  z-index: 100;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+  overflow: hidden;
+}
+#settings-panel.open { display: block; }
+
+/* タブ */
+.panel-tabs {
+  display: flex;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.panel-tab {
+  flex: 1;
+  padding: 12px 6px;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.35);
+  font-size: 10px;
+  font-weight: bold;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s;
+  border-bottom: 2px solid transparent;
+}
+.panel-tab:hover { color: rgba(255,255,255,0.7); }
+.panel-tab.active { color: #fff; border-bottom-color: var(--sb-accent); }
+
+.panel-body {
+  padding: 20px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+.panel-body::-webkit-scrollbar { width: 3px; }
+.panel-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+.tab-section { display: none; }
+.tab-section.active { display: block; }
+
+.setting-row {
+  margin-bottom: 18px;
+}
+.setting-row:last-child { margin-bottom: 0; }
+
+.setting-label {
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.setting-label span { color: rgba(255,255,255,0.85); font-weight: bold; letter-spacing: 0; font-size: 12px; }
+
+.setting-slider {
+  width: 100%;
+  -webkit-appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.15);
+  outline: none;
+  cursor: pointer;
+}
+.setting-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--sb-accent);
+  cursor: pointer;
+}
+
+.weight-btns, .font-btns {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.weight-btn, .font-btn {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 4px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 7px;
+  color: rgba(255,255,255,0.45);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.12s;
+  text-align: center;
+  white-space: nowrap;
+}
+.weight-btn.active, .font-btn.active {
+  background: var(--sb-accent);
+  border-color: var(--sb-accent);
+  color: white;
+}
+.weight-btn:hover:not(.active), .font-btn:hover:not(.active) {
+  background: rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.8);
+}
+
+/* フォント選択グリッド */
+.font-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+.font-btn {
+  flex: none;
+  padding: 8px 6px;
+  font-size: 10.5px;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* テーマグリッド */
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+}
+.theme-btn {
+  border: 2px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  padding: 0;
+  overflow: hidden;
+  transition: all 0.15s;
+  aspect-ratio: 4/3;
+  position: relative;
+}
+.theme-btn.active { border-color: var(--sb-accent); }
+.theme-btn:hover:not(.active) { border-color: rgba(255,255,255,0.3); }
+.theme-preview {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.theme-preview-sb { flex: 0 0 30%; }
+.theme-preview-main { flex: 1; }
+.theme-preview-label {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: rgba(0,0,0,0.55);
+  color: #fff;
+  font-size: 9px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 3px 5px;
+  text-align: center;
+}
+
+/* select */
+.setting-select {
+  width: 100%;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  color: rgba(255,255,255,0.8);
+  font-size: 12px;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.setting-select option { background: #1E293B; color: #fff; }
+
+/* ─── カテゴリ（日付・サブフォルダ）グループ ─── */
+.category-group { margin-bottom: 2px; }
+
+.category-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.45);
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  transition: background 0.12s, color 0.12s;
+  font-family: var(--font-sidebar);
+}
+.category-header:hover { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.75); }
+.category-header.open { color: rgba(255,255,255,0.7); }
+.category-icon { font-size: 11px; flex-shrink: 0; }
+.category-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.category-count { font-size: 9px; opacity: 0.4; font-family: monospace; letter-spacing: 0; flex-shrink: 0; }
+.category-arrow { flex-shrink: 0; opacity: 0.35; transition: transform 0.18s; font-size: 9px; }
+.category-header.open .category-arrow { transform: rotate(90deg); opacity: 0.6; }
+
+.category-files { display: none; padding-left: 6px; border-left: 1px solid rgba(255,255,255,0.06); margin-left: 14px; margin-bottom: 2px; }
+.category-files.open { display: block; }
+
+.today-badge {
+  font-size: 8px;
+  background: rgba(59,130,246,0.25);
+  color: #60A5FA;
+  border-radius: 4px;
+  padding: 1px 5px;
+  letter-spacing: 1px;
+  flex-shrink: 0;
+}
+
+/* ─── フォルダー移動ボタン ─── */
+#move-btn {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  border: 1px solid var(--btn-border);
+  transition: all 0.12s;
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  font-family: var(--font-body);
+}
+#move-btn:hover { background: var(--btn-hover); }
+
+/* ─── 移動先選択パネル ─── */
+#move-panel {
+  display: none;
+  position: fixed;
+  z-index: 200;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  padding: 0;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.55);
+  min-width: 240px;
+  overflow: hidden;
+}
+#move-panel.open { display: block; }
+.move-panel-title {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.4);
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.move-folder-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.75);
+  font-size: 13px;
+  font-weight: bold;
+  padding: 11px 16px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s;
+  font-family: var(--font-body);
+}
+.move-folder-btn:hover { background: rgba(255,255,255,0.07); }
+.move-panel-close {
+  width: 100%;
+  background: none;
+  border: none;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  color: rgba(255,255,255,0.3);
+  font-size: 11px;
+  padding: 10px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: color 0.1s;
+}
+.move-panel-close:hover { color: rgba(255,255,255,0.6); }
+.move-panel-new {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px 14px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+}
+.move-panel-new input {
+  flex: 1;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  color: rgba(255,255,255,0.85);
+  font-size: 12px;
+  padding: 6px 10px;
+  outline: none;
+  font-family: var(--font-body);
+}
+.move-panel-new input::placeholder { color: rgba(255,255,255,0.25); }
+.move-panel-new button {
+  background: rgba(59,130,246,0.25);
+  border: none;
+  border-radius: 8px;
+  color: #60A5FA;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: background 0.1s;
+}
+.move-panel-new button:hover { background: rgba(59,130,246,0.4); }
+
+/* ─── 月グループ内の日付グループ（ネスト） ─── */
+.category-files .category-group { margin-bottom: 1px; }
+.category-files .category-header {
+  font-size: 9px;
+  padding: 5px 10px;
+  letter-spacing: 1.5px;
+  opacity: 0.85;
+}
+.category-files .category-files {
+  margin-left: 10px;
+  border-left-color: rgba(255,255,255,0.04);
+}
+.category-files .category-icon { display: none; }
+
+.move-folder-btn-root {
+  color: rgba(255,255,255,0.9) !important;
+  font-size: 13px !important;
+}
+.move-folder-btn-root:hover { background: rgba(255,255,255,0.1) !important; }
+
+/* ─── 現在地バッジ ─── */
+#location-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  background: rgba(59,130,246,0.08);
+  border: 1px solid rgba(59,130,246,0.2);
+  color: #60A5FA;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+  cursor: default;
+  user-select: none;
+}
+#location-badge svg { flex-shrink: 0; opacity: 0.7; }
+</style>
+</head>
+<body>
+
+<!-- サイドバー -->
+<div id="sidebar">
+  <div id="app-brand">
+    <div id="app-name">SUPER FOLDER<br><span>LOG VIEWER</span></div>
+    <div id="app-version">v2.1</div>
+  </div>
+  <div id="sidebar-header">
+    <div class="sidebar-label">Log Archive</div>
+
+    <button id="open-btn" onclick="openFolder()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      <span id="open-btn-label">フォルダを選択...</span>
+    </button>
+
+    <div id="folder-name"></div>
+
+    <button id="reopen-btn" onclick="reopenFolder()" style="display:none">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+      <span id="reopen-btn-label">前回のフォルダーを開く</span>
+    </button>
+
+    <div class="search-wrap" id="search-wrap">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input id="search-box" type="text" placeholder="検索..." oninput="filterFiles()" />
+    </div>
+  </div>
+
+  <div id="file-list-header" style="display:none">
+    <span id="file-count">0 files</span>
+    <button id="refresh-btn" onclick="refreshFolder()" title="更新">
+      <svg id="refresh-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+    </button>
+  </div>
+
+  <div id="file-list">
+    <div id="empty-msg">フォルダを選択すると<br>ファイル一覧が表示されます</div>
+  </div>
+
+  <div id="sidebar-footer">
+    <button id="settings-btn" onclick="toggleSettings()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Settings
+    </button>
+  </div>
+</div>
+
+<!-- 設定パネル -->
+<div id="settings-panel">
+  <div class="panel-tabs">
+    <button class="panel-tab active" onclick="switchTab('text')">文字</button>
+    <button class="panel-tab" onclick="switchTab('layout')">レイアウト</button>
+    <button class="panel-tab" onclick="switchTab('theme')">テーマ</button>
+  </div>
+
+  <div class="panel-body">
+
+    <!-- 文字タブ -->
+    <div class="tab-section active" id="tab-text">
+
+      <div class="setting-row">
+        <div class="setting-label">本文フォント</div>
+        <div class="font-grid">
+          <button class="font-btn" data-font="hiragino" onclick="applyFont('hiragino',this)">
+            ヒラギノ<br><span style="font-size:9px;opacity:.6">macOS標準</span>
+          </button>
+          <button class="font-btn" data-font="yugothic" onclick="applyFont('yugothic',this)">
+            游ゴシック<br><span style="font-size:9px;opacity:.6">Win/Mac</span>
+          </button>
+          <button class="font-btn" data-font="meiryo" onclick="applyFont('meiryo',this)">
+            メイリオ<br><span style="font-size:9px;opacity:.6">Windows</span>
+          </button>
+          <button class="font-btn" data-font="noto" onclick="applyFont('noto',this)">
+            Noto Sans<br><span style="font-size:9px;opacity:.6">Google</span>
+          </button>
+          <button class="font-btn" data-font="mono" onclick="applyFont('mono',this)">
+            等幅<br><span style="font-size:9px;opacity:.6">Monospace</span>
+          </button>
+          <button class="font-btn" data-font="system" onclick="applyFont('system',this)">
+            システム<br><span style="font-size:9px;opacity:.6">既定</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-label">本文文字サイズ <span id="font-size-val">15px</span></div>
+        <input class="setting-slider" id="sl-fontsize" type="range" min="11" max="26" step="1" value="15"
+          oninput="applyFontSize(this.value)" />
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-label">文字の太さ</div>
+        <div class="weight-btns">
+          <button class="weight-btn" onclick="applyFontWeight(300)" data-w="300">細</button>
+          <button class="weight-btn active" onclick="applyFontWeight(400)" data-w="400">普通</button>
+          <button class="weight-btn" onclick="applyFontWeight(500)" data-w="500">中</button>
+          <button class="weight-btn" onclick="applyFontWeight(700)" data-w="700">太</button>
+          <button class="weight-btn" onclick="applyFontWeight(900)" data-w="900">極太</button>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-label">行間 <span id="line-height-val">1.8</span></div>
+        <input class="setting-slider" id="sl-lineheight" type="range" min="1.2" max="3.0" step="0.1" value="1.8"
+          oninput="applyLineHeight(this.value)" />
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-label">文字間隔 <span id="letter-spacing-val">0px</span></div>
+        <input class="setting-slider" id="sl-letterspacing" type="range" min="-1" max="5" step="0.5" value="0"
+          oninput="applyLetterSpacing(this.value)" />
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-label">サイドバー タイトルサイズ <span id="sb-title-size-val">13px</span></div>
+        <input class="setting-slider" id="sl-sbtitlesize" type="range" min="9" max="20" step="1" value="13"
+          oninput="applySidebarTitleSize(this.value)" />
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-label">大見出しサイズ <span id="heading-size-val">48px</span></div>
+        <input class="setting-slider" id="sl-headingsize" type="range" min="36" max="72" step="2" value="48"
+          oninput="applyHeadingSize(this.value)" />
+      </div>
+
+    </div>
+
+    <!-- レイアウトタブ -->
+    <div class="tab-section" id="tab-layout">
+
+      <div class="setting-row">
+        <div class="setting-label">サイドバー幅 <span id="sb-width-val">280px</span></div>
+        <input class="setting-slider" id="sl-sbwidth" type="range" min="180" max="420" step="10" value="280"
+          oninput="applySidebarWidth(this.value)" />
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-label">本文最大幅 <span id="content-width-val">900px</span></div>
+        <input class="setting-slider" id="sl-contentwidth" type="range" min="480" max="1400" step="20" value="900"
+          oninput="applyContentWidth(this.value)" />
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-label">本文カードの余白 <span id="card-padding-val">24px</span></div>
+        <input class="setting-slider" id="sl-cardpadding" type="range" min="10" max="48" step="2" value="24"
+          oninput="applyCardPadding(this.value)" />
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-label">カードの角丸 <span id="card-radius-val">16px</span></div>
+        <input class="setting-slider" id="sl-cardradius" type="range" min="0" max="32" step="2" value="16"
+          oninput="applyCardRadius(this.value)" />
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-label">メッセージ間隔 <span id="msg-gap-val">16px</span></div>
+        <input class="setting-slider" id="sl-msggap" type="range" min="4" max="40" step="2" value="16"
+          oninput="applyMsgGap(this.value)" />
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-label">ページ左右余白 <span id="page-pad-val">56px</span></div>
+        <input class="setting-slider" id="sl-pagepad" type="range" min="16" max="120" step="4" value="56"
+          oninput="applyPagePad(this.value)" />
+      </div>
+
+    </div>
+
+    <!-- テーマタブ -->
+    <div class="tab-section" id="tab-theme">
+      <div class="setting-row">
+        <div class="setting-label" style="margin-bottom:14px;">カラーテーマ</div>
+        <div class="theme-grid" id="theme-grid"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- メインコンテンツ -->
+<div id="main">
+  <!-- ウェルカム画面 -->
+  <div id="welcome">
+    <div id="welcome-big">ARCHIVE</div>
+    <p>フォルダを選択してください</p>
+    <button id="welcome-open-btn" onclick="openFolder()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      フォルダを開く
+    </button>
+  </div>
+
+  <!-- ファイル表示エリア（初期は非表示） -->
+  <div id="content-area" style="display:none">
+    <div id="bg-date"></div>
+    <div id="content-inner">
+      <div id="file-meta"></div>
+      <div id="file-heading"></div>
+
+      <div id="toolbar">
+        <button class="tool-btn primary" onclick="toggleEdit()" id="edit-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          編集
+        </button>
+        <button class="tool-btn success" onclick="saveFile()" id="save-btn" style="display:none">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          保存
+        </button>
+        <button id="move-btn" onclick="openMovePanel(event)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+          フォルダーへ移動
+        </button>
+        <div id="location-badge" style="display:none"></div>
+      </div>
+
+      <!-- 移動先選択パネル -->
+      <div id="move-panel">
+        <div class="move-panel-title">📁 移動先フォルダー</div>
+        <div id="move-folder-list"></div>
+        <div class="move-panel-new">
+          <input id="new-folder-input" type="text" placeholder="新しいフォルダー名..." />
+          <button onclick="moveToNewFolder()">作成して移動</button>
+        </div>
+        <button class="move-panel-close" onclick="closeMovePanel()">キャンセル</button>
+      </div>
+
+      <div id="summary-box">
+        <div class="sum-label">✦ AI 要約</div>
+        <p id="summary-text"></p>
+      </div>
+
+      <div id="messages"></div>
+      <div id="plain-text" style="display:none"></div>
+      <textarea id="edit-area"></textarea>
+    </div>
+  </div>
+
+  <div id="footer" style="display:none">
+    <span id="footer-left"></span>
+    <span id="footer-right"></span>
+  </div>
+</div>
+
+<script>
+// ─── テーマ定義 ───────────────────────────────────────────
+const THEMES = {
+  midnight: {
+    label: 'Midnight',
+    sbBg: '#0F172A', sbMain: '#F8FAFC',
+    mainBg: '#1E293B', mainCard: '#283548',
+    mainText: '#E2E8F0', cardBorder: '#334155',
+    sbAccent: '#3B82F6', dateAccent: '#60A5FA',
+    footerBg: 'rgba(30,41,59,0.8)', footerBorder: '#334155',
+    scrollbar: 'rgba(255,255,255,0.08)',
+    summaryBg: '#1e3a5f', summaryBorder: '#3B82F6',
+    summaryText: '#93c5fd', summaryLabel: '#60A5FA',
+    btnBg: '#283548', btnText: '#E2E8F0', btnBorder: '#334155', btnHover: '#334155',
+    panelBg: '#0f172a', panelBorder: 'rgba(255,255,255,0.15)',
+  },
+  light: {
+    label: 'Light',
+    sbBg: '#0F172A', sbMain: '#F8FAFC',
+    mainBg: '#F8FAFC', mainCard: '#FFFFFF',
+    mainText: '#1E293B', cardBorder: '#E2E8F0',
+    sbAccent: '#3B82F6', dateAccent: '#60A5FA',
+    footerBg: 'rgba(255,255,255,0.7)', footerBorder: '#E2E8F0',
+    scrollbar: 'rgba(0,0,0,0.10)',
+    summaryBg: '#EFF6FF', summaryBorder: '#3B82F6',
+    summaryText: '#1E3A8A', summaryLabel: '#1D4ED8',
+    btnBg: '#FFFFFF', btnText: '#1E293B', btnBorder: 'rgba(0,0,0,0.12)', btnHover: '#F1F5F9',
+    panelBg: '#1E293B', panelBorder: 'rgba(255,255,255,0.15)',
+  },
+  sepia: {
+    label: 'Sepia',
+    sbBg: '#3B2A1A', sbMain: '#F5ECD7',
+    mainBg: '#FBF5E6', mainCard: '#FFF8EC',
+    mainText: '#3B2A1A', cardBorder: '#DFD0B5',
+    sbAccent: '#C0853A', dateAccent: '#C0853A',
+    footerBg: 'rgba(251,245,230,0.8)', footerBorder: '#DFD0B5',
+    scrollbar: 'rgba(60,42,26,0.12)',
+    summaryBg: '#F4E8D0', summaryBorder: '#C0853A',
+    summaryText: '#5C3D18', summaryLabel: '#8B5A2B',
+    btnBg: '#FFF8EC', btnText: '#3B2A1A', btnBorder: '#DFD0B5', btnHover: '#F4E8D0',
+    panelBg: '#2C1F0F', panelBorder: 'rgba(255,220,170,0.2)',
+  },
+  forest: {
+    label: 'Forest',
+    sbBg: '#1A2E1A', sbMain: '#D4EDDA',
+    mainBg: '#F0F7F0', mainCard: '#FFFFFF',
+    mainText: '#1A2E1A', cardBorder: '#B8DFC2',
+    sbAccent: '#22C55E', dateAccent: '#4ADE80',
+    footerBg: 'rgba(240,247,240,0.8)', footerBorder: '#B8DFC2',
+    scrollbar: 'rgba(26,46,26,0.12)',
+    summaryBg: '#DCFCE7', summaryBorder: '#22C55E',
+    summaryText: '#14532D', summaryLabel: '#16A34A',
+    btnBg: '#FFFFFF', btnText: '#1A2E1A', btnBorder: '#B8DFC2', btnHover: '#DCFCE7',
+    panelBg: '#0F1F0F', panelBorder: 'rgba(100,200,120,0.2)',
+  },
+  slate: {
+    label: 'Slate',
+    sbBg: '#374151', sbMain: '#F9FAFB',
+    mainBg: '#F3F4F6', mainCard: '#FFFFFF',
+    mainText: '#111827', cardBorder: '#E5E7EB',
+    sbAccent: '#6366F1', dateAccent: '#818CF8',
+    footerBg: 'rgba(243,244,246,0.8)', footerBorder: '#E5E7EB',
+    scrollbar: 'rgba(0,0,0,0.10)',
+    summaryBg: '#EEF2FF', summaryBorder: '#6366F1',
+    summaryText: '#312E81', summaryLabel: '#4338CA',
+    btnBg: '#FFFFFF', btnText: '#111827', btnBorder: '#E5E7EB', btnHover: '#F3F4F6',
+    panelBg: '#1F2937', panelBorder: 'rgba(255,255,255,0.12)',
+  },
+  rose: {
+    label: 'Rose',
+    sbBg: '#1A0A10', sbMain: '#FFE4EE',
+    mainBg: '#FFF1F5', mainCard: '#FFFFFF',
+    mainText: '#3D0017', cardBorder: '#FBCFE8',
+    sbAccent: '#F43F5E', dateAccent: '#FB7185',
+    footerBg: 'rgba(255,241,245,0.8)', footerBorder: '#FBCFE8',
+    scrollbar: 'rgba(61,0,23,0.10)',
+    summaryBg: '#FFE4EE', summaryBorder: '#F43F5E',
+    summaryText: '#881337', summaryLabel: '#BE123C',
+    btnBg: '#FFFFFF', btnText: '#3D0017', btnBorder: '#FBCFE8', btnHover: '#FFE4EE',
+    panelBg: '#0F050A', panelBorder: 'rgba(255,180,200,0.2)',
+  },
+  obsidian: {
+    label: 'Obsidian',
+    sbBg: '#0A0A0A', sbMain: '#CCCCCC',
+    mainBg: '#111111', mainCard: '#1A1A1A',
+    mainText: '#CCCCCC', cardBorder: '#2A2A2A',
+    sbAccent: '#888888', dateAccent: '#888888',
+    footerBg: 'rgba(17,17,17,0.9)', footerBorder: '#2A2A2A',
+    scrollbar: 'rgba(255,255,255,0.06)',
+    summaryBg: '#1A1A2A', summaryBorder: '#555',
+    summaryText: '#AAAACC', summaryLabel: '#888',
+    btnBg: '#1A1A1A', btnText: '#CCCCCC', btnBorder: '#2A2A2A', btnHover: '#222222',
+    panelBg: '#0A0A0A', panelBorder: 'rgba(255,255,255,0.08)',
+  },
+  ocean: {
+    label: 'Ocean',
+    sbBg: '#0C1B33', sbMain: '#DBEAFE',
+    mainBg: '#EFF6FF', mainCard: '#FFFFFF',
+    mainText: '#0C1B33', cardBorder: '#BFDBFE',
+    sbAccent: '#0EA5E9', dateAccent: '#38BDF8',
+    footerBg: 'rgba(239,246,255,0.8)', footerBorder: '#BFDBFE',
+    scrollbar: 'rgba(12,27,51,0.12)',
+    summaryBg: '#E0F2FE', summaryBorder: '#0EA5E9',
+    summaryText: '#0C4A6E', summaryLabel: '#0369A1',
+    btnBg: '#FFFFFF', btnText: '#0C1B33', btnBorder: '#BFDBFE', btnHover: '#E0F2FE',
+    panelBg: '#071020', panelBorder: 'rgba(100,180,255,0.2)',
+  },
+};
+
+const FONT_MAP = {
+  hiragino: "'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif",
+  yugothic:  "'Yu Gothic UI', '游ゴシック UI', '游ゴシック', 'YuGothic', sans-serif",
+  meiryo:    "'Meiryo UI', 'Meiryo', 'メイリオ', sans-serif",
+  noto:      "'Noto Sans JP', 'Noto Sans', sans-serif",
+  mono:      "'Menlo', 'Consolas', 'Courier New', monospace",
+  system:    "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+};
+
+// ─── 状態 ───────────────────────────────────────────────
+let dirHandle = null;
+let allFiles = [];
+let allCategories = [];   // サブフォルダカテゴリ
+let categoryOpenState = {};
+let currentFileObj = null; // 現在開いているファイル情報
+let selectedHandle = null;
+let currentContent = '';
+let isEditing = false;
+let settingsOpen = false;
+let currentTab = 'text';
+
+// ─── 設定パネル タブ切替 ─────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.panel-tab').forEach((t,i) => {
+    const tabs = ['text','layout','theme'];
+    t.classList.toggle('active', tabs[i] === tab);
+  });
+  document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+
+function toggleSettings() {
+  settingsOpen = !settingsOpen;
+  document.getElementById('settings-panel').classList.toggle('open', settingsOpen);
+}
+
+document.addEventListener('click', e => {
+  if (settingsOpen &&
+      !e.target.closest('#settings-panel') &&
+      !e.target.closest('#settings-btn')) {
+    settingsOpen = false;
+    document.getElementById('settings-panel').classList.remove('open');
+  }
+});
+
+// ─── テーマグリッド描画 ─────────────────────────────────
+function buildThemeGrid() {
+  const grid = document.getElementById('theme-grid');
+  grid.innerHTML = '';
+  Object.entries(THEMES).forEach(([key, t]) => {
+    const btn = document.createElement('button');
+    btn.className = 'theme-btn';
+    btn.dataset.theme = key;
+    btn.onclick = () => applyTheme(key);
+    btn.innerHTML = `
+      <div class="theme-preview">
+        <div class="theme-preview-sb" style="background:${t.sbBg}"></div>
+        <div class="theme-preview-main" style="background:${t.mainBg}"></div>
+      </div>
+      <div class="theme-preview-label">${t.label}</div>
+    `;
+    grid.appendChild(btn);
+  });
+}
+
+// ─── テーマ適用 ─────────────────────────────────────────
+function applyTheme(key) {
+  const t = THEMES[key];
+  if (!t) return;
+  const r = document.documentElement.style;
+  r.setProperty('--sb-bg', t.sbBg);
+  r.setProperty('--sb-text', t.sbMain);
+  r.setProperty('--sb-accent', t.sbAccent);
+  r.setProperty('--sb-item-hover', hexToRgba(t.sbMain, 0.05));
+  r.setProperty('--sb-item-active', hexToRgba(t.sbMain, 0.10));
+  r.setProperty('--sb-border', hexToRgba(t.sbMain, 0.15));
+  r.setProperty('--sb-muted', hexToRgba(t.sbMain, 0.35));
+  r.setProperty('--main-bg', t.mainBg);
+  r.setProperty('--main-text', t.mainText);
+  r.setProperty('--main-muted', hexToRgba(t.mainText, 0.35));
+  r.setProperty('--card-bg', t.mainCard);
+  r.setProperty('--card-border', t.cardBorder);
+  r.setProperty('--footer-bg', t.footerBg);
+  r.setProperty('--footer-border', t.footerBorder);
+  r.setProperty('--scrollbar-thumb', t.scrollbar);
+  r.setProperty('--heading-color', t.mainText);
+  r.setProperty('--speaker-color', hexToRgba(t.mainText, 0.4));
+  r.setProperty('--date-accent', t.dateAccent);
+  r.setProperty('--summary-bg', t.summaryBg);
+  r.setProperty('--summary-border', t.summaryBorder);
+  r.setProperty('--summary-text', t.summaryText);
+  r.setProperty('--summary-label', t.summaryLabel);
+  r.setProperty('--btn-bg', t.btnBg);
+  r.setProperty('--btn-text', t.btnText);
+  r.setProperty('--btn-border', t.btnBorder);
+  r.setProperty('--btn-hover', t.btnHover);
+  r.setProperty('--panel-bg', t.panelBg);
+  r.setProperty('--panel-border', t.panelBorder);
+
+  document.querySelectorAll('.theme-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.theme === key);
+  });
+  localStorage.setItem('lv_theme', key);
+}
+
+function hexToRgba(hex, alpha) {
+  if (!hex || hex.startsWith('rgba') || hex.startsWith('rgb(')) return hex;
+  let h = hex.replace('#','');
+  if (h.length === 3) h = h.split('').map(c=>c+c).join('');
+  const r = parseInt(h.slice(0,2),16);
+  const g = parseInt(h.slice(2,4),16);
+  const b = parseInt(h.slice(4,6),16);
+  if (isNaN(r)||isNaN(g)||isNaN(b)) return hex;
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// ─── 文字設定適用 ────────────────────────────────────────
+function applyFont(key, btnEl) {
+  const fontVal = FONT_MAP[key] || FONT_MAP.hiragino;
+  document.documentElement.style.setProperty('--font-body', fontVal);
+  document.getElementById('search-box').style.fontFamily = fontVal;
+  document.querySelectorAll('.font-btn').forEach(b => b.classList.remove('active'));
+  if (btnEl) btnEl.classList.add('active');
+  localStorage.setItem('lv_font', key);
+}
+
+function applyFontSize(val) {
+  const px = parseInt(val);
+  document.getElementById('font-size-val').textContent = px + 'px';
+  document.querySelectorAll('.msg-body, #plain-text, #edit-area').forEach(el => {
+    el.style.fontSize = px + 'px';
+  });
+  localStorage.setItem('lv_fontSize', val);
+}
+
+function applyFontWeight(val) {
+  const w = String(val);
+  document.querySelectorAll('.weight-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.w === w);
+  });
+  document.querySelectorAll('.msg-body, #plain-text').forEach(el => {
+    el.style.fontWeight = w;
+  });
+  localStorage.setItem('lv_fontWeight', w);
+}
+
+function applyLineHeight(val) {
+  const lh = parseFloat(val).toFixed(1);
+  document.getElementById('line-height-val').textContent = lh;
+  document.querySelectorAll('.msg-body, #plain-text').forEach(el => {
+    el.style.lineHeight = lh;
+  });
+  localStorage.setItem('lv_lineHeight', val);
+}
+
+function applyLetterSpacing(val) {
+  const ls = parseFloat(val).toFixed(1);
+  document.getElementById('letter-spacing-val').textContent = ls + 'px';
+  document.querySelectorAll('.msg-body, #plain-text').forEach(el => {
+    el.style.letterSpacing = ls + 'px';
+  });
+  localStorage.setItem('lv_letterSpacing', val);
+}
+
+function applySidebarTitleSize(val) {
+  const px = parseInt(val);
+  document.getElementById('sb-title-size-val').textContent = px + 'px';
+  document.documentElement.style.setProperty('--sidebar-title-size', px + 'px');
+  localStorage.setItem('lv_sbTitleSize', val);
+}
+
+function applyHeadingSize(val) {
+  const px = parseInt(val);
+  document.getElementById('heading-size-val').textContent = px + 'px';
+  document.documentElement.style.setProperty('--heading-font-size', px + 'px');
+  const spacing = px >= 56 ? '-2px' : px >= 48 ? '-1px' : '0px';
+  document.documentElement.style.setProperty('--heading-letter-spacing', spacing);
+  localStorage.setItem('lv_headingSize', val);
+}
+
+// ─── レイアウト設定適用 ──────────────────────────────────
+function applySidebarWidth(val) {
+  const px = parseInt(val);
+  document.getElementById('sb-width-val').textContent = px + 'px';
+  document.documentElement.style.setProperty('--sb-width', px + 'px');
+  // パネル位置も合わせる
+  document.getElementById('settings-panel').style.left = '16px';
+  localStorage.setItem('lv_sbWidth', val);
+}
+
+function applyContentWidth(val) {
+  const px = parseInt(val);
+  document.getElementById('content-width-val').textContent = px + 'px';
+  document.documentElement.style.setProperty('--content-max-width', px + 'px');
+  localStorage.setItem('lv_contentWidth', val);
+}
+
+function applyCardPadding(val) {
+  const px = parseInt(val);
+  document.getElementById('card-padding-val').textContent = px + 'px';
+  document.querySelectorAll('.msg-body, #plain-text').forEach(el => {
+    el.style.padding = px + 'px ' + Math.round(px * 1.2) + 'px';
+  });
+  localStorage.setItem('lv_cardPadding', val);
+}
+
+function applyCardRadius(val) {
+  const px = parseInt(val);
+  document.getElementById('card-radius-val').textContent = px + 'px';
+  document.querySelectorAll('.msg-body, #plain-text').forEach(el => {
+    el.style.borderRadius = px + 'px';
+  });
+  localStorage.setItem('lv_cardRadius', val);
+}
+
+function applyMsgGap(val) {
+  const px = parseInt(val);
+  document.getElementById('msg-gap-val').textContent = px + 'px';
+  document.getElementById('messages').style.gap = px + 'px';
+  localStorage.setItem('lv_msgGap', val);
+}
+
+function applyPagePad(val) {
+  const px = parseInt(val);
+  document.getElementById('page-pad-val').textContent = px + 'px';
+  document.getElementById('content-area').style.padding = `48px ${px}px 40px`;
+  document.getElementById('footer').style.padding = `12px ${px}px`;
+  localStorage.setItem('lv_pagePad', val);
+}
+
+// ─── 全設定を一括で再適用 ────────────────────────────────
+function applyCurrentSettings() {
+  const fs  = localStorage.getItem('lv_fontSize')      || '15';
+  const fw  = localStorage.getItem('lv_fontWeight')    || '400';
+  const lh  = localStorage.getItem('lv_lineHeight')    || '1.8';
+  const ls  = localStorage.getItem('lv_letterSpacing') || '0';
+  const cp  = localStorage.getItem('lv_cardPadding')   || '24';
+  const cr  = localStorage.getItem('lv_cardRadius')    || '16';
+  const mg  = localStorage.getItem('lv_msgGap')        || '16';
+
+  document.querySelectorAll('.msg-body, #plain-text, #edit-area').forEach(el => {
+    el.style.fontSize      = fs + 'px';
+    el.style.fontWeight    = fw;
+    el.style.lineHeight    = lh;
+    el.style.letterSpacing = ls + 'px';
+  });
+  document.querySelectorAll('.msg-body, #plain-text').forEach(el => {
+    el.style.padding      = cp + 'px ' + Math.round(parseInt(cp)*1.2) + 'px';
+    el.style.borderRadius = cr + 'px';
+  });
+  const msgs = document.getElementById('messages');
+  if (msgs) msgs.style.gap = mg + 'px';
+}
+
+// ─── 設定の初期化 ────────────────────────────────────────
+function initSettings() {
+  const defs = {
+    lv_fontSize:      '15',
+    lv_fontWeight:    '400',
+    lv_lineHeight:    '1.8',
+    lv_letterSpacing: '0',
+    lv_sbTitleSize:   '13',
+    lv_headingSize:   '48',
+    lv_sbWidth:       '280',
+    lv_contentWidth:  '900',
+    lv_cardPadding:   '24',
+    lv_cardRadius:    '16',
+    lv_msgGap:        '16',
+    lv_pagePad:       '56',
+    lv_theme:         'light',
+    lv_font:          'hiragino',
+  };
+  Object.entries(defs).forEach(([k,v]) => {
+    if (!localStorage.getItem(k)) localStorage.setItem(k, v);
+  });
+
+  // スライダーを復元
+  const sliders = {
+    'sl-fontsize':     'lv_fontSize',
+    'sl-lineheight':   'lv_lineHeight',
+    'sl-letterspacing':'lv_letterSpacing',
+    'sl-sbtitlesize':  'lv_sbTitleSize',
+    'sl-headingsize':  'lv_headingSize',
+    'sl-sbwidth':      'lv_sbWidth',
+    'sl-contentwidth': 'lv_contentWidth',
+    'sl-cardpadding':  'lv_cardPadding',
+    'sl-cardradius':   'lv_cardRadius',
+    'sl-msggap':       'lv_msgGap',
+    'sl-pagepad':      'lv_pagePad',
+  };
+  Object.entries(sliders).forEach(([id, key]) => {
+    const el = document.getElementById(id);
+    if (el) el.value = localStorage.getItem(key) || defs[key];
+  });
+
+  // ラベル復元
+  document.getElementById('font-size-val').textContent      = (localStorage.getItem('lv_fontSize')      || '15') + 'px';
+  document.getElementById('line-height-val').textContent    = parseFloat(localStorage.getItem('lv_lineHeight') || '1.8').toFixed(1);
+  document.getElementById('letter-spacing-val').textContent = (localStorage.getItem('lv_letterSpacing') || '0') + 'px';
+  document.getElementById('sb-title-size-val').textContent  = (localStorage.getItem('lv_sbTitleSize')   || '13') + 'px';
+  document.getElementById('heading-size-val').textContent   = (localStorage.getItem('lv_headingSize')   || '48') + 'px';
+  document.getElementById('sb-width-val').textContent       = (localStorage.getItem('lv_sbWidth')       || '280') + 'px';
+  document.getElementById('content-width-val').textContent  = (localStorage.getItem('lv_contentWidth')  || '900') + 'px';
+  document.getElementById('card-padding-val').textContent   = (localStorage.getItem('lv_cardPadding')   || '24') + 'px';
+  document.getElementById('card-radius-val').textContent    = (localStorage.getItem('lv_cardRadius')    || '16') + 'px';
+  document.getElementById('msg-gap-val').textContent        = (localStorage.getItem('lv_msgGap')        || '16') + 'px';
+  document.getElementById('page-pad-val').textContent       = (localStorage.getItem('lv_pagePad')       || '56') + 'px';
+
+  // 太さボタン
+  const fw = localStorage.getItem('lv_fontWeight') || '400';
+  document.querySelectorAll('.weight-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.w === fw);
+  });
+
+  // CSSカスタムプロパティ系
+  document.documentElement.style.setProperty('--sidebar-title-size', (localStorage.getItem('lv_sbTitleSize')||'13') + 'px');
+  const headingSize = parseInt(localStorage.getItem('lv_headingSize') || '48');
+  document.documentElement.style.setProperty('--heading-font-size', headingSize + 'px');
+  const headingSpacing = headingSize >= 56 ? '-2px' : headingSize >= 48 ? '-1px' : '0px';
+  document.documentElement.style.setProperty('--heading-letter-spacing', headingSpacing);
+  document.documentElement.style.setProperty('--sb-width',           (localStorage.getItem('lv_sbWidth')||'280') + 'px');
+  document.documentElement.style.setProperty('--content-max-width',  (localStorage.getItem('lv_contentWidth')||'900') + 'px');
+  document.getElementById('content-area').style.padding = `48px ${localStorage.getItem('lv_pagePad')||'56'}px 40px`;
+  document.getElementById('footer').style.padding = `12px ${localStorage.getItem('lv_pagePad')||'56'}px`;
+
+  // テーマ
+  const theme = localStorage.getItem('lv_theme') || 'light';
+  buildThemeGrid();
+  applyTheme(theme);
+
+  // フォント
+  const fontKey = localStorage.getItem('lv_font') || 'hiragino';
+  const fontBtn = document.querySelector(`.font-btn[data-font="${fontKey}"]`);
+  applyFont(fontKey, fontBtn);
+}
+
+// ─── ファイル名パーサー ──────────────────────────────────
+function parseFilename(name) {
+  let m = name.match(/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})_(.+)\.[^.]+$/);
+  if (m) return { date: `${m[1]}-${m[2]}-${m[3]}`, time: `${m[4]}:${m[5]}`, title: m[6].replace(/[「」【】]/g,'') };
+  m = name.match(/^(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})_(.+)\.[^.]+$/);
+  if (m) return { date: `${m[1]}-${m[2]}-${m[3]}`, time: `${m[4]}:${m[5]}`, title: m[6].replace(/[「」【】]/g,'') };
+  return { date: '', time: '', title: name.replace(/\.[^.]+$/, '') };
+}
+
+// ─── IndexedDB: フォルダーハンドル保存 ──────────────────────
+const IDB_NAME = 'LogViewerDB';
+const IDB_STORE = 'handles';
+const IDB_KEY = 'lastFolder';
+
+function openIDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore(IDB_STORE);
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+async function saveFolderHandle(handle) {
+  try {
+    const db = await openIDB();
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(handle, IDB_KEY);
+  } catch(e) { /* 保存失敗は無視 */ }
+}
+
+async function loadFolderHandle() {
+  try {
+    const db = await openIDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const req = tx.objectStore(IDB_STORE).get(IDB_KEY);
+      req.onsuccess = e => resolve(e.target.result || null);
+      req.onerror = () => resolve(null);
+    });
+  } catch(e) { return null; }
+}
+
+async function checkReopenBtn() {
+  const handle = await loadFolderHandle();
+  if (!handle) return;
+  const btn = document.getElementById('reopen-btn');
+  const label = document.getElementById('reopen-btn-label');
+  btn.style.display = 'flex';
+  label.textContent = '📂 ' + handle.name;
+}
+
+async function reopenFolder() {
+  const handle = await loadFolderHandle();
+  if (!handle) return;
+  try {
+    // ブラウザに権限を要求（ユーザーのクリックが起点なのでOK）
+    const perm = await handle.requestPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') return;
+    dirHandle = handle;
+    document.getElementById('open-btn-label').textContent = handle.name;
+    document.getElementById('folder-name').textContent = handle.name;
+    document.getElementById('reopen-btn').style.display = 'none';
+    await loadFiles();
+  } catch(e) {
+    if (e.name !== 'AbortError') console.warn('再接続エラー:', e.message);
+  }
+}
+
+// ─── フォルダを開く ──────────────────────────────────────
+async function openFolder() {
+  try {
+    dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    document.getElementById('open-btn-label').textContent = dirHandle.name;
+    document.getElementById('folder-name').textContent = dirHandle.name;
+    document.getElementById('reopen-btn').style.display = 'none';
+    await saveFolderHandle(dirHandle);
+    await loadFiles();
+  } catch(e) {
+    if (e.name !== 'AbortError') alert('エラー: ' + e.message);
+  }
+}
+
+async function refreshFolder() {
+  if (!dirHandle) return;
+  const icon = document.getElementById('refresh-icon');
+  icon.classList.add('spin');
+  await loadFiles();
+  icon.classList.remove('spin');
+}
+
+async function loadFiles() {
+  allFiles = [];
+  allCategories = [];
+
+  for await (const item of dirHandle.values()) {
+    if (item.kind === 'file' && (item.name.endsWith('.txt') || item.name.endsWith('.md'))) {
+      const p = parseFilename(item.name);
+      allFiles.push({ filename: item.name, handle: item, category: null, ...p });
+    } else if (item.kind === 'directory') {
+      const catFiles = [];
+      for await (const sub of item.values()) {
+        if (sub.kind === 'file' && (sub.name.endsWith('.txt') || sub.name.endsWith('.md'))) {
+          const p = parseFilename(sub.name);
+          const f = { filename: sub.name, handle: sub, category: item.name, folderHandle: item, ...p };
+          catFiles.push(f);
+          allFiles.push(f);
+        }
+      }
+      catFiles.sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
+      if (catFiles.length > 0) allCategories.push({ name: item.name, handle: item, files: catFiles });
+    }
+  }
+  allCategories.sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+
+  const rootFiles = allFiles.filter(f => !f.category);
+  rootFiles.sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
+
+  renderList(rootFiles, allCategories);
+  document.getElementById('search-wrap').style.display = 'block';
+  document.getElementById('file-list-header').style.display = 'flex';
+  document.getElementById('file-count').textContent = allFiles.length + ' files';
+}
+
+// ─── リスト描画 ──────────────────────────────────────────
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function makeFileBtn(f) {
+  const btn = document.createElement('button');
+  btn.className = 'file-item';
+  btn.dataset.filename = f.filename;
+  btn.dataset.category = f.category || '';
+  btn.innerHTML = `
+    ${f.date ? `<div class="file-date">${f.date.replace(/-/g,'.')}${f.time ? ' ' + f.time : ''}</div>` : ''}
+    <div class="file-title">${f.title}</div>
+    <div class="file-fname">${f.filename}</div>
+  `;
+  btn.onclick = () => selectFile(f);
+  return btn;
+}
+
+function makeCategoryGroup(label, icon, files, groupKey, badge) {
+  const group = document.createElement('div');
+  group.className = 'category-group';
+  group.dataset.groupKey = groupKey;
+  const isOpen = categoryOpenState[groupKey] !== false;
+  const header = document.createElement('button');
+  header.className = 'category-header' + (isOpen ? ' open' : '');
+  header.innerHTML = `
+    <span class="category-icon">${icon}</span>
+    <span class="category-name">${escHtml(label)}</span>
+    ${badge ? `<span class="today-badge">${badge}</span>` : ''}
+    <span class="category-count">${files.length}</span>
+    <span class="category-arrow">▶</span>
+  `;
+  header.onclick = () => {
+    const fd = group.querySelector('.category-files');
+    const isNowOpen = fd.classList.contains('open');
+    fd.classList.toggle('open', !isNowOpen);
+    header.classList.toggle('open', !isNowOpen);
+    categoryOpenState[groupKey] = !isNowOpen;
+  };
+  const filesDiv = document.createElement('div');
+  filesDiv.className = 'category-files' + (isOpen ? ' open' : '');
+  files.forEach(f => filesDiv.appendChild(makeFileBtn(f)));
+  group.appendChild(header);
+  group.appendChild(filesDiv);
+  return group;
+}
+
+function renderList(rootFiles, categories) {
+  const list = document.getElementById('file-list');
+  list.innerHTML = '';
+  const today = todayStr();
+  const hasCategories = categories && categories.length > 0;
+  const hasRootFiles = rootFiles && rootFiles.length > 0;
+
+  if (!hasCategories && !hasRootFiles) {
+    list.innerHTML = '<div id="empty-msg">.txt / .md ファイルが見つかりません</div>';
+    return;
+  }
+
+  // ── サブフォルダカテゴリ ──
+  if (hasCategories) {
+    categories.forEach(cat => {
+      list.appendChild(makeCategoryGroup(cat.name, '📁', cat.files, 'cat:' + cat.name, null));
+    });
+  }
+
+  // ── ルートファイルを月 > 日付の2階層でグループ化 ──
+  if (hasRootFiles) {
+    if (hasCategories) {
+      const sep = document.createElement('div');
+      sep.style.cssText = 'height:1px;background:rgba(255,255,255,0.05);margin:6px 10px;';
+      list.appendChild(sep);
+    }
+
+    const todayMonth = today.slice(0, 7); // "YYYY-MM"
+
+    // 日付ごとにまとめる
+    const byDate = {};
+    rootFiles.forEach(f => {
+      const key = f.date || '__nodate__';
+      if (!byDate[key]) byDate[key] = [];
+      byDate[key].push(f);
+    });
+
+    // 月ごとにまとめる
+    const byMonth = {};
+    Object.keys(byDate).forEach(dateKey => {
+      if (dateKey === '__nodate__') { byMonth['__nodate__'] = byDate[dateKey]; return; }
+      const month = dateKey.slice(0, 7);
+      if (!byMonth[month]) byMonth[month] = {};
+      byMonth[month][dateKey] = byDate[dateKey];
+    });
+
+    const monthKeys = Object.keys(byMonth).filter(k => k !== '__nodate__').sort((a, b) => b.localeCompare(a));
+
+    // 日付なしファイルを先に
+    if (byMonth['__nodate__']) {
+      byMonth['__nodate__'].forEach(f => list.appendChild(makeFileBtn(f)));
+    }
+
+    monthKeys.forEach(monthKey => {
+      const isThisMonth = monthKey === todayMonth;
+      const [my, mm] = monthKey.split('-');
+      const monthLabel = isThisMonth ? `${parseInt(mm)}月（今月）` : `${my}.${mm}`;
+      const monthIcon = isThisMonth ? '🗓' : '📅';
+      const monthBadge = isThisMonth ? 'THIS MONTH' : null;
+      const monthGroupKey = 'month:' + monthKey;
+      // 今月はデフォルト開く、過去月は閉じる
+      if (categoryOpenState[monthGroupKey] === undefined) {
+        categoryOpenState[monthGroupKey] = isThisMonth;
+      }
+
+      // 月グループの中に日付グループを入れる（入れ子）
+      const monthGroup = document.createElement('div');
+      monthGroup.className = 'category-group';
+
+      const monthIsOpen = categoryOpenState[monthGroupKey] !== false;
+      const monthHeader = document.createElement('button');
+      monthHeader.className = 'category-header' + (monthIsOpen ? ' open' : '');
+
+      // 月全体のファイル数
+      const monthTotalFiles = Object.values(byMonth[monthKey]).flat().length;
+      monthHeader.innerHTML = `
+        <span class="category-icon">${monthIcon}</span>
+        <span class="category-name">${escHtml(monthLabel)}</span>
+        ${monthBadge ? `<span class="today-badge">${monthBadge}</span>` : ''}
+        <span class="category-count">${monthTotalFiles}</span>
+        <span class="category-arrow">▶</span>
+      `;
+      const monthFilesDiv = document.createElement('div');
+      monthFilesDiv.className = 'category-files' + (monthIsOpen ? ' open' : '');
+      monthHeader.onclick = () => {
+        const isNowOpen = monthFilesDiv.classList.contains('open');
+        monthFilesDiv.classList.toggle('open', !isNowOpen);
+        monthHeader.classList.toggle('open', !isNowOpen);
+        categoryOpenState[monthGroupKey] = !isNowOpen;
+      };
+
+      // 日付グループを月の中に追加
+      const dateKeys = Object.keys(byMonth[monthKey]).sort((a, b) => b.localeCompare(a));
+      dateKeys.forEach(dateKey => {
+        const files = byMonth[monthKey][dateKey];
+        const isToday = dateKey === today;
+        const [, , dd] = dateKey.split('-');
+        const label = isToday ? `今日 (${parseInt(mm)}/${parseInt(dd)})` : `${parseInt(mm)}/${parseInt(dd)}`;
+        const badge = isToday ? 'TODAY' : null;
+        const dateGroupKey = 'date:' + dateKey;
+        if (categoryOpenState[dateGroupKey] === undefined) {
+          categoryOpenState[dateGroupKey] = isToday;
+        }
+        monthFilesDiv.appendChild(makeCategoryGroup(label, '', files, dateGroupKey, badge));
+      });
+
+      monthGroup.appendChild(monthHeader);
+      monthGroup.appendChild(monthFilesDiv);
+      list.appendChild(monthGroup);
+    });
+  }
+}
+
+function filterFiles() {
+  const q = document.getElementById('search-box').value.toLowerCase();
+  if (!q) {
+    const rootFiles = allFiles.filter(f => !f.category);
+    renderList(rootFiles, allCategories);
+    document.getElementById('file-count').textContent = allFiles.length + ' files';
+    return;
+  }
+  const filtered = allFiles.filter(f =>
+    f.title.toLowerCase().includes(q) ||
+    f.filename.toLowerCase().includes(q) ||
+    (f.category && f.category.toLowerCase().includes(q)) ||
+    (f.date && f.date.includes(q))
+  );
+  const list = document.getElementById('file-list');
+  list.innerHTML = '';
+  if (filtered.length === 0) {
+    list.innerHTML = '<div id="empty-msg">見つかりませんでした</div>';
+  } else {
+    filtered.forEach(f => list.appendChild(makeFileBtn(f)));
+  }
+  document.getElementById('file-count').textContent = filtered.length + ' / ' + allFiles.length + ' files';
+}
+
+// ─── ファイル選択 ────────────────────────────────────────
+async function selectFile(f) {
+  document.querySelectorAll('.file-item').forEach(b => b.classList.remove('active'));
+  // カテゴリも含めて正確にマッチ
+  const catAttr = f.category ? `[data-category="${CSS.escape(f.category)}"]` : '[data-category=""]';
+  const btn = document.querySelector(`.file-item[data-filename="${CSS.escape(f.filename)}"]${catAttr}`)
+           || document.querySelector(`.file-item[data-filename="${CSS.escape(f.filename)}"]`);
+  if (btn) btn.classList.add('active');
+
+  currentFileObj = f;
+  selectedHandle = f.handle;
+  isEditing = false;
+  document.getElementById('move-btn').style.display = 'flex';
+  updateLocationBadge(f);
+
+  document.getElementById('welcome').style.display = 'none';
+  document.getElementById('content-area').style.display = 'block';
+  document.getElementById('footer').style.display = 'flex';
+  document.getElementById('summary-box').style.display = 'none';
+  document.getElementById('edit-area').style.display = 'none';
+  document.getElementById('edit-btn').innerHTML = `
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+    編集
+  `;
+  document.getElementById('save-btn').style.display = 'none';
+
+  document.getElementById('bg-date').textContent = f.date ? f.date.slice(5).replace('-','.') : '';
+  document.getElementById('file-meta').textContent = f.filename;
+  // タイトル表示：フォントサイズは設定値を使用
+  const headingEl = document.getElementById('file-heading');
+  headingEl.textContent = f.title;
+  document.getElementById('footer-left').textContent = dirHandle ? dirHandle.name + ' / ' + allFiles.length + ' files' : '';
+  document.getElementById('footer-right').textContent = (f.date || '') + (f.time ? ' ' + f.time : '');
+
+  try {
+    const file = await f.handle.getFile();
+    currentContent = await file.text();
+    document.getElementById('edit-area').value = currentContent;
+
+    // ── 最初のセンテンスを大見出しに使う ──
+    const firstSentence = extractFirstSentence(currentContent);
+    if (firstSentence && firstSentence.length > 2) {
+      setHeading(firstSentence);
+    }
+
+    renderContent(currentContent);
+  } catch(e) {
+    document.getElementById('messages').innerHTML = `<div style="color:#DC2626;padding:16px">読み込みエラー: ${e.message}</div>`;
+    document.getElementById('plain-text').style.display = 'none';
+  }
+}
+
+// ─── 最初のセンテンスを抽出 ─────────────────────────────
+function extractFirstSentence(text) {
+  // 行を順番に見て、空でない最初の実質的な行を取得
+  const lines = text.split('\n');
+  for (const line of lines) {
+    // 「話者:」形式の行は話者部分を除いた本文を使う
+    const withSpeaker = line.match(/^[^:：]{1,20}[:：]\s*(.+)$/);
+    const raw = withSpeaker ? withSpeaker[1].trim() : line.trim();
+    if (!raw) continue;
+
+    // 。！？!? のいずれかで最初に終わる位置を探す
+    const m = raw.match(/^(.+?[。！？!?])/);
+    if (m) return m[1].trim();
+
+    // 句読点がなくても40文字以上あれば最初の40文字で切る（フォールバック）
+    if (raw.length >= 10) return raw.length > 60 ? raw.slice(0, 60) + '…' : raw;
+  }
+  return null;
+}
+
+function setHeading(text) {
+  const headingEl = document.getElementById('file-heading');
+  headingEl.textContent = text;
+  // フォントサイズは設定値を使用（自動縮小なし）
+}
+
+// ─── コンテンツ描画 ──────────────────────────────────────
+function renderContent(text) {
+  const lines = text.split('\n');
+  const msgs = [];
+  lines.forEach(line => {
+    const m = line.match(/^([^:：]{1,20})[:：]\s*(.*)$/);
+    if (m) {
+      msgs.push({ speaker: m[1].trim(), text: m[2].trim() });
+    } else if (line.trim()) {
+      if (msgs.length > 0) msgs[msgs.length-1].text += '\n' + line.trim();
+      else msgs.push({ speaker: '—', text: line.trim() });
+    }
+  });
+
+  const messagesEl = document.getElementById('messages');
+  const plainEl = document.getElementById('plain-text');
+
+  if (msgs.length > 0 && msgs.some(m => m.speaker !== '—')) {
+    messagesEl.style.display = 'flex';
+    plainEl.style.display = 'none';
+    messagesEl.innerHTML = msgs.map(msg => `
+      <div class="msg-block">
+        ${msg.speaker !== '—' ? `<div class="msg-speaker">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          ${escHtml(msg.speaker)}
+        </div>` : ''}
+        <div class="msg-body">${msg.text.split('\n').map(l => l ? `<p>${escHtml(l)}</p>` : '<p style="height:8px"></p>').join('')}</div>
+      </div>
+    `).join('');
+  } else {
+    messagesEl.style.display = 'none';
+    plainEl.style.display = 'block';
+    plainEl.textContent = text || '（内容なし）';
+  }
+  applyCurrentSettings();
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─── 編集 / 保存 ─────────────────────────────────────────
+function toggleEdit() {
+  isEditing = !isEditing;
+  const editArea = document.getElementById('edit-area');
+  const saveBtn  = document.getElementById('save-btn');
+  const editBtn  = document.getElementById('edit-btn');
+  const msgs     = document.getElementById('messages');
+  const plain    = document.getElementById('plain-text');
+
+  if (isEditing) {
+    editArea.style.display = 'block';
+    editArea.value = currentContent;
+    saveBtn.style.display = 'flex';
+    msgs.style.display = 'none';
+    plain.style.display = 'none';
+    editBtn.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      閲覧モード
+    `;
+    applyCurrentSettings();
+  } else {
+    editArea.style.display = 'none';
+    saveBtn.style.display = 'none';
+    editBtn.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      編集
+    `;
+    renderContent(currentContent);
+  }
+}
+
+async function saveFile() {
+  if (!selectedHandle) return;
+  const newContent = document.getElementById('edit-area').value;
+  try {
+    const writable = await selectedHandle.createWritable();
+    await writable.write(newContent);
+    await writable.close();
+    currentContent = newContent;
+    alert('保存しました！');
+    toggleEdit();
+  } catch(e) {
+    alert('保存エラー: ' + e.message);
+  }
+}
+
+
+
+// ─── 現在地バッジ更新 ───────────────────────────────────────
+function updateLocationBadge(f) {
+  const badge = document.getElementById('location-badge');
+  if (!f) { badge.style.display = 'none'; return; }
+  const folderName = f.category || dirHandle?.name || '';
+  const isRoot = !f.category;
+  badge.style.display = 'flex';
+  badge.innerHTML = `
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+    </svg>
+    ${escHtml(folderName)}${isRoot ? ' <span style="opacity:0.5;font-weight:normal;font-size:10px;margin-left:2px">ルート</span>' : ''}
+  `;
+}
+
+// ─── フォルダー移動機能 ──────────────────────────────────
+function openMovePanel(evt) {
+  if (!currentFileObj || !dirHandle) return;
+  const panel = document.getElementById('move-panel');
+  const list = document.getElementById('move-folder-list');
+  list.innerHTML = '';
+
+  // カテゴリ（サブフォルダ）内のファイルなら「ルートに戻す」を先頭に表示
+  if (currentFileObj.category) {
+    const rootBtn = document.createElement('button');
+    rootBtn.className = 'move-folder-btn move-folder-btn-root';
+    rootBtn.innerHTML = `⬆️ ルートに戻す`;
+    rootBtn.onclick = () => moveToRoot();
+    list.appendChild(rootBtn);
+    // 区切り線
+    if (allCategories.length > 1) {
+      const sep = document.createElement('div');
+      sep.style.cssText = 'height:1px;background:rgba(255,255,255,0.07);margin:2px 0;';
+      list.appendChild(sep);
+    }
+  }
+
+  // サブフォルダ一覧（現在いるフォルダーは除外）
+  allCategories.forEach(cat => {
+    if (currentFileObj.category === cat.name) return;
+    const btn = document.createElement('button');
+    btn.className = 'move-folder-btn';
+    btn.innerHTML = `📁 ${escHtml(cat.name)}`;
+    btn.onclick = () => moveFileTo(cat.handle, cat.name);
+    list.appendChild(btn);
+  });
+
+  // ルートファイルでカテゴリも0の場合
+  if (list.children.length === 0) {
+    list.innerHTML = '<div style="padding:12px 16px;font-size:12px;color:rgba(255,255,255,0.35)">移動先がありません</div>';
+  }
+
+  // パネル位置をボタン近くに表示
+  const rect = evt.currentTarget.getBoundingClientRect();
+  panel.style.top = (rect.bottom + 8) + 'px';
+  panel.style.left = rect.left + 'px';
+  panel.classList.add('open');
+
+  // 外クリックで閉じる
+  setTimeout(() => document.addEventListener('click', closePanelOutside, { once: true }), 10);
+}
+
+function closePanelOutside(e) {
+  const panel = document.getElementById('move-panel');
+  if (!panel.contains(e.target)) closeMovePanel();
+  else document.addEventListener('click', closePanelOutside, { once: true });
+}
+
+function closeMovePanel() {
+  document.getElementById('move-panel').classList.remove('open');
+}
+
+async function moveToRoot() {
+  if (!currentFileObj || !currentFileObj.category) return;
+  closeMovePanel();
+  try {
+    // 1. ルートに同名ファイルを作成して内容を書き込む
+    const newHandle = await dirHandle.getFileHandle(currentFileObj.filename, { create: true });
+    const writable = await newHandle.createWritable();
+    await writable.write(currentContent);
+    await writable.close();
+
+    // 2. 元のサブフォルダから削除
+    await currentFileObj.folderHandle.removeEntry(currentFileObj.filename);
+
+    // 3. currentFileObjをルート情報に更新（プレビューはそのまま）
+    currentFileObj = { ...currentFileObj, category: null, folderHandle: null, handle: newHandle };
+    selectedHandle = newHandle;
+    updateLocationBadge(currentFileObj);
+
+    // 4. サイドバー再読み込み
+    await loadFiles();
+
+    // 5. ルートに移動したアイテムをactiveに・スクロール
+    const btn = document.querySelector(`.file-item[data-filename="${CSS.escape(currentFileObj.filename)}"][data-category=""]`)
+             || document.querySelector(`.file-item[data-filename="${CSS.escape(currentFileObj.filename)}"]`);
+    document.querySelectorAll('.file-item').forEach(b => b.classList.remove('active'));
+    if (btn) {
+      btn.classList.add('active');
+      // 日付グループが閉じていたら展開
+      const parentFiles = btn.closest('.category-files');
+      if (parentFiles && !parentFiles.classList.contains('open')) {
+        parentFiles.classList.add('open');
+        const header = parentFiles.previousElementSibling;
+        if (header) header.classList.add('open');
+        // さらに上の月グループも展開
+        const grandParent = parentFiles.closest('.category-files');
+        if (grandParent && !grandParent.classList.contains('open')) {
+          grandParent.classList.add('open');
+          const grandHeader = grandParent.previousElementSibling;
+          if (grandHeader) grandHeader.classList.add('open');
+        }
+      }
+      btn.scrollIntoView({ block: 'nearest' });
+    }
+
+    showMoveToast('⬆️ ルートフォルダーに移動しました');
+  } catch(e) {
+    alert('移動エラー: ' + e.message);
+  }
+}
+
+async function moveFileTo(targetFolderHandle, folderName) {
+  if (!currentFileObj) return;
+  closeMovePanel();
+  try {
+    // 1. 移動先に同名ファイルを作成して内容を書き込む
+    const newHandle = await targetFolderHandle.getFileHandle(currentFileObj.filename, { create: true });
+    const writable = await newHandle.createWritable();
+    await writable.write(currentContent);
+    await writable.close();
+
+    // 2. 元ファイルを削除
+    if (currentFileObj.folderHandle) {
+      await currentFileObj.folderHandle.removeEntry(currentFileObj.filename);
+    } else {
+      await dirHandle.removeEntry(currentFileObj.filename);
+    }
+
+    // 3. currentFileObjを移動先の情報に更新（プレビューはそのまま）
+    currentFileObj = { ...currentFileObj, category: folderName, folderHandle: targetFolderHandle, handle: newHandle };
+    selectedHandle = newHandle;
+    updateLocationBadge(currentFileObj);
+
+    // 4. サイドバーだけ再読み込み（プレビューはリセットしない）
+    await loadFiles();
+
+    // 5. 移動先フォルダの対応するアイテムをactiveに
+    const catAttr = `[data-category="${CSS.escape(folderName)}"]`;
+    const btn = document.querySelector(`.file-item[data-filename="${CSS.escape(currentFileObj.filename)}"]${catAttr}`)
+             || document.querySelector(`.file-item[data-filename="${CSS.escape(currentFileObj.filename)}"]`);
+    document.querySelectorAll('.file-item').forEach(b => b.classList.remove('active'));
+    if (btn) {
+      btn.classList.add('active');
+      // 親カテゴリが折りたたまれていたら展開する
+      const parentFiles = btn.closest('.category-files');
+      if (parentFiles && !parentFiles.classList.contains('open')) {
+        const header = parentFiles.previousElementSibling;
+        parentFiles.classList.add('open');
+        if (header) header.classList.add('open');
+      }
+      btn.scrollIntoView({ block: 'nearest' });
+    }
+
+    showMoveToast(`📁 「${folderName}」に移動しました`);
+  } catch(e) {
+    alert('移動エラー: ' + e.message);
+  }
+}
+
+async function moveToNewFolder() {
+  const name = document.getElementById('new-folder-input').value.trim();
+  if (!name) return;
+  try {
+    const newFolderHandle = await dirHandle.getDirectoryHandle(name, { create: true });
+    await moveFileTo(newFolderHandle, name);
+    document.getElementById('new-folder-input').value = '';
+  } catch(e) {
+    alert('フォルダー作成エラー: ' + e.message);
+  }
+}
+
+function showMoveToast(msg) {
+  let toast = document.getElementById('move-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'move-toast';
+    toast.style.cssText = `
+      position:fixed; bottom:32px; left:50%; transform:translateX(-50%);
+      background:#1E293B; color:#fff; border:1px solid rgba(255,255,255,0.15);
+      border-radius:12px; padding:12px 24px; font-size:13px; font-weight:bold;
+      z-index:9999; transition:opacity 0.3s; pointer-events:none;
+      font-family: 'Hiragino Sans','Yu Gothic UI',sans-serif;
+    `;
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => toast.style.opacity = '0', 2500);
+}
+
+// ─── 初期化 ──────────────────────────────────────────────
+initSettings();
+checkReopenBtn();
+</script>
+</body>
+</html>

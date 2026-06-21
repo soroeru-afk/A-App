@@ -1,0 +1,103 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-base-bg: var(--theme-base-bg);
+  --color-panel-bg: var(--theme-panel-bg);
+  --color-border-main: var(--theme-border-main);
+  --color-border-light: var(--theme-border-light);
+  --color-text-dim: var(--theme-text-dim);
+  --color-text-normal: var(--theme-text-normal);
+  --color-text-bright: var(--theme-text-bright);
+  --color-accent-bg: var(--theme-accent-bg);
+  --color-accent-text: var(--theme-accent-text);
+
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+:root {
+  --theme-base-bg: #050505;
+  --theme-panel-bg: #0a0a0a;
+  --theme-border-main: #262626;
+  --theme-border-light: #404040;
+  --theme-text-dim: #737373;
+  --theme-text-normal: #d4d4d4;
+  --theme-text-bright: #ffffff;
+  --theme-accent-bg: #1a1a1a;
+  --theme-accent-text: #ffffff;
+}
+
+:root[data-theme="onyxblack"] {
+  --theme-base-bg: #050505;
+  --theme-panel-bg: #0a0a0a;
+  --theme-border-main: #262626;
+  --theme-border-light: #404040;
+  --theme-text-dim: #737373;
+  --theme-text-normal: #d4d4d4;
+  --theme-text-bright: #ffffff;
+  --theme-accent-bg: #1a1a1a;
+  --theme-accent-text: #ffffff;
+}
+
+:root[data-theme="paperlight"] {
+  --theme-base-bg: #f8fafc;
+  --theme-panel-bg: #ffffff;
+  --theme-border-main: #e2e8f0;
+  --theme-border-light: #cbd5e1;
+  --theme-text-dim: #94a3b8;
+  --theme-text-normal: #475569;
+  --theme-text-bright: #0f172a;
+  --theme-accent-bg: #f1f5f9;
+  --theme-accent-text: #0f172a;
+}
+
+/* Explicit Utility Classes to override Tailwind resolving if necessary */
+@layer utilities {
+  .bg-base-bg { background-color: var(--theme-base-bg) !important; }
+  .bg-panel-bg { background-color: var(--theme-panel-bg) !important; }
+  .bg-accent-bg { background-color: var(--theme-accent-bg) !important; }
+  .border-border-main { border-color: var(--theme-border-main) !important; }
+  .border-border-light { border-color: var(--theme-border-light) !important; }
+  .text-text-normal { color: var(--theme-text-normal) !important; }
+  .text-text-bright { color: var(--theme-text-bright) !important; }
+  .text-text-dim { color: var(--theme-text-dim) !important; }
+  .text-accent-text { color: var(--theme-accent-text) !important; }
+}
+
+body {
+  background-color: var(--theme-base-bg) !important;
+  color: var(--theme-text-normal) !important;
+  font-family: var(--font-mono);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Form Styles */
+input, select {
+  background-color: var(--theme-panel-bg);
+  color: var(--theme-text-bright);
+  border: 1px solid var(--theme-border-main);
+}
+input:focus, select:focus {
+  outline: none;
+  border-color: var(--theme-border-light);
+}
+
+/* Custom Thin Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--theme-border-main);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-border-light);
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--theme-border-main) transparent;
+}
