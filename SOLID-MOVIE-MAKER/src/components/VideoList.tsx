@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Film, Trash2, Edit2, Play, Tv } from 'lucide-react';
+import { Film, Trash2, Edit2, Play, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown } from 'lucide-react';
 import { Category, VideoInfo, Language } from '../types';
 import { t } from '../translations';
 
@@ -109,7 +109,7 @@ export default function VideoList({ videos, categories, onDelete, onUpdateTitle,
           <div>{txt.colTitle}</div>
           <div>{txt.colCategory}</div>
           <div className="text-right">{txt.colDate}</div>
-          <div className="text-center w-28 shrink-0">{txt.colEdit}</div>
+          <div className="text-center w-44 shrink-0">{txt.colEdit}</div>
         </div>
 
         <div className="flex-1 overflow-y-auto">
@@ -134,14 +134,14 @@ export default function VideoList({ videos, categories, onDelete, onUpdateTitle,
                              {video.localPath ? (
                                  <a
                                      href={`solid-play://?path=${encodeURIComponent(video.localPath)}`}
-                                     className="w-6 h-6 flex items-center justify-center border border-border-main text-blue-400 hover:bg-border-light hover:text-blue-300 transition-colors"
+                                     className="w-14 h-6 flex items-center justify-center border border-blue-900/60 bg-blue-950/20 text-blue-400 hover:bg-blue-900/30 hover:text-blue-300 transition-all rounded-sm"
                                      title={txt.playExternalTooltip}
                                  >
-                                     <Play size={10} className="ml-0.5 fill-current" />
+                                     <Play size={12} className="fill-current" />
                                  </a>
                              ) : (
-                                 <div className="w-6 h-6 flex items-center justify-center border border-border-main text-text-dim opacity-40" title="絶対パス未登録">
-                                     <Play size={10} className="ml-0.5" />
+                                 <div className="w-14 h-6 flex items-center justify-center border border-border-main text-text-dim opacity-40 rounded-sm" title="絶対パス未登録">
+                                     <Play size={12} />
                                  </div>
                              )}
                          </div>
@@ -172,22 +172,54 @@ export default function VideoList({ videos, categories, onDelete, onUpdateTitle,
                             {new Date(video.createdAt).toLocaleDateString()}
                         </div>
                         
-                        <div className="flex justify-end w-28 shrink-0 gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex justify-end w-44 shrink-0 gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                             {deleteConfirmId === video.id ? (
                                 <div className="flex items-center gap-1">
-                                    <button onClick={() => handleDelete(video.id)} className="text-red-500 font-bold px-1 hover:text-red-400 text-[10px]">{txt.delete}</button>
-                                    <button onClick={() => setDeleteConfirmId(null)} className="text-text-dim px-1 hover:text-text-bright text-[10px]">{txt.cancel}</button>
+                                    <button onClick={() => handleDelete(video.id)} className="text-red-500 font-bold px-2 py-0.5 hover:bg-red-500/10 border border-red-900/60 rounded-sm text-[10px]">{txt.delete}</button>
+                                    <button onClick={() => setDeleteConfirmId(null)} className="text-text-dim px-2 py-0.5 hover:bg-base-bg border border-border-main rounded-sm text-[10px]">{txt.cancel}</button>
                                 </div>
                             ) : (
                                 <>
-                                    <button onClick={() => onMoveVideo(video.id, 'top')} className="text-text-dim hover:text-text-bright text-[9px] font-bold" title="一番上へ">▲▲</button>
-                                    <button onClick={() => onMoveVideo(video.id, 'up')} className="text-text-dim hover:text-text-bright text-[9px] font-bold" title="上へ">▲</button>
-                                    <button onClick={() => onMoveVideo(video.id, 'down')} className="text-text-dim hover:text-text-bright text-[9px] font-bold" title="下へ">▼</button>
-                                    <button onClick={() => onMoveVideo(video.id, 'bottom')} className="text-text-dim hover:text-text-bright text-[9px] font-bold" title="一番下へ">▼▼</button>
-                                    <button onClick={() => startEdit(video)} className="text-text-dim hover:text-text-bright ml-1" title={txt.rename}>
+                                    <button 
+                                        onClick={() => startEdit(video)} 
+                                        className="w-6 h-6 flex items-center justify-center border border-border-main text-text-dim hover:text-text-bright hover:bg-base-bg rounded-sm" 
+                                        title={txt.rename}
+                                    >
                                         <Edit2 size={11} />
                                     </button>
-                                    <button onClick={() => setDeleteConfirmId(video.id)} className="text-text-dim hover:text-red-400" title={txt.delete}>
+                                    <button 
+                                        onClick={() => onMoveVideo(video.id, 'top')} 
+                                        className="w-6 h-6 flex items-center justify-center border border-border-main text-text-dim hover:text-text-bright hover:bg-base-bg rounded-sm" 
+                                        title="一番上へ"
+                                    >
+                                        <ChevronsUp size={11} />
+                                    </button>
+                                    <button 
+                                        onClick={() => onMoveVideo(video.id, 'up')} 
+                                        className="w-6 h-6 flex items-center justify-center border border-border-main text-text-dim hover:text-text-bright hover:bg-base-bg rounded-sm" 
+                                        title="上へ"
+                                    >
+                                        <ChevronUp size={11} />
+                                    </button>
+                                    <button 
+                                        onClick={() => onMoveVideo(video.id, 'down')} 
+                                        className="w-6 h-6 flex items-center justify-center border border-border-main text-text-dim hover:text-text-bright hover:bg-base-bg rounded-sm" 
+                                        title="下へ"
+                                    >
+                                        <ChevronDown size={11} />
+                                    </button>
+                                    <button 
+                                        onClick={() => onMoveVideo(video.id, 'bottom')} 
+                                        className="w-6 h-6 flex items-center justify-center border border-border-main text-text-dim hover:text-text-bright hover:bg-base-bg rounded-sm" 
+                                        title="一番下へ"
+                                    >
+                                        <ChevronsDown size={11} />
+                                    </button>
+                                    <button 
+                                        onClick={() => setDeleteConfirmId(video.id)} 
+                                        className="w-6 h-6 flex items-center justify-center border border-border-main text-text-dim hover:text-red-400 hover:bg-base-bg rounded-sm ml-1" 
+                                        title={txt.delete}
+                                    >
                                         <Trash2 size={11} />
                                     </button>
                                 </>
