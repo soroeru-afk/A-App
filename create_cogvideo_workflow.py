@@ -14,8 +14,8 @@ for node in data['nodes']:
             'CogVideoX_5b_I2V_GGUF_Q4_0.safetensors', # model
             'bf16',                                    # vae_precision
             False,                                     # fp8_fastmode
-            'main_device',                             # load_device
-            False,                                     # enable_sequential_cpu_offload
+            'offload_device',                          # load_device (オフロードを有効に)
+            True,                                      # enable_sequential_cpu_offload (メモリ節約)
             'sdpa'                                     # attention_mode
         ]
 
