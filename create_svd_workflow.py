@@ -14,7 +14,7 @@ workflow = {
       "mode": 0,
       "outputs": [
         {"name": "MODEL", "type": "MODEL", "links": [1]},
-        {"name": "CLIP", "type": "CLIP", "links": [2]},
+        {"name": "CLIP_VISION", "type": "CLIP_VISION", "links": [2]},
         {"name": "VAE", "type": "VAE", "links": [3, 6]}
       ],
       "properties": {},
@@ -43,7 +43,7 @@ workflow = {
       "order": 2,
       "mode": 0,
       "inputs": [
-        {"name": "clip", "type": "CLIP", "link": 2},
+        {"name": "clip_vision", "type": "CLIP_VISION", "link": 2},
         {"name": "init_image", "type": "IMAGE", "link": 4},
         {"name": "vae", "type": "VAE", "link": 3}
       ],
@@ -124,7 +124,7 @@ workflow = {
   ],
   "links": [
     [1, 1, 0, 4, 0, "MODEL"],
-    [2, 1, 1, 3, 0, "CLIP"],
+    [2, 1, 1, 3, 0, "CLIP_VISION"],
     [3, 1, 2, 3, 2, "VAE"],
     [4, 2, 0, 3, 1, "IMAGE"],
     [5, 4, 0, 5, 0, "LATENT"],
