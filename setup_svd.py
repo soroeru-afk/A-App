@@ -4,9 +4,8 @@ import urllib.request
 import time
 
 COMFYUI_PATH = r"C:\StabilityMatrix\Data\Packages\comfyui"
-url = "https://huggingface.co/Kijai/StableVideoDiffusion_comfy/resolve/main/svd_xt_fp8.safetensors"
-path = os.path.join(COMFYUI_PATH, "models", "checkpoints", "svd_xt_fp8.safetensors")
-expected_size = 5085609384 # 約4.74GB
+url = "https://huggingface.co/FrancisRing/StableAnimator/resolve/main/stable-video-diffusion-img2vid-xt/svd_xt.safetensors"
+path = os.path.join(COMFYUI_PATH, "models", "checkpoints", "svd_xt.safetensors")
 
 os.makedirs(os.path.dirname(path), exist_ok=True)
 temp_path = path + ".tmp"
@@ -14,10 +13,26 @@ temp_path = path + ".tmp"
 print(f"SVD Target Path: {path}")
 print(f"SVD Temp Path: {temp_path}")
 
+def get_remote_file_size(url):
+    try:
+        req = urllib.request.Request(url, method='HEAD')
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return int(resp.headers.get('Content-Length', 0))
+    except Exception as e:
+        print(f"Warning: Could not get remote file size: {e}")
+        return 0
+
+expected_size = get_remote_file_size(url)
+if expected_size == 0:
+    # フォールバック (SVD-XTの標準サイズ 約9.56GB)
+    expected_size = 10265267156
+
+print(f"Expected Size: {expected_size / (1024*1024*1024):.2f} GB ({expected_size} bytes)")
+
 # Check if already completed
 if os.path.exists(path):
     if os.path.getsize(path) == expected_size:
-        print("[OK] SVD FP8 model already fully downloaded.")
+        print("[OK] SVD model already fully downloaded.")
         sys.exit(0)
     else:
         print("Existing file size mismatch. Re-downloading...")
@@ -39,7 +54,7 @@ def download():
         print(f"Resuming download from byte {downloaded}...")
     else:
         mode = 'wb'
-        print("Starting SVD FP8 model download...")
+        print("Starting SVD model download (Public Mirror)...")
 
     try:
         with urllib.request.urlopen(req, timeout=30) as response:
@@ -63,7 +78,7 @@ def download():
         if os.path.exists(path):
             os.remove(path)
         os.rename(temp_path, path)
-        print("[SUCCESS] SVD FP8 model successfully verified and saved!")
+        print("[SUCCESS] SVD model successfully verified and saved!")
         return True
     return False
 

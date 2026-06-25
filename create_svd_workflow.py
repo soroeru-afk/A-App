@@ -18,7 +18,7 @@ workflow = {
         {"name": "VAE", "type": "VAE", "links": [3, 6]}
       ],
       "properties": {},
-      "widgets_values": ["svd_xt_fp8.safetensors"]
+      "widgets_values": ["svd_xt.safetensors"]
     },
     {
       "id": 2,
