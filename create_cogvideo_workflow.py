@@ -8,10 +8,16 @@ with open(workflow_path, 'r', encoding='utf-8') as f:
 
 for node in data['nodes']:
     # 1. モデルローダーの精度設定を軽量な fp8_e4m3fn に変更して8GB VRAMに対応させる
-    if node['type'] == 'DownloadAndLoadCogVideoModel' and node['id'] == 59:
-        # widgets: ['THUDM/CogVideoX-5b-I2V', 'bf16', 'disabled', False, 'sdpa', 'main_device']
-        node['widgets_values'][1] = 'bf16'              # precision (基本精度。'bf16' や 'fp16' 等を指定)
-        node['widgets_values'][2] = 'fp8_e4m3fn'       # quantization (量子化。ここでfp8を指定)
+    if node['id'] == 59:
+        node['type'] = 'DownloadAndLoadCogVideoGGUFModel'
+        node['widgets_values'] = [
+            'CogVideoX_5b_I2V_GGUF_Q4_0.safetensors', # model
+            'bf16',                                    # vae_precision
+            False,                                     # fp8_fastmode
+            'main_device',                             # load_device
+            False,                                     # enable_sequential_cpu_offload
+            'sdpa'                                     # attention_mode
+        ]
 
     # 2. テキストエンコーダー（T5）の読み込み設定
     elif node['type'] == 'CLIPLoader' and node['id'] == 20:
