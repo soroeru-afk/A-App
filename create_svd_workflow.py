@@ -74,7 +74,7 @@ workflow = {
         {"name": "latent", "type": "LATENT", "links": [9]}
       ],
       "properties": {},
-      "widgets_values": [25, 127, 6, 0.0] # width, heightが入力に変換されたため、残りのパラメータのみ
+      "widgets_values": [1024, 576, 25, 127, 6, 0.0]
     },
     {
       "id": 4,
