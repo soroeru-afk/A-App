@@ -21,8 +21,7 @@ for node in data['nodes']:
 
     # 2. テキストエンコーダー（T5）の読み込み設定
     elif node['type'] == 'CLIPLoader' and node['id'] == 20:
-        # すでにfp8版が指定されているのでそのまま
-        pass
+        node['widgets_values'][0] = 'google_t5-v1_1-xxl_encoderonly-fp8_e4m3fn.safetensors'
 
     # 3. テスト用のステップ数を一時的に下げて高速化 (元の50ステップ ➔ 25ステップに調整)
     elif node['type'] == 'CogVideoSampler' and node['id'] == 63:
