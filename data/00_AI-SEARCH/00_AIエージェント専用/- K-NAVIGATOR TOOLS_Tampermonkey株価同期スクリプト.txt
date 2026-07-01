@@ -1,0 +1,54 @@
+// ==UserScript==
+// @name         K-NAVIGATOR PWA 株価中継スクリプト
+// @namespace    http://tampermonkey.net
+// @version      1.0
+// @description  株探の個別銘柄ページから、PWAアプリのキャッシュ(localStorage)へ直接株価を中継・同期します。(ローカルサーバーの起動が不要になります)
+// @author       Antigravity
+// @match        *://kabutan.jp/stock/?code=*
+// @match        *://s.kabutan.jp/stock/?code=*
+// @grant        none
+// @run-at       document-idle
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // URLから銘柄コードを取得
+    const codeMatch = location.search.match(/code=(\d{4})/);
+    if (!codeMatch) return;
+    const code = codeMatch[1];
+
+    // 株探のページから昼の終値を抽出
+    let price = null;
+    const kobLeft = document.getElementById('kobetsu_left');
+    if (kobLeft) {
+        // PTS表示エリア(stock_pts_div)を除外してテーブルをスキャン
+        const tables = Array.from(kobLeft.getElementsByTagName('table')).filter(table => {
+            return !table.closest('.stock_pts_div');
+        });
+        
+        for (const table of tables) {
+            const rows = table.getElementsByTagName('tr');
+            for (const row of rows) {
+                const th = row.querySelector('th');
+                const td = row.querySelector('td');
+                if (th && td && th.textContent.trim() === '終値') {
+                    price = td.textContent.trim().split(/\s/)[0].replace(/[^\d,.]/g, '');
+                    break;
+                }
+            }
+            if (price) break;
+        }
+    }
+
+    if (price) {
+        // PWAアプリのlocalStorageと同じキー形式で保存する
+        const storageKey = 'KNAV_SX_CLOSE_' + code;
+        const cacheData = {
+            price: price,
+            date: new Date().toLocaleDateString('ja-JP')
+        };
+        localStorage.setItem(storageKey, JSON.stringify(cacheData));
+        console.log(`[K-NAVIGATOR PWA 中継] 銘柄 ${code} の株価 ${price} 円を同期しました。`);
+    }
+})();
