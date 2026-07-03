@@ -415,7 +415,7 @@ async function runStep2() {
       image: state.charAImage,
       input_image: state.charAImage,
       model: ipAdapterModel,
-      module: 'ip-adapter_clip_sd15', // sd15環境用のプレプロセッサ
+      module: 'none',
       weight: 0.7,
       resize_mode: 0,
       control_mode: 0,
@@ -499,7 +499,7 @@ async function runStep3() {
       image: state.charBImage,
       input_image: state.charBImage,
       model: ipAdapterModel,
-      module: 'ip-adapter_clip_sd15',
+      module: 'none',
       weight: 0.7,
       resize_mode: 0,
       control_mode: 0,
