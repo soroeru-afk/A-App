@@ -1,0 +1,13 @@
+{
+  "name": "solid-reforge-angle-changer",
+  "version": "1.0.0",
+  "description": "Stable Diffusion reForge Angle Changer with Regional Prompter & IP-Adapter",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5"
+  }
+}

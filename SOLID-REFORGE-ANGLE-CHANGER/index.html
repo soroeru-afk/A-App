@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SOLID REFORGE ANGLE CHANGER</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Outfit:wght@300;400;600&family=Noto+Sans+JP:wght@300;400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <span class="metallic-text">SOLID REFORGE ANGLE CHANGER</span>
+      <span class="sub-logo">VRAM 8GB OOM-FREE PIPELINE</span>
+    </div>
+    <div class="api-status-bar">
+      <label for="webui-url">API URL:</label>
+      <input type="text" id="webui-url" value="http://127.0.0.1:7860" placeholder="http://127.0.0.1:7860">
+      <button id="btn-check-api" class="btn btn-secondary">接続テスト</button>
+      <span id="api-status-badge" class="badge badge-offline">OFFLINE</span>
+    </div>
+  </header>
+
+  <main class="app-container">
+    <!-- 左パネル: 設定 & 入力アセット -->
+    <section class="panel panel-left">
+      <h2 class="panel-title">1. 設定 & アセット入力</h2>
+      
+      <!-- API・モデル設定 -->
+      <details class="settings-details" open>
+        <summary>モデル・基本設定 (ControlNet)</summary>
+        <div class="setting-group">
+          <label>OpenPose Model:</label>
+          <input type="text" id="model-openpose" value="control_v11p_sd15_openpose [cab727d4]" placeholder="OpenPoseモデル名">
+        </div>
+        <div class="setting-group">
+          <label>IP-Adapter Model:</label>
+          <input type="text" id="model-ipadapter" value="ip-adapter_sd15 [db5342a1]" placeholder="IP-Adapterモデル名">
+        </div>
+        <div class="setting-row">
+          <div class="setting-group">
+            <label>Width:</label>
+            <input type="number" id="gen-width" value="512" step="64">
+          </div>
+          <div class="setting-group">
+            <label>Height:</label>
+            <input type="number" id="gen-height" value="768" step="64">
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-group">
+            <label>Steps:</label>
+            <input type="number" id="gen-steps" value="25">
+          </div>
+          <div class="setting-group">
+            <label>CFG Scale:</label>
+            <input type="number" id="gen-cfg" value="7" step="0.5">
+          </div>
+        </div>
+        <div class="setting-group">
+          <label>Sampler:</label>
+          <select id="gen-sampler">
+            <option value="Euler a">Euler a</option>
+            <option value="DPM++ 2M Karras">DPM++ 2M Karras</option>
+            <option value="DPM++ SDE Karras">DPM++ SDE Karras</option>
+            <option value="UniPC">UniPC</option>
+          </select>
+        </div>
+        <div class="setting-group">
+          <label>Denoising Strength (Inpaint):</label>
+          <input type="range" id="inpaint-denoising" min="0.3" max="0.8" step="0.05" value="0.55">
+          <span id="denoising-val">0.55</span>
+        </div>
+      </details>
+
+      <!-- 共通プロンプト -->
+      <div class="input-section">
+        <h3>共通設定</h3>
+        <div class="setting-group">
+          <label>共通ネガティブプロンプト:</label>
+          <textarea id="prompt-negative" rows="2">easynegative, extra fingers, fewer digits, bad anatomy, bad hands, damaged, lowres, bad perspective</textarea>
+        </div>
+      </div>
+
+      <!-- 骨格（OpenPose） -->
+      <div class="input-section">
+        <h3>OpenPose 骨格画像</h3>
+        <div class="dropzone" id="dropzone-pose">
+          <p>ここに骨格画像をドラッグ＆ドロップ、またはクリックして選択</p>
+          <input type="file" id="file-pose" accept="image/*" style="display: none;">
+          <img id="prev-pose" class="preview-img" alt="骨格プレビュー">
+        </div>
+      </div>
+
+      <!-- 人物A（左側） -->
+      <div class="input-section character-section-a">
+        <h3>人物A (左側キャラクター)</h3>
+        <div class="dropzone" id="dropzone-char-a">
+          <p>特徴元画像をアップロード</p>
+          <input type="file" id="file-char-a" accept="image/*" style="display: none;">
+          <img id="prev-char-a" class="preview-img" alt="人物A元画像プレビュー">
+        </div>
+        <div class="setting-group">
+          <label>簡易プロンプト (ベース用):</label>
+          <input type="text" id="prompt-base-a" value="1boy, black hair, school uniform" placeholder="例: 1boy, black hair, school uniform">
+        </div>
+        <div class="setting-group">
+          <label>特徴プロンプト (Inpaint転写用):</label>
+          <textarea id="prompt-detail-a" rows="2">1boy, detailed face, black hair, high school student uniform, blazer, red tie, photorealistic</textarea>
+        </div>
+      </div>
+
+      <!-- 人物B（右側） -->
+      <div class="input-section character-section-b">
+        <h3>人物B (右側キャラクター)</h3>
+        <div class="dropzone" id="dropzone-char-b">
+          <p>特徴元画像をアップロード</p>
+          <input type="file" id="file-char-b" accept="image/*" style="display: none;">
+          <img id="prev-char-b" class="preview-img" alt="人物B元画像プレビュー">
+        </div>
+        <div class="setting-group">
+          <label>簡易プロンプト (ベース用):</label>
+          <input type="text" id="prompt-base-b" value="1girl, blonde hair, blue dress" placeholder="例: 1girl, blonde hair, blue dress">
+        </div>
+        <div class="setting-group">
+          <label>特徴プロンプト (Inpaint転写用):</label>
+          <textarea id="prompt-detail-b" rows="2">1girl, detailed face, beautiful blonde hair, long dress, elegant blue attire, fantasy princess, photorealistic</textarea>
+        </div>
+      </div>
+    </section>
+
+    <!-- 中央＆右パネル: パイプライン制御とプレビュー -->
+    <section class="panel panel-right-container">
+      
+      <!-- ステップ制御パネル -->
+      <div class="control-box">
+        <h2 class="panel-title">2. 分割制御 ＆ パイプライン実行</h2>
+        
+        <div class="ratio-control">
+          <label>Regional Prompter 分割比率 (左 / 右):</label>
+          <div class="slider-wrapper">
+            <span id="ratio-left-label">50%</span>
+            <input type="range" id="ratio-slider" min="10" max="90" value="50">
+            <span id="ratio-right-label">50%</span>
+          </div>
+          <p class="help-text">スライダーで左キャラクターと右キャラクターの領域境界を指定します。</p>
+        </div>
+
+        <div class="pipeline-steps">
+          <!-- Step 1 -->
+          <div class="step-card" id="step1-card">
+            <div class="step-header">
+              <span class="step-num">Step 1</span>
+              <h3>ベース画像生成 (txt2img)</h3>
+            </div>
+            <p class="step-desc">OpenPoseでポーズを指定し、左右分割プロンプトで大まかな人物配置の画像を生成します。</p>
+            <button id="btn-step1" class="btn btn-primary">Step 1 を実行</button>
+            <div class="step-status" id="step1-status">未実行</div>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="step-card" id="step2-card">
+            <div class="step-header">
+              <span class="step-num">Step 2</span>
+              <h3>人物A (左) 特徴転写 (img2img Inpaint)</h3>
+            </div>
+            <p class="step-desc">左側のマスクを自動生成し、IP-Adapterを使用して人物Aの衣装や顔の特徴を上書き転写します。</p>
+            <button id="btn-step2" class="btn btn-primary" disabled>Step 2 を実行</button>
+            <div class="step-status" id="step2-status">待機中</div>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="step-card" id="step3-card">
+            <div class="step-header">
+              <span class="step-num">Step 3</span>
+              <h3>人物B (右) 特徴転写 (img2img Inpaint)</h3>
+            </div>
+            <p class="step-desc">右側のマスクを自動生成し、IP-Adapterを使用して人物Bの衣装や顔の特徴をさらに上書き転写します。</p>
+            <button id="btn-step3" class="btn btn-primary" disabled>Step 3 を実行</button>
+            <div class="step-status" id="step3-status">待機中</div>
+          </div>
+        </div>
+
+        <!-- 一括自動実行 -->
+        <div class="auto-run-container">
+          <button id="btn-auto-run" class="btn btn-accent">全ステップを一括自動実行</button>
+        </div>
+      </div>
+
+      <!-- プレビュー＆キャンバス -->
+      <div class="preview-box">
+        <h2 class="panel-title">3. プレビュー & 画像出力</h2>
+        
+        <div class="preview-grid">
+          <!-- 進行中のプレビュー -->
+          <div class="preview-card">
+            <h4>現在のステージ画像</h4>
+            <div class="preview-frame">
+              <img id="main-preview" class="main-preview-img" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100' height='100' fill='%231d1c21'/><text x='50' y='50' fill='%233a393f' font-family='sans-serif' font-size='10' text-anchor='middle' dominant-baseline='middle'>NO IMAGE</text></svg>" alt="ステージ画像">
+            </div>
+          </div>
+
+          <!-- マスク確認用 -->
+          <div class="preview-card">
+            <h4>自動生成マスク (Inpaint用)</h4>
+            <div class="preview-frame">
+              <canvas id="mask-canvas" style="max-width: 100%; height: auto; display: block; border: 1px solid #333;"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- 最終履歴・ギャラリー -->
+        <div class="history-gallery">
+          <h3>生成プロセス履歴</h3>
+          <div class="gallery-row" id="gallery-container">
+            <!-- 履歴画像がここに追加される -->
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <p>&copy; 2026 SOLID K-STUDIO / Antigravity Agent. All rights reserved.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
