@@ -315,6 +315,7 @@ async function runStep1() {
   
   const controlNetArgs = [
     {
+      enabled: true,
       image: state.poseImage,
       input_image: state.poseImage,
       model: openposeModel,
@@ -420,6 +421,7 @@ async function runStep2() {
   const ipAdapterModel = elements.modelIpadapter.value.trim();
   const controlNetArgs = [
     {
+      enabled: true,
       image: state.charAImage,
       input_image: state.charAImage,
       model: ipAdapterModel,
@@ -504,6 +506,7 @@ async function runStep3() {
   const ipAdapterModel = elements.modelIpadapter.value.trim();
   const controlNetArgs = [
     {
+      enabled: true,
       image: state.charBImage,
       input_image: state.charBImage,
       model: ipAdapterModel,
