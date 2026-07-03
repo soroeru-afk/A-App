@@ -10,15 +10,15 @@ echo.
 cd /d "%~dp0"
 
 :: node_modules の存在チェック
-if not exist "node_modules\" (
-    echo [INFO] 初回起動のため、依存パッケージ(Express等)をインストールしています...
-    call npm install
-    if !errorlevel! neq 0 (
-        echo [ERROR] npm install に失敗しました。Node.jsがインストールされているか確認してください。
-        pause
-        exit /b 1
-    )
+if exist "node_modules\" goto :skip_install
+echo [INFO] 初回起動のため、依存パッケージ(Express等)をインストールしています...
+cmd /c npm install
+if %errorlevel% neq 0 (
+    echo [ERROR] npm install に失敗しました。Node.jsがインストールされているか確認してください。
+    pause
+    exit /b 1
 )
+:skip_install
 
 echo [INFO] バックエンドプロキシサーバーを起動中 (ポート 3010)...
 start /b node server.js
