@@ -398,7 +398,7 @@ async function runStep1() {
     false,
     true, // usecom
     false,
-    "Attention",
+    "Latent", // "Attention" から "Latent" に変更しデバイス不一致エラーを回避
     [],
     0, // 数値型に修正
     0, // 数値型に修正
