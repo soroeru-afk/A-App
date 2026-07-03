@@ -367,8 +367,8 @@ async function runStep1() {
   const promptA = elements.promptBaseA.value.trim();
   const promptB = elements.promptBaseB.value.trim();
   
-  // 共通背景をそれぞれのプロンプトの先頭に付加して、BREAK 1つで繋ぐ (2分割パーサーエラー防止)
-  const combinedPrompt = `${promptCommon}, ${promptA} BREAK ${promptCommon}, ${promptB}`;
+  // 共通背景を先頭にした Regional Prompter 仕様のプロンプト構成
+  const combinedPrompt = `${promptCommon} BREAK ${promptA} BREAK ${promptB}`;
   
   const openposeModel = getFullModelName(elements.modelOpenpose.value.trim());
   
