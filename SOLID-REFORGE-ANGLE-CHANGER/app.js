@@ -30,6 +30,7 @@ const elements = {
   inpaintDenoising: document.getElementById('inpaint-denoising'),
   denoisingVal: document.getElementById('denoising-val'),
   
+  promptCommon: document.getElementById('prompt-common'), // 追加
   promptNegative: document.getElementById('prompt-negative'),
   promptBaseA: document.getElementById('prompt-base-a'),
   promptDetailA: document.getElementById('prompt-detail-a'),
@@ -68,7 +69,7 @@ const elements = {
   step3Card: document.getElementById('step3-card'),
   
   btnAutoRun: document.getElementById('btn-auto-run'),
-  btnSwap: document.getElementById('btn-swap'), // 追加
+  btnSwap: document.getElementById('btn-swap'),
   
   // プレビュー & キャンバス
   mainPreview: document.getElementById('main-preview'),
@@ -80,6 +81,8 @@ const elements = {
 window.addEventListener('DOMContentLoaded', async () => {
   setupEventListeners();
   updateSliderRatio();
+  loadFromLocalStorage(); // ローカルストレージから入力を復元
+  
   const isOnline = await checkApiStatus();
   if (isOnline) {
     await fetchControlNetModels();
@@ -99,11 +102,13 @@ function setupEventListeners() {
   // デノイズ強度数値の同期
   elements.inpaintDenoising.addEventListener('input', (e) => {
     elements.denoisingVal.textContent = e.target.value;
+    saveToLocalStorage();
   });
 
   // スライダーの制御
   elements.ratioSlider.addEventListener('input', () => {
     updateSliderRatio();
+    saveToLocalStorage();
     if (state.baseImage) {
       drawMasks();
     }
@@ -113,16 +118,31 @@ function setupEventListeners() {
   setupDropzone(elements.dropzonePose, elements.filePose, (base64) => {
     state.poseImage = base64;
     showPreview(elements.prevPose, base64);
+    saveToLocalStorage();
   });
   
   setupDropzone(elements.dropzoneCharA, elements.fileCharA, (base64) => {
     state.charAImage = base64;
     showPreview(elements.prevCharA, base64);
+    saveToLocalStorage();
   });
   
   setupDropzone(elements.dropzoneCharB, elements.fileCharB, (base64) => {
     state.charBImage = base64;
     showPreview(elements.prevCharB, base64);
+    saveToLocalStorage();
+  });
+
+  // 入力値変更時に自動保存
+  const textInputs = [
+    elements.webuiUrlInput, elements.modelOpenpose, elements.modelIpadapter,
+    elements.genWidth, elements.genHeight, elements.genSteps, elements.genCfg,
+    elements.genSampler, elements.promptCommon, elements.promptNegative,
+    elements.promptBaseA, elements.promptDetailA, elements.promptBaseB, elements.promptDetailB
+  ];
+  textInputs.forEach(input => {
+    input.addEventListener('change', saveToLocalStorage);
+    input.addEventListener('input', saveToLocalStorage);
   });
 
   // ステップ実行ボタン
@@ -130,7 +150,10 @@ function setupEventListeners() {
   elements.btnStep2.addEventListener('click', runStep2);
   elements.btnStep3.addEventListener('click', runStep3);
   elements.btnAutoRun.addEventListener('click', runAllSteps);
-  elements.btnSwap.addEventListener('click', swapCharacters); // 追加
+  elements.btnSwap.addEventListener('click', () => {
+    swapCharacters();
+    saveToLocalStorage();
+  });
 }
 
 // スライダーの割合表示更新
@@ -340,13 +363,15 @@ async function runStep1() {
   const height = parseInt(elements.genHeight.value);
   const ratioVal = parseInt(elements.ratioSlider.value);
   
+  const promptCommon = elements.promptCommon.value.trim();
   const promptA = elements.promptBaseA.value.trim();
   const promptB = elements.promptBaseB.value.trim();
-  const combinedPrompt = `${promptA} BREAK ${promptB}`;
+  
+  // 共通背景を先頭にした Regional Prompter 仕様のプロンプト構成
+  const combinedPrompt = `${promptCommon} BREAK ${promptA} BREAK ${promptB}`;
   
   const openposeModel = getFullModelName(elements.modelOpenpose.value.trim());
   
-  // Forge/reForge ControlNet 正式仕様オブジェクト
   const controlNetArgs = [
     {
       enabled: true,
@@ -375,7 +400,7 @@ async function runStep1() {
     `${ratioVal / 10},${(100 - ratioVal) / 10}`,
     "0",
     false,
-    true,
+    true, // usecom (Common 共通プロンプトを使用)
     false,
     "Attention",
     [],
@@ -398,7 +423,7 @@ async function runStep1() {
     height: height,
     seed: -1,
     alwayson_scripts: {
-      "ControlNet": { // 大文字「ControlNet」に統一
+      "ControlNet": {
         "args": controlNetArgs
       },
       "regional prompter": {
@@ -454,7 +479,6 @@ async function runStep2() {
   const maskBase64 = generateMask('left');
   const ipAdapterModel = getFullModelName(elements.modelIpadapter.value.trim());
   
-  // Forge/reForge ControlNet 正式仕様オブジェクト
   const controlNetArgs = [
     {
       enabled: true,
@@ -478,7 +502,7 @@ async function runStep2() {
     mask: maskBase64,
     mask_blur: 4,
     inpainting_fill: 1,
-    inpaint_full_res: false,
+    inpaint_full_res: false, // ズームイン合体化バグ防止
     inpaint_full_res_padding: 32,
     inpainting_mask_invert: 0,
     
@@ -492,7 +516,7 @@ async function runStep2() {
     height: parseInt(elements.genHeight.value),
     seed: -1,
     alwayson_scripts: {
-      "ControlNet": { // 大文字「ControlNet」に統一
+      "ControlNet": {
         "args": controlNetArgs
       }
     }
@@ -542,7 +566,6 @@ async function runStep3() {
   const maskBase64 = generateMask('right');
   const ipAdapterModel = getFullModelName(elements.modelIpadapter.value.trim());
   
-  // Forge/reForge ControlNet 正式仕様オブジェクト
   const controlNetArgs = [
     {
       enabled: true,
@@ -566,7 +589,7 @@ async function runStep3() {
     mask: maskBase64,
     mask_blur: 4,
     inpainting_fill: 1,
-    inpaint_full_res: false,
+    inpaint_full_res: false, // ズームイン合体化バグ防止
     inpaint_full_res_padding: 32,
     inpainting_mask_invert: 0,
     
@@ -580,7 +603,7 @@ async function runStep3() {
     height: parseInt(elements.genHeight.value),
     seed: -1,
     alwayson_scripts: {
-      "ControlNet": { // 大文字「ControlNet」に統一
+      "ControlNet": {
         "args": controlNetArgs
       }
     }
@@ -686,3 +709,96 @@ function swapCharacters() {
   console.log('Successfully swapped Character A and Character B inputs.');
 }
 
+// 入力をlocalStorageに保存する (画像はクォータ制限を超えないようにTry-Catch処理)
+function saveToLocalStorage() {
+  const settings = {
+    webuiUrl: elements.webuiUrlInput.value,
+    modelOpenpose: elements.modelOpenpose.value,
+    modelIpadapter: elements.modelIpadapter.value,
+    genWidth: elements.genWidth.value,
+    genHeight: elements.genHeight.value,
+    genSteps: elements.genSteps.value,
+    genCfg: elements.genCfg.value,
+    genSampler: elements.genSampler.value,
+    inpaintDenoising: elements.inpaintDenoising.value,
+    
+    promptCommon: elements.promptCommon.value,
+    promptNegative: elements.promptNegative.value,
+    promptBaseA: elements.promptBaseA.value,
+    promptDetailA: elements.promptDetailA.value,
+    promptBaseB: elements.promptBaseB.value,
+    promptDetailB: elements.promptDetailB.value,
+    
+    ratioSlider: elements.ratioSlider.value
+  };
+
+  localStorage.setItem('ref_settings', JSON.stringify(settings));
+
+  // 画像データはクォータエラーが起きやすいため、個別保存
+  try {
+    if (state.poseImage) localStorage.setItem('ref_img_pose', state.poseImage);
+    else localStorage.removeItem('ref_img_pose');
+    
+    if (state.charAImage) localStorage.setItem('ref_img_char_a', state.charAImage);
+    else localStorage.removeItem('ref_img_char_a');
+    
+    if (state.charBImage) localStorage.setItem('ref_img_char_b', state.charBImage);
+    else localStorage.removeItem('ref_img_char_b');
+    
+  } catch (error) {
+    console.warn('LocalStorage Quota Exceeded. Images could not be saved, but text options are saved.', error);
+  }
+}
+
+// localStorageから入力を復元する
+function loadFromLocalStorage() {
+  const savedSettings = localStorage.getItem('ref_settings');
+  if (savedSettings) {
+    try {
+      const s = JSON.parse(savedSettings);
+      elements.webuiUrlInput.value = s.webuiUrl || 'http://127.0.0.1:7860';
+      elements.modelOpenpose.value = s.modelOpenpose || 'thibaud_xl_openpose';
+      elements.modelIpadapter.value = s.modelIpadapter || 'ip-adapter-plus_sdxl_vit-h';
+      elements.genWidth.value = s.genWidth || '512';
+      elements.genHeight.value = s.genHeight || '768';
+      elements.genSteps.value = s.genSteps || '25';
+      elements.genCfg.value = s.genCfg || '7';
+      elements.genSampler.value = s.genSampler || 'Euler a';
+      elements.inpaintDenoising.value = s.inpaintDenoising || '0.55';
+      elements.denoisingVal.textContent = s.inpaintDenoising || '0.55';
+      
+      if (s.promptCommon !== undefined) elements.promptCommon.value = s.promptCommon;
+      elements.promptNegative.value = s.promptNegative || '';
+      elements.promptBaseA.value = s.promptBaseA || '';
+      elements.promptDetailA.value = s.promptDetailA || '';
+      elements.promptBaseB.value = s.promptBaseB || '';
+      elements.promptDetailB.value = s.promptDetailB || '';
+      
+      if (s.ratioSlider) {
+        elements.ratioSlider.value = s.ratioSlider;
+        updateSliderRatio();
+      }
+    } catch (e) {
+      console.error('Failed to parse saved settings:', e);
+    }
+  }
+
+  // 画像の復元
+  const pose = localStorage.getItem('ref_img_pose');
+  if (pose) {
+    state.poseImage = pose;
+    showPreview(elements.prevPose, pose);
+  }
+  
+  const charA = localStorage.getItem('ref_img_char_a');
+  if (charA) {
+    state.charAImage = charA;
+    showPreview(elements.prevCharA, charA);
+  }
+  
+  const charB = localStorage.getItem('ref_img_char_b');
+  if (charB) {
+    state.charBImage = charB;
+    showPreview(elements.prevCharB, charB);
+  }
+}
