@@ -422,7 +422,7 @@ async function runStep1() {
       "ControlNet": {
         "args": controlNetArgs
       },
-      "regional prompter": {
+      "Regional Prompter": {
         "args": regionalPrompterArgs
       }
     }
