@@ -326,20 +326,28 @@ async function runStep1() {
     }
   ];
 
-  // Regional Prompterのパラメータ
-  // reForge / A1111 拡張機能の引数
+  // Regional Prompterのパラメータ (拡張機能のprocess関数の引数と完全一致させる)
   const regionalPrompterArgs = [
     true, // active
-    false, // use_2pass
-    `${ratioVal / 10}:${(100 - ratioVal) / 10}`, // ratios (例: "4:6")
-    "Columns", // base_ratio
-    true, // use_base
-    "Attention", // mode
-    "", // base_prompt
-    false, // neg_prompter
-    "Columns", // base_ratio_neg
-    "", // base_prompt_neg
-    false, // debug
+    false, // a_debug / dummy_false
+    "Matrix", // rp_selected_tab
+    "Columns", // mmode
+    "Mask", // xmode
+    "Prompt", // pmode
+    `${ratioVal / 10},${(100 - ratioVal) / 10}`, // aratios (カンマ区切り)
+    "0", // bratios / baseratios
+    false, // usebase
+    true, // usecom (BREAK区切り分割用に有効化)
+    false, // usencom
+    "Attention", // calcmode ("Attention" または "Latent")
+    [], // options
+    "0", // lnter
+    "0", // lnur
+    "0.4", // threshold
+    null, // polymask
+    "0", // lstop
+    "0", // lstop_hr
+    false // flipper
   ];
 
   const payload = {
