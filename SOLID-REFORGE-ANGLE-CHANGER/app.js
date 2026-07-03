@@ -394,18 +394,18 @@ async function runStep1() {
     "Mask",
     "Prompt",
     `${ratioVal / 10},${(100 - ratioVal) / 10}`,
-    "0",
+    0, // 数値型に修正
     false,
-    true, // usecom (Common 共通プロンプトを使用)
+    true, // usecom
     false,
     "Attention",
     [],
-    "0",
-    "0",
-    "0.4",
+    0, // 数値型に修正
+    0, // 数値型に修正
+    0.4, // 数値型に修正
     null,
-    "0",
-    "0",
+    0, // 数値型に修正
+    0, // 数値型に修正
     false
   ];
 
@@ -423,9 +423,6 @@ async function runStep1() {
         "args": controlNetArgs
       },
       "regional prompter": {
-        "args": regionalPrompterArgs
-      },
-      "Regional Prompter": {
         "args": regionalPrompterArgs
       }
     }
