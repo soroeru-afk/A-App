@@ -378,11 +378,17 @@ async function runStep1() {
       image: state.poseImage,
       input_image: state.poseImage,
       model: openposeModel,
-      module: 'none', // 小文字のnoneに戻す
+      module: 'none',
       weight: 1.0,
       resize_mode: 0,
       control_mode: 0,
       pixel_perfect: true
+    },
+    {
+      enabled: false
+    },
+    {
+      enabled: false
     }
   ];
 
@@ -483,6 +489,12 @@ async function runStep2() {
       resize_mode: 0,
       control_mode: 0,
       pixel_perfect: true
+    },
+    {
+      enabled: false
+    },
+    {
+      enabled: false
     }
   ];
 
@@ -566,6 +578,12 @@ async function runStep3() {
       resize_mode: 0,
       control_mode: 0,
       pixel_perfect: true
+    },
+    {
+      enabled: false
+    },
+    {
+      enabled: false
     }
   ];
 
