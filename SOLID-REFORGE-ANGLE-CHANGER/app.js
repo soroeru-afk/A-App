@@ -476,7 +476,7 @@ async function runStep2() {
     mask: maskBase64,
     mask_blur: 4,
     inpainting_fill: 1,
-    inpaint_full_res: true,
+    inpaint_full_res: false,
     inpaint_full_res_padding: 32,
     inpainting_mask_invert: 0,
     
@@ -564,7 +564,7 @@ async function runStep3() {
     mask: maskBase64,
     mask_blur: 4,
     inpainting_fill: 1,
-    inpaint_full_res: true,
+    inpaint_full_res: false,
     inpaint_full_res_padding: 32,
     inpainting_mask_invert: 0,
     
