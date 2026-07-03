@@ -419,7 +419,7 @@ async function runStep1() {
     height: height,
     seed: -1,
     alwayson_scripts: {
-      "controlnet": {
+      "ControlNet": {
         "args": controlNetArgs
       },
       "regional prompter": {
@@ -505,7 +505,7 @@ async function runStep2() {
     height: parseInt(elements.genHeight.value),
     seed: -1,
     alwayson_scripts: {
-      "controlnet": {
+      "ControlNet": {
         "args": controlNetArgs
       }
     }
@@ -588,7 +588,7 @@ async function runStep3() {
     height: parseInt(elements.genHeight.value),
     seed: -1,
     alwayson_scripts: {
-      "controlnet": {
+      "ControlNet": {
         "args": controlNetArgs
       }
     }
