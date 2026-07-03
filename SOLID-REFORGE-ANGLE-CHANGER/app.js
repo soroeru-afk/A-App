@@ -234,14 +234,13 @@ function getFullModelName(inputName) {
   if (!inputName) return '';
   const searchName = inputName.toLowerCase().trim();
   
-  // 部分一致する正式モデル名を探す
   const match = state.controlNetModels.find(m => m.toLowerCase().includes(searchName));
   if (match) {
     console.log(`Auto-completed Model Name: "${inputName}" -> "${match}"`);
     return match;
   }
   
-  return inputName; // 見つからない場合は入力値をそのまま使う
+  return inputName;
 }
 
 // マスク画像の自動描画 (Canvas処理)
@@ -343,20 +342,24 @@ async function runStep1() {
   const promptB = elements.promptBaseB.value.trim();
   const combinedPrompt = `${promptA} BREAK ${promptB}`;
   
-  // モデル名の自動補完適用
   const openposeModel = getFullModelName(elements.modelOpenpose.value.trim());
   
+  // Forge/reForge ControlNet 正式仕様オブジェクト
   const controlNetArgs = [
     {
       enabled: true,
       image: state.poseImage,
-      input_image: state.poseImage,
       model: openposeModel,
       module: 'none',
       weight: 1.0,
-      resize_mode: 0,
-      control_mode: 0,
-      pixel_perfect: true
+      resize_mode: 'Crop and Resize',
+      control_mode: 'Balanced',
+      pixel_perfect: true,
+      guidance_start: 0,
+      guidance_end: 1,
+      processor_res: 512,
+      threshold_a: 64,
+      threshold_b: 64
     }
   ];
 
@@ -393,7 +396,7 @@ async function runStep1() {
     height: height,
     seed: -1,
     alwayson_scripts: {
-      "controlnet": {
+      "ControlNet": { // 大文字「ControlNet」に統一
         "args": controlNetArgs
       },
       "regional prompter": {
@@ -447,21 +450,24 @@ async function runStep2() {
   elements.btnAutoRun.disabled = true;
 
   const maskBase64 = generateMask('left');
-  
-  // モデル名の自動補完適用
   const ipAdapterModel = getFullModelName(elements.modelIpadapter.value.trim());
   
+  // Forge/reForge ControlNet 正式仕様オブジェクト
   const controlNetArgs = [
     {
       enabled: true,
       image: state.charAImage,
-      input_image: state.charAImage,
       model: ipAdapterModel,
       module: 'CLIP-ViT-H (IPAdapter)',
-      weight: 1.0, // 強度を最大(1.0)に引き上げ
-      resize_mode: 0,
-      control_mode: 0,
-      pixel_perfect: true
+      weight: 1.0,
+      resize_mode: 'Crop and Resize',
+      control_mode: 'Balanced',
+      pixel_perfect: true,
+      guidance_start: 0,
+      guidance_end: 1,
+      processor_res: 512,
+      threshold_a: 64,
+      threshold_b: 64
     }
   ];
 
@@ -484,7 +490,7 @@ async function runStep2() {
     height: parseInt(elements.genHeight.value),
     seed: -1,
     alwayson_scripts: {
-      "controlnet": {
+      "ControlNet": { // 大文字「ControlNet」に統一
         "args": controlNetArgs
       }
     }
@@ -532,21 +538,24 @@ async function runStep3() {
   elements.btnAutoRun.disabled = true;
 
   const maskBase64 = generateMask('right');
-  
-  // モデル名の自動補完適用
   const ipAdapterModel = getFullModelName(elements.modelIpadapter.value.trim());
   
+  // Forge/reForge ControlNet 正式仕様オブジェクト
   const controlNetArgs = [
     {
       enabled: true,
       image: state.charBImage,
-      input_image: state.charBImage,
       model: ipAdapterModel,
       module: 'CLIP-ViT-H (IPAdapter)',
-      weight: 0.8, // 転写パワーを少し強化
-      resize_mode: 0,
-      control_mode: 0,
-      pixel_perfect: true
+      weight: 1.0,
+      resize_mode: 'Crop and Resize',
+      control_mode: 'Balanced',
+      pixel_perfect: true,
+      guidance_start: 0,
+      guidance_end: 1,
+      processor_res: 512,
+      threshold_a: 64,
+      threshold_b: 64
     }
   ];
 
@@ -569,7 +578,7 @@ async function runStep3() {
     height: parseInt(elements.genHeight.value),
     seed: -1,
     alwayson_scripts: {
-      "controlnet": {
+      "ControlNet": { // 大文字「ControlNet」に統一
         "args": controlNetArgs
       }
     }
@@ -613,7 +622,6 @@ async function runAllSteps() {
       }
     }
 
-    // 最新のモデルリストを同期
     await fetchControlNetModels();
 
     // Step 1
