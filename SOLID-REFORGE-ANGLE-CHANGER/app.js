@@ -10,6 +10,7 @@ const state = {
   step2Image: null,     // base64 (Step 2の結果)
   finalImage: null,     // base64 (Step 3の結果)
   isGenerating: false,
+  controlNetModels: [], // APIから取得した正式なモデル名リスト
 };
 
 // DOM要素の取得
@@ -75,16 +76,24 @@ const elements = {
 };
 
 // 初期化
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
   setupEventListeners();
   updateSliderRatio();
-  checkApiStatus();
+  const isOnline = await checkApiStatus();
+  if (isOnline) {
+    await fetchControlNetModels();
+  }
 });
 
 // イベントリスナー設定
 function setupEventListeners() {
   // API接続テスト
-  elements.btnCheckApi.addEventListener('click', checkApiStatus);
+  elements.btnCheckApi.addEventListener('click', async () => {
+    const isOnline = await checkApiStatus();
+    if (isOnline) {
+      await fetchControlNetModels();
+    }
+  });
   
   // デノイズ強度数値の同期
   elements.inpaintDenoising.addEventListener('input', (e) => {
@@ -95,7 +104,6 @@ function setupEventListeners() {
   elements.ratioSlider.addEventListener('input', () => {
     updateSliderRatio();
     if (state.baseImage) {
-      // ベース画像が存在する場合はマスクをプレビュー再描画
       drawMasks();
     }
   });
@@ -164,7 +172,7 @@ function setupDropzone(dropzone, fileInput, callback) {
 function handleFile(file, callback) {
   const reader = new FileReader();
   reader.onload = (e) => {
-    callback(e.target.result.split(',')[1]); // base64データのみ取得
+    callback(e.target.result.split(',')[1]);
   };
   reader.readAsDataURL(file);
 }
@@ -172,7 +180,6 @@ function handleFile(file, callback) {
 function showPreview(imgElement, base64) {
   imgElement.src = `data:image/png;base64,${base64}`;
   imgElement.style.display = 'block';
-  // 親のテキストを非表示にする
   const p = imgElement.previousElementSibling.previousElementSibling;
   if (p && p.tagName === 'P') p.style.display = 'none';
 }
@@ -204,8 +211,40 @@ async function checkApiStatus() {
   return false;
 }
 
+// ControlNetモデルリストの取得
+async function fetchControlNetModels() {
+  try {
+    const response = await fetch('/api/proxy/get', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetUrl: `${state.webuiUrl}/controlnet/model_list` })
+    });
+    if (response.ok) {
+      const data = await response.json();
+      state.controlNetModels = data.model_list || [];
+      console.log('Loaded ControlNet Models:', state.controlNetModels);
+    }
+  } catch (e) {
+    console.error('Failed to load ControlNet models:', e);
+  }
+}
+
+// モデル名の自動補完ロジック (部分一致から正式なハッシュ付きモデル名へ置換)
+function getFullModelName(inputName) {
+  if (!inputName) return '';
+  const searchName = inputName.toLowerCase().trim();
+  
+  // 部分一致する正式モデル名を探す
+  const match = state.controlNetModels.find(m => m.toLowerCase().includes(searchName));
+  if (match) {
+    console.log(`Auto-completed Model Name: "${inputName}" -> "${match}"`);
+    return match;
+  }
+  
+  return inputName; // 見つからない場合は入力値をそのまま使う
+}
+
 // マスク画像の自動描画 (Canvas処理)
-// side: 'left' または 'right'
 function generateMask(side) {
   const width = parseInt(elements.genWidth.value) || 512;
   const height = parseInt(elements.genHeight.value) || 768;
@@ -215,11 +254,9 @@ function generateMask(side) {
   elements.maskCanvas.height = height;
   const ctx = elements.maskCanvas.getContext('2d');
   
-  // 背景は黒 (Inpaint対象外)
   ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, width, height);
   
-  // 対象側を白 (Inpaint対象)
   ctx.fillStyle = '#FFFFFF';
   const boundary = Math.round(width * ratio);
   
@@ -232,9 +269,8 @@ function generateMask(side) {
   return elements.maskCanvas.toDataURL('image/png').split(',')[1];
 }
 
-// プレビュー用に現在のマスクを描画する
 function drawMasks() {
-  generateMask('left'); // デフォルトで左をプレビュー
+  generateMask('left');
 }
 
 // プロキシ経由でAPIリクエストを送信
@@ -278,7 +314,6 @@ function addToGallery(title, base64) {
   elements.galleryContainer.appendChild(item);
 }
 
-// UIのステータス更新
 function setStepStatus(stepNum, status, message) {
   const card = document.getElementById(`step${stepNum}-card`);
   const statusEl = document.getElementById(`step${stepNum}-status`);
@@ -304,14 +339,12 @@ async function runStep1() {
   const height = parseInt(elements.genHeight.value);
   const ratioVal = parseInt(elements.ratioSlider.value);
   
-  // プロンプトの組み立て
-  // Regional Prompter用に BREAK を使用
   const promptA = elements.promptBaseA.value.trim();
   const promptB = elements.promptBaseB.value.trim();
   const combinedPrompt = `${promptA} BREAK ${promptB}`;
   
-  // ControlNet OpenPoseの設定
-  const openposeModel = elements.modelOpenpose.value.trim();
+  // モデル名の自動補完適用
+  const openposeModel = getFullModelName(elements.modelOpenpose.value.trim());
   
   const controlNetArgs = [
     {
@@ -319,36 +352,35 @@ async function runStep1() {
       image: state.poseImage,
       input_image: state.poseImage,
       model: openposeModel,
-      module: 'none', // 骨格画像そのものを使用するため
+      module: 'none',
       weight: 1.0,
-      resize_mode: 0, // Just Resize
-      control_mode: 0, // Balanced
+      resize_mode: 0,
+      control_mode: 0,
       pixel_perfect: true
     }
   ];
 
-  // Regional Prompterのパラメータ (拡張機能のprocess関数の引数と完全一致させる)
   const regionalPrompterArgs = [
-    true, // active
-    false, // a_debug / dummy_false
-    "Matrix", // rp_selected_tab
-    "Columns", // mmode
-    "Mask", // xmode
-    "Prompt", // pmode
-    `${ratioVal / 10},${(100 - ratioVal) / 10}`, // aratios (カンマ区切り)
-    "0", // bratios / baseratios
-    false, // usebase
-    true, // usecom (BREAK区切り分割用に有効化)
-    false, // usencom
-    "Attention", // calcmode ("Attention" または "Latent")
-    [], // options
-    "0", // lnter
-    "0", // lnur
-    "0.4", // threshold
-    null, // polymask
-    "0", // lstop
-    "0", // lstop_hr
-    false // flipper
+    true,
+    false,
+    "Matrix",
+    "Columns",
+    "Mask",
+    "Prompt",
+    `${ratioVal / 10},${(100 - ratioVal) / 10}`,
+    "0",
+    false,
+    true,
+    false,
+    "Attention",
+    [],
+    "0",
+    "0",
+    "0.4",
+    null,
+    "0",
+    "0",
+    false
   ];
 
   const payload = {
@@ -381,7 +413,7 @@ async function runStep1() {
       addToGallery('BASE (Step 1)', state.baseImage);
       
       setStepStatus(1, 'success', 'COMPLETED');
-      elements.btnStep2.disabled = false; // Step 2 を有効化
+      elements.btnStep2.disabled = false;
       drawMasks();
     } else {
       throw new Error('No images returned from API');
@@ -414,11 +446,11 @@ async function runStep2() {
   elements.btnStep2.disabled = true;
   elements.btnAutoRun.disabled = true;
 
-  // 左側のマスクを自動生成
   const maskBase64 = generateMask('left');
   
-  // IP-Adapterの設定
-  const ipAdapterModel = elements.modelIpadapter.value.trim();
+  // モデル名の自動補完適用
+  const ipAdapterModel = getFullModelName(elements.modelIpadapter.value.trim());
+  
   const controlNetArgs = [
     {
       enabled: true,
@@ -426,7 +458,7 @@ async function runStep2() {
       input_image: state.charAImage,
       model: ipAdapterModel,
       module: 'CLIP-ViT-H (IPAdapter)',
-      weight: 0.7,
+      weight: 0.8, // 転写パワーを少し強化
       resize_mode: 0,
       control_mode: 0,
       pixel_perfect: true
@@ -437,8 +469,8 @@ async function runStep2() {
     init_images: [state.baseImage],
     mask: maskBase64,
     mask_blur: 4,
-    inpainting_fill: 1, // original
-    inpaint_full_res: true, // masked only
+    inpainting_fill: 1,
+    inpaint_full_res: true,
     inpaint_full_res_padding: 32,
     inpainting_mask_invert: 0,
     
@@ -466,8 +498,8 @@ async function runStep2() {
       addToGallery('CHAR A (Step 2)', state.step2Image);
       
       setStepStatus(2, 'success', 'COMPLETED');
-      elements.btnStep3.disabled = false; // Step 3 を有効化
-      generateMask('right'); // 次のステップの右マスクプレビュー
+      elements.btnStep3.disabled = false;
+      generateMask('right');
     } else {
       throw new Error('No images returned from API');
     }
@@ -499,11 +531,11 @@ async function runStep3() {
   elements.btnStep3.disabled = true;
   elements.btnAutoRun.disabled = true;
 
-  // 右側のマスクを自動生成
   const maskBase64 = generateMask('right');
   
-  // IP-Adapterの設定
-  const ipAdapterModel = elements.modelIpadapter.value.trim();
+  // モデル名の自動補完適用
+  const ipAdapterModel = getFullModelName(elements.modelIpadapter.value.trim());
+  
   const controlNetArgs = [
     {
       enabled: true,
@@ -511,7 +543,7 @@ async function runStep3() {
       input_image: state.charBImage,
       model: ipAdapterModel,
       module: 'CLIP-ViT-H (IPAdapter)',
-      weight: 0.7,
+      weight: 0.8, // 転写パワーを少し強化
       resize_mode: 0,
       control_mode: 0,
       pixel_perfect: true
@@ -522,8 +554,8 @@ async function runStep3() {
     init_images: [state.step2Image],
     mask: maskBase64,
     mask_blur: 4,
-    inpainting_fill: 1, // original
-    inpaint_full_res: true, // masked only
+    inpainting_fill: 1,
+    inpaint_full_res: true,
     inpaint_full_res_padding: 32,
     inpainting_mask_invert: 0,
     
@@ -574,7 +606,6 @@ async function runAllSteps() {
   }
 
   try {
-    // API疎通確認
     const isOnline = await checkApiStatus();
     if (!isOnline) {
       if (!confirm('SD WebUI APIがオフラインの可能性があります。実行を続けますか？')) {
@@ -582,11 +613,13 @@ async function runAllSteps() {
       }
     }
 
+    // 最新のモデルリストを同期
+    await fetchControlNetModels();
+
     // Step 1
     await runStep1();
     if (!state.baseImage) return;
 
-    // 待機時間（GPUの冷却・VRAMクリア待ち）
     await sleep(2000);
 
     // Step 2
