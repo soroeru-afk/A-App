@@ -187,7 +187,7 @@ async function checkApiStatus() {
     const response = await fetch('/api/proxy/get', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ targetUrl: `${state.webuiUrl}/sdapi/v1/cmd-flags` })
+      body: JSON.stringify({ targetUrl: `${state.webuiUrl}/sdapi/v1/samplers` })
     });
     
     if (response.ok) {
