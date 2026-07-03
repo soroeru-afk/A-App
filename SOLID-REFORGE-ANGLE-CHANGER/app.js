@@ -378,7 +378,7 @@ async function runStep1() {
       image: state.poseImage,
       input_image: state.poseImage,
       model: openposeModel,
-      module: 'None', // 大文字のNoneに統一してWebUIの互換性を確保
+      module: 'none', // 小文字のnoneに戻す
       weight: 1.0,
       resize_mode: 0,
       control_mode: 0,
