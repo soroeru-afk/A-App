@@ -367,8 +367,8 @@ async function runStep1() {
   const promptA = elements.promptBaseA.value.trim();
   const promptB = elements.promptBaseB.value.trim();
   
-  // 共通背景を先頭にした Regional Prompter 仕様のプロンプト構成
-  const combinedPrompt = `${promptCommon} BREAK ${promptA} BREAK ${promptB}`;
+  // 共通背景をそれぞれのプロンプトの先頭に付加して、BREAK 1つで繋ぐ (2分割パーサーエラー防止)
+  const combinedPrompt = `${promptCommon}, ${promptA} BREAK ${promptCommon}, ${promptB}`;
   
   const openposeModel = getFullModelName(elements.modelOpenpose.value.trim());
   
@@ -378,7 +378,7 @@ async function runStep1() {
       image: state.poseImage,
       input_image: state.poseImage,
       model: openposeModel,
-      module: 'none',
+      module: 'None', // 大文字のNoneに統一してWebUIの互換性を確保
       weight: 1.0,
       resize_mode: 0,
       control_mode: 0,
@@ -396,7 +396,7 @@ async function runStep1() {
     `${ratioVal / 10},${(100 - ratioVal) / 10}`,
     "0",
     false,
-    true, // usecom (Common 共通プロンプトを使用)
+    false, // usecom (プロンプト内に背景を結合したため、Common機能はfalseで安全化)
     false,
     "Attention",
     [],
