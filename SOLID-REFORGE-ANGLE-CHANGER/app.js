@@ -68,6 +68,7 @@ const elements = {
   step3Card: document.getElementById('step3-card'),
   
   btnAutoRun: document.getElementById('btn-auto-run'),
+  btnSwap: document.getElementById('btn-swap'), // 追加
   
   // プレビュー & キャンバス
   mainPreview: document.getElementById('main-preview'),
@@ -129,6 +130,7 @@ function setupEventListeners() {
   elements.btnStep2.addEventListener('click', runStep2);
   elements.btnStep3.addEventListener('click', runStep3);
   elements.btnAutoRun.addEventListener('click', runAllSteps);
+  elements.btnSwap.addEventListener('click', swapCharacters); // 追加
 }
 
 // スライダーの割合表示更新
@@ -647,3 +649,40 @@ async function runAllSteps() {
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+// 左右のキャラクター（画像・プロンプト）を一発でスワップする
+function swapCharacters() {
+  // 画像(base64)の交換
+  const tempImgA = state.charAImage;
+  state.charAImage = state.charBImage;
+  state.charBImage = tempImgA;
+
+  // プレビュー表示の交換
+  const srcA = elements.prevCharA.src;
+  const displayA = elements.prevCharA.style.display;
+  
+  elements.prevCharA.src = elements.prevCharB.src;
+  elements.prevCharA.style.display = elements.prevCharB.style.display;
+  
+  elements.prevCharB.src = srcA;
+  elements.prevCharB.style.display = displayA;
+
+  // プレースホルダ（Pタグ）の表示調整
+  const pA = elements.dropzoneCharA.querySelector('p');
+  const pB = elements.dropzoneCharB.querySelector('p');
+  if (pA) pA.style.display = state.charAImage ? 'none' : 'block';
+  if (pB) pB.style.display = state.charBImage ? 'none' : 'block';
+
+  // 簡易プロンプトの交換
+  const tempBase = elements.promptBaseA.value;
+  elements.promptBaseA.value = elements.promptBaseB.value;
+  elements.promptBaseB.value = tempBase;
+
+  // 特徴プロンプトの交換
+  const tempDetail = elements.promptDetailA.value;
+  elements.promptDetailA.value = elements.promptDetailB.value;
+  elements.promptDetailB.value = tempDetail;
+
+  console.log('Successfully swapped Character A and Character B inputs.');
+}
+
