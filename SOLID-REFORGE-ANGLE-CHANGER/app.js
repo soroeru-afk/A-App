@@ -458,7 +458,7 @@ async function runStep2() {
       input_image: state.charAImage,
       model: ipAdapterModel,
       module: 'CLIP-ViT-H (IPAdapter)',
-      weight: 0.8, // 転写パワーを少し強化
+      weight: 1.0, // 強度を最大(1.0)に引き上げ
       resize_mode: 0,
       control_mode: 0,
       pixel_perfect: true
