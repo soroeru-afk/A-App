@@ -396,7 +396,7 @@ async function runStep1() {
     `${ratioVal / 10},${(100 - ratioVal) / 10}`,
     "0",
     false,
-    false, // usecom (プロンプト内に背景を結合したため、Common機能はfalseで安全化)
+    true, // usecom (Common 共通プロンプトを使用)
     false,
     "Attention",
     [],
