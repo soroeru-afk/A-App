@@ -376,17 +376,13 @@ async function runStep1() {
     {
       enabled: true,
       image: state.poseImage,
+      input_image: state.poseImage,
       model: openposeModel,
       module: 'none',
       weight: 1.0,
-      resize_mode: 'Crop and Resize',
-      control_mode: 'Balanced',
-      pixel_perfect: true,
-      guidance_start: 0,
-      guidance_end: 1,
-      processor_res: 512,
-      threshold_a: 64,
-      threshold_b: 64
+      resize_mode: 0,
+      control_mode: 0,
+      pixel_perfect: true
     }
   ];
 
@@ -483,17 +479,13 @@ async function runStep2() {
     {
       enabled: true,
       image: state.charAImage,
+      input_image: state.charAImage,
       model: ipAdapterModel,
       module: 'CLIP-ViT-H (IPAdapter)',
       weight: 1.0,
-      resize_mode: 'Crop and Resize',
-      control_mode: 'Balanced',
-      pixel_perfect: true,
-      guidance_start: 0,
-      guidance_end: 1,
-      processor_res: 512,
-      threshold_a: 64,
-      threshold_b: 64
+      resize_mode: 0,
+      control_mode: 0,
+      pixel_perfect: true
     }
   ];
 
@@ -570,17 +562,13 @@ async function runStep3() {
     {
       enabled: true,
       image: state.charBImage,
+      input_image: state.charBImage,
       model: ipAdapterModel,
       module: 'CLIP-ViT-H (IPAdapter)',
       weight: 1.0,
-      resize_mode: 'Crop and Resize',
-      control_mode: 'Balanced',
-      pixel_perfect: true,
-      guidance_start: 0,
-      guidance_end: 1,
-      processor_res: 512,
-      threshold_a: 64,
-      threshold_b: 64
+      resize_mode: 0,
+      control_mode: 0,
+      pixel_perfect: true
     }
   ];
 
