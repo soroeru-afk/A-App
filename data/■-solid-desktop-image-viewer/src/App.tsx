@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import {
   motion,
   AnimatePresence,
@@ -20,6 +20,7 @@ import {
   ArrowUp,
   ArrowDown,
   ChevronDown,
+  ChevronUp,
   Check,
   PanelLeft,
   PanelRight,
@@ -30,6 +31,8 @@ import {
   RotateCw,
   RefreshCw,
   Edit2,
+  Search,
+  FlipHorizontal,
 } from "lucide-react";
 import {
   ImageRecord,
@@ -161,6 +164,7 @@ export default function App() {
     "list",
   );
   const [images, setImages] = useState<LoadedImage[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [totalImagesCount, setTotalImagesCount] = useState<number>(0);
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const saved = localStorage.getItem("app_viewMode");
@@ -169,6 +173,26 @@ export default function App() {
   const [openAction, setOpenAction] = useState<"click" | "dblclick">(() => {
     const saved = localStorage.getItem("app_openAction");
     return (saved as "click" | "dblclick") || "dblclick";
+  });
+  const [theme, setTheme] = useState<"NAVY" | "BLACK" | "LIGHT" | "PAPER">(
+    () => {
+      const saved = localStorage.getItem("app_theme");
+      return (saved as "NAVY" | "BLACK" | "LIGHT" | "PAPER") || "BLACK";
+    }
+  );
+  const [canvasBg, setCanvasBg] = useState<
+    "theme" | "black" | "white" | "checker"
+  >("white");
+  const [sortField, setSortField] = useState<"name" | "size" | "type" | "date" | "custom" | "random">(
+    "name",
+  );
+  const [randomSeed, setRandomSeed] = useState(0);
+  const [sortOrders, setSortOrders] = useState<Record<string, "asc" | "desc">>({
+    name: "asc",
+    size: "desc",
+    type: "asc",
+    date: "desc",
+    custom: "asc",
   });
   const [scales, setScales] = useState<Record<ViewMode, number>>({
     "grid-sq": 140,
@@ -208,6 +232,51 @@ export default function App() {
           free: 0,
         });
       }
+
+      const savedCanvasBg = localStorage.getItem(`app_canvasBg_${activeDatasetId}`);
+      if (savedCanvasBg) {
+        setCanvasBg(savedCanvasBg as any);
+      } else {
+        setCanvasBg("white");
+      }
+
+      const savedSortField = localStorage.getItem(`app_sortField_${activeDatasetId}`);
+      if (savedSortField) {
+        setSortField(savedSortField as any);
+      } else {
+        setSortField("name");
+      }
+
+      const savedSortOrders = localStorage.getItem(`app_sortOrders_${activeDatasetId}`);
+      if (savedSortOrders) {
+        try {
+          setSortOrders({
+            name: "asc",
+            size: "desc",
+            type: "asc",
+            date: "desc",
+            custom: "asc",
+            ...JSON.parse(savedSortOrders)
+          });
+        } catch(e) {
+          // ignore
+        }
+      } else {
+        setSortOrders({
+          name: "asc",
+          size: "desc",
+          type: "asc",
+          date: "desc",
+          custom: "asc",
+        });
+      }
+
+      const savedRandomSeed = localStorage.getItem(`app_randomSeed_${activeDatasetId}`);
+      if (savedRandomSeed) {
+        setRandomSeed(parseInt(savedRandomSeed, 10));
+      } else {
+        setRandomSeed(0);
+      }
     }
   }, [activeDatasetId]);
 
@@ -231,6 +300,34 @@ export default function App() {
     }
   }, [gaps, activeDatasetId]);
 
+  useEffect(() => {
+    localStorage.setItem("app_theme", theme);
+  }, [theme]);
+
+  useEffect(() => {
+    if (activeDatasetId) {
+      localStorage.setItem(`app_canvasBg_${activeDatasetId}`, canvasBg);
+    }
+  }, [canvasBg, activeDatasetId]);
+
+  useEffect(() => {
+    if (activeDatasetId) {
+      localStorage.setItem(`app_sortField_${activeDatasetId}`, sortField);
+    }
+  }, [sortField, activeDatasetId]);
+
+  useEffect(() => {
+    if (activeDatasetId) {
+      localStorage.setItem(`app_sortOrders_${activeDatasetId}`, JSON.stringify(sortOrders));
+    }
+  }, [sortOrders, activeDatasetId]);
+
+  useEffect(() => {
+    if (activeDatasetId) {
+      localStorage.setItem(`app_randomSeed_${activeDatasetId}`, randomSeed.toString());
+    }
+  }, [randomSeed, activeDatasetId]);
+
   const itemScale = scales[viewMode];
   const gridGap = gaps[viewMode];
 
@@ -248,19 +345,126 @@ export default function App() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenScale, setFullscreenScale] = useState(1);
   const [fullscreenRotation, setFullscreenRotation] = useState(0);
+  const [fullscreenFlipX, setFullscreenFlipX] = useState(false);
   const imgControls = useAnimation();
   const imgX = useMotionValue(0);
   const imgY = useMotionValue(0);
   const [imgDims, setImgDims] = useState({ w: 0, h: 0 });
 
+  const zoomIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const zoomTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const startZoomIn = () => {
+    if (zoomIntervalRef.current || zoomTimeoutRef.current) return;
+    setFullscreenScale((s) => {
+      const newScale = Math.min(s + 0.03, 10);
+      imgControls.start({ scale: newScale, transition: { duration: 0.05, ease: "linear" } });
+      return newScale;
+    });
+    zoomTimeoutRef.current = setTimeout(() => {
+      zoomIntervalRef.current = setInterval(() => {
+        setFullscreenScale((s) => {
+          const newScale = Math.min(s + 0.03, 10);
+          imgControls.start({ scale: newScale, transition: { duration: 0.05, ease: "linear" } });
+          return newScale;
+        });
+      }, 20);
+    }, 300);
+  };
+
+  const startZoomOut = () => {
+    if (zoomIntervalRef.current || zoomTimeoutRef.current) return;
+    setFullscreenScale((s) => {
+      const newScale = Math.max(1, s - 0.03);
+      if (newScale === 1) imgControls.start({ x: 0, y: 0, scale: 1, transition: { duration: 0.05, ease: "linear" } });
+      else imgControls.start({ scale: newScale, transition: { duration: 0.05, ease: "linear" } });
+      return newScale;
+    });
+    zoomTimeoutRef.current = setTimeout(() => {
+      zoomIntervalRef.current = setInterval(() => {
+        setFullscreenScale((s) => {
+          const newScale = Math.max(1, s - 0.03);
+          if (newScale === 1) imgControls.start({ x: 0, y: 0, scale: 1, transition: { duration: 0.05, ease: "linear" } });
+          else imgControls.start({ scale: newScale, transition: { duration: 0.05, ease: "linear" } });
+          return newScale;
+        });
+      }, 20);
+    }, 300);
+  };
+
+  const stopZooming = () => {
+    if (zoomTimeoutRef.current) {
+      clearTimeout(zoomTimeoutRef.current);
+      zoomTimeoutRef.current = null;
+    }
+    if (zoomIntervalRef.current) {
+      clearInterval(zoomIntervalRef.current);
+      zoomIntervalRef.current = null;
+    }
+  };
+
   useEffect(() => {
     setFullscreenScale(1);
     setFullscreenRotation(0);
+    setFullscreenFlipX(false);
     imgX.set(0);
     imgY.set(0);
-    imgControls.start({ x: 0, y: 0, scale: 1, rotate: 0 });
+    imgControls.start({ x: 0, y: 0, scale: 1, rotate: 0, rotateY: 0 });
     setImgDims({ w: 0, h: 0 });
-  }, [isFullscreen, selectedImage, imgControls, imgX, imgY]);
+  }, [isFullscreen, imgControls, imgX, imgY]);
+
+  // When selectedImage changes (next/prev image), reset only image dimensions and wait for the onLoad trigger
+  useEffect(() => {
+    setImgDims({ w: 0, h: 0 });
+  }, [selectedImage]);
+
+  // Preserve scale and rotation across image switch, and clamp x/y position to the new image bounds once loaded
+  useEffect(() => {
+    if (isFullscreen && imgDims.w > 0 && imgDims.h > 0) {
+      const currentCW = typeof window !== "undefined" ? window.innerWidth * 0.95 : 1000;
+      const currentCH = typeof window !== "undefined" ? window.innerHeight * 0.95 : 1000;
+
+      const aspectImg = imgDims.w / imgDims.h;
+      const aspectScreen = currentCW / currentCH;
+      let renderedW, renderedH;
+      if (aspectImg > aspectScreen) {
+        renderedW = currentCW;
+        renderedH = currentCW / aspectImg;
+      } else {
+        renderedH = currentCH;
+        renderedW = currentCH * aspectImg;
+      }
+      const scaledW = renderedW * fullscreenScale;
+      const scaledH = renderedH * fullscreenScale;
+      const rotW = Math.abs(fullscreenRotation % 180) === 90 ? scaledH : scaledW;
+      const rotH = Math.abs(fullscreenRotation % 180) === 90 ? scaledW : scaledH;
+      const mX = Math.max(0, (rotW - currentCW) / 2);
+      const mY = Math.max(0, (rotH - currentCH) / 2);
+
+      let currentX = imgX.get();
+      let currentY = imgY.get();
+
+      if (fullscreenScale <= 1.0) {
+        currentX = 0;
+        currentY = 0;
+      } else {
+        if (currentX > mX) currentX = mX;
+        if (currentX < -mX) currentX = -mX;
+        if (currentY > mY) currentY = mY;
+        if (currentY < -mY) currentY = -mY;
+      }
+
+      imgX.set(currentX);
+      imgY.set(currentY);
+      imgControls.start({
+        scale: fullscreenScale,
+        rotate: fullscreenRotation,
+        x: currentX,
+        y: currentY,
+        transition: { duration: 0 }
+      });
+    }
+  }, [imgDims, isFullscreen, fullscreenScale, fullscreenRotation, imgControls, imgX, imgY]);
 
   const [sidebarPosition, setSidebarPosition] = useState<"left" | "right">(
     "left",
@@ -318,17 +522,6 @@ export default function App() {
   const [fileNameInput, setFileNameInput] = useState("");
   const [editingFileId, setEditingFileId] = useState<string | null>(null);
   const [showClearAllModal, setShowClearAllModal] = useState(false);
-  const [sortField, setSortField] = useState<"name" | "size" | "type" | "date" | "custom" | "random">(
-    "name",
-  );
-  const [randomSeed, setRandomSeed] = useState(0);
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [theme, setTheme] = useState<"NAVY" | "BLACK" | "LIGHT" | "PAPER">(
-    "BLACK",
-  );
-  const [canvasBg, setCanvasBg] = useState<
-    "theme" | "black" | "white" | "checker"
-  >("white");
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const fullscreenContainerRef = React.useRef<HTMLDivElement>(null);
 
@@ -369,8 +562,14 @@ export default function App() {
   }, [activeDatasetId]);
 
   const sortedImages = useMemo(() => {
+    let filteredImages = images;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filteredImages = images.filter(img => img.name.toLowerCase().includes(q));
+    }
+
     if (sortField === "random") {
-      const shuffled = [...images];
+      const shuffled = [...filteredImages];
       for (let i = shuffled.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
@@ -378,7 +577,7 @@ export default function App() {
       return shuffled;
     }
 
-    return [...images].sort((a, b) => {
+    return [...filteredImages].sort((a, b) => {
       let comparison = 0;
       switch (sortField) {
         case "name":
@@ -391,16 +590,16 @@ export default function App() {
           comparison = a.type.localeCompare(b.type);
           break;
         case "date":
-          comparison = a.lastModified - b.lastModified;
+          comparison = (a.addedAt || a.lastModified) - (b.addedAt || b.lastModified);
           break;
         case "custom":
           comparison = (a.orderIndex ?? 0) - (b.orderIndex ?? 0);
-          if (comparison === 0) comparison = a.lastModified - b.lastModified;
+          if (comparison === 0) comparison = (a.addedAt || a.lastModified) - (b.addedAt || b.lastModified);
           break;
       }
-      return sortOrder === "asc" ? comparison : -comparison;
+      return sortOrders[sortField] === "asc" ? comparison : -comparison;
     });
-  }, [images, sortField, sortOrder, randomSeed]);
+  }, [images, sortField, sortOrders, randomSeed, searchQuery]);
 
   const masonryColumns = useMemo(() => {
     if (viewMode !== "grid-ma") return [];
@@ -532,6 +731,7 @@ export default function App() {
               type: f.type,
               size: f.size,
               lastModified: f.lastModified,
+              addedAt: Date.now(),
               data: f,
               autoBg,
             };
@@ -789,53 +989,59 @@ export default function App() {
       };
 
       if (e.key === "ArrowRight") {
-        if (e.ctrlKey || e.metaKey) {
-          e.preventDefault();
-          const { mX } = getDragBounds();
-          const newX = Math.max(imgX.get() - 100, -mX);
-          imgControls.start({ x: newX });
-        } else {
-          goToNextImage();
-        }
+        goToNextImage();
       } else if (e.key === "ArrowLeft") {
-        if (e.ctrlKey || e.metaKey) {
+        goToPrevImage();
+      } else if (e.code === "Numpad6" || e.key === "6") {
+        if (fullscreenScale > 1) {
           e.preventDefault();
           const { mX } = getDragBounds();
-          const newX = Math.min(imgX.get() + 100, mX);
-          imgControls.start({ x: newX });
-        } else {
-          goToPrevImage();
+          const newX = Math.max(imgX.get() - 13, -mX);
+          imgControls.start({ x: newX, transition: { duration: 0.05, ease: "linear" } });
         }
-      } else if (e.key === "ArrowUp") {
+      } else if (e.code === "Numpad4" || e.key === "4") {
+        if (fullscreenScale > 1) {
+          e.preventDefault();
+          const { mX } = getDragBounds();
+          const newX = Math.min(imgX.get() + 13, mX);
+          imgControls.start({ x: newX, transition: { duration: 0.05, ease: "linear" } });
+        }
+      } else if (e.key === "ArrowUp" || e.code === "Numpad8" || e.key === "8") {
         e.preventDefault();
-        if (e.ctrlKey || e.metaKey) {
+        if (fullscreenScale > 1) {
           const { mY } = getDragBounds();
-          const newY = Math.min(imgY.get() + 100, mY);
-          imgControls.start({ y: newY, transition: { duration: 0.1 } });
-        } else {
-          setFullscreenScale((s) => {
-            const newScale = Math.min(s + 0.5, 10);
-            imgControls.start({ scale: newScale });
-            return newScale;
-          });
+          const newY = Math.min(imgY.get() + 13, mY);
+          imgControls.start({ y: newY, transition: { duration: 0.05, ease: "linear" } });
         }
-      } else if (e.key === "ArrowDown") {
+      } else if (e.key === "ArrowDown" || e.code === "Numpad2" || e.key === "2") {
         e.preventDefault();
-        if (e.ctrlKey || e.metaKey) {
+        if (fullscreenScale > 1) {
           const { mY } = getDragBounds();
-          const newY = Math.max(imgY.get() - 100, -mY);
-          imgControls.start({ y: newY, transition: { duration: 0.1 } });
-        } else {
-          setFullscreenScale((s) => {
-            const newScale = Math.max(1, s - 0.5);
-            if (newScale === 1) {
-              imgControls.start({ x: 0, y: 0, scale: 1 });
-            } else {
-              imgControls.start({ scale: newScale });
-            }
-            return newScale;
-          });
+          const newY = Math.max(imgY.get() - 13, -mY);
+          imgControls.start({ y: newY, transition: { duration: 0.05, ease: "linear" } });
         }
+      } else if (e.key === "+" || e.code === "NumpadAdd") {
+        e.preventDefault();
+        setFullscreenScale((s) => {
+          const newScale = Math.min(s + 0.03, 10);
+          imgControls.start({ scale: newScale, transition: { duration: 0.05, ease: "linear" } });
+          return newScale;
+        });
+      } else if (e.key === "-" || e.code === "NumpadSubtract") {
+        e.preventDefault();
+        setFullscreenScale((s) => {
+          const newScale = Math.max(1, s - 0.03);
+          if (newScale === 1) {
+            imgControls.start({ x: 0, y: 0, scale: 1, transition: { duration: 0.05, ease: "linear" } });
+          } else {
+            imgControls.start({ scale: newScale, transition: { duration: 0.05, ease: "linear" } });
+          }
+          return newScale;
+        });
+      } else if (e.key === "0" || e.code === "Numpad0") {
+        e.preventDefault();
+        setFullscreenScale(1);
+        imgControls.start({ x: 0, y: 0, scale: 1, transition: { duration: 0 } });
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -1422,7 +1628,7 @@ export default function App() {
                             if (ds) handleRenameDatasetClick(e, ds.id, ds.name);
                           }}
                           title="RENAME DATASET"
-                          className="hover:text-amber-500 font-mono text-xs font-bold"
+                          className="hover:text-amber-500 font-mono text-xs "
                         >
                           [E]
                         </button>
@@ -1552,7 +1758,31 @@ export default function App() {
           </div>
 
           <Panel
-            title={t("04 DATA BANKS", "04 データバンク")}
+            title={
+              <>
+                <span>{t("04 DATA BANKS", "04 データバンク")}</span>
+                <div className="flex items-center gap-2 border border-panel-border bg-panel-bg px-2 py-1 rounded">
+                  <Search size={12} className="text-text-muted" />
+                  <input
+                    type="text"
+                    placeholder={t("SEARCH ALL...", "すべての画像を検索...")}
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      if (e.target.value && activeDatasetId !== "all") {
+                        setActiveDatasetId("all");
+                      }
+                    }}
+                    className="bg-transparent border-none outline-none text-text-primary w-40 text-[10px] placeholder:text-text-muted focus:ring-0"
+                  />
+                  {searchQuery && (
+                    <button onClick={() => setSearchQuery("")} className="text-text-muted hover:text-text-primary ml-1">
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+              </>
+            }
             contentClassName="p-0 transition-colors duration-300 relative"
             headerRight={
               isSelectionMode ? (
@@ -1632,12 +1862,12 @@ export default function App() {
                               setSortField("random");
                               setRandomSeed((prev) => prev + 1);
                             } else if (sortField === f) {
-                              setSortOrder((prev) =>
-                                prev === "asc" ? "desc" : "asc",
-                              );
+                              setSortOrders((prev) => ({
+                                ...prev,
+                                [f]: prev[f] === "asc" ? "desc" : "asc",
+                              }));
                             } else {
                               setSortField(f);
-                              setSortOrder("asc");
                             }
                           }}
                           className={cn(
@@ -1651,7 +1881,7 @@ export default function App() {
                             <span>{f}</span>
                             {f !== "random" && (
                               <span className={cn("absolute left-full ml-1 flex items-center justify-center", sortField === f ? "opacity-100" : "opacity-0")}>
-                                {sortField === f ? (sortOrder === "asc" ? "↑" : "↓") : "↑"}
+                                {sortField === f ? (sortOrders[f] === "asc" ? "↑" : "↓") : "↑"}
                               </span>
                             )}
                           </span>
@@ -1712,7 +1942,7 @@ export default function App() {
                       setList: () => {},
                       onEnd: handleSortEnd,
                       animation: 150,
-                      disabled: sortOrder !== "asc",
+                      disabled: sortOrders[sortField] !== "asc",
                       delay: 150,
                       delayOnTouchOnly: true,
                     } : {};
@@ -2060,7 +2290,7 @@ export default function App() {
                     const MathMin = Math.min;
                     const newScale = MathMax(
                       1,
-                      MathMin(s - e.deltaY * 0.005, 10),
+                      MathMin(s - e.deltaY * 0.001, 10),
                     ); // 1未満には縮小しないようにし、迷子を完全に防ぐ
                     const scaleRatio = newScale / s;
 
@@ -2103,6 +2333,7 @@ export default function App() {
                   key={selectedImage.id}
                   src={selectedImage.url}
                   style={{ x: imgX, y: imgY }}
+                  initial={{ scale: fullscreenScale, rotate: fullscreenRotation, rotateY: fullscreenFlipX ? 180 : 0 }}
                   className={cn(
                     "max-w-full max-h-full object-contain block",
                     fullscreenScale > 1.0 ? "cursor-move" : "cursor-default",
@@ -2128,7 +2359,8 @@ export default function App() {
                     e.stopPropagation();
                     setFullscreenScale(1);
                     setFullscreenRotation(0);
-                    imgControls.start({ x: 0, y: 0, scale: 1, rotate: 0 });
+                    setFullscreenFlipX(false);
+                    imgControls.start({ x: 0, y: 0, scale: 1, rotate: 0, rotateY: 0 });
                   }}
                   title="Drag to Move / Scroll to Zoom / Double-click to Reset"
                 />
@@ -2141,25 +2373,22 @@ export default function App() {
                     handleRenameFileClick(e, selectedImage.id, selectedImage.name);
                   }}
                   className={cn(
-                    "font-mono text-[8px] md:text-[9px] font-bold mb-0.5 truncate drop-shadow-md pointer-events-auto cursor-pointer flex items-center gap-1 group/fsname",
-                    isFullscreenDarkText ? "text-black" : "text-white",
+                    "font-mono text-[10px] md:text-[11px] font-bold mb-0.5 truncate pointer-events-auto cursor-pointer flex items-center gap-1 group/fsname",
+                    isFullscreenDarkText ? "text-black/60 drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)]" : "text-white/80 drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]",
                   )}
                   title="RENAME FILE"
                 >
                   <span className="truncate">{selectedImage.name}</span>
-                  <Edit2 size={10} className="opacity-0 group-hover/fsname:opacity-100 transition-opacity flex-shrink-0" />
+                  <Edit2 size={12} className="opacity-0 group-hover/fsname:opacity-100 transition-opacity flex-shrink-0" />
                 </h2>
                 <div
                   className={cn(
-                    "font-mono text-[8px] flex gap-3 drop-shadow-md",
-                    isFullscreenDarkText ? "text-black/70" : "text-white/70",
+                    "font-mono text-[9px] flex gap-3 items-center pointer-events-auto",
+                    isFullscreenDarkText ? "text-black/60 drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)]" : "text-white/70 drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]",
                   )}
                 >
                   <span>{formatBytes(selectedImage.size)}</span>
                   <span>{selectedImage.type}</span>
-                  <span className="text-accent">
-                    {Math.round(fullscreenScale * 100)}%
-                  </span>
                 </div>
               </div>
 
@@ -2197,27 +2426,167 @@ export default function App() {
                 </>
               )}
 
-              {/* Rotate Button */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setFullscreenRotation(r => {
-                    const next = r + 90;
-                    imgControls.start({ rotate: next, transition: { duration: 0.2 } });
-                    return next;
-                  });
-                }}
+              {/* BG Toggle Button Group */}
+              <div
                 className={cn(
-                  "absolute bottom-6 right-6 p-2 transition-colors drop-shadow-md hover:scale-110 outline-none focus:outline-none",
+                  "absolute bottom-6 right-6 flex items-center gap-1.5 font-mono text-[9px] tracking-wider border px-2 py-1.5 rounded bg-black/15 backdrop-blur-sm transition-colors pointer-events-auto",
                   isFullscreenDarkText
-                    ? "text-black/50 hover:text-black"
-                    : "text-white/50 hover:text-white",
+                    ? "border-black/15 text-black"
+                    : "border-white/15 text-white",
                 )}
-                title="ROTATE IMAGE"
               >
-                <RotateCw size={24} />
-              </button>
+                <span className={isFullscreenDarkText ? "text-black/60" : "text-white/60"}>BG:</span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCanvasBg("theme");
+                  }}
+                  className={cn(
+                    "px-1.5 py-0.5 rounded transition-all",
+                    canvasBg === "theme"
+                      ? (isFullscreenDarkText ? "bg-black text-white " : "bg-white text-black ")
+                      : "opacity-60 hover:opacity-100"
+                  )}
+                >
+                  AUTO
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCanvasBg("white");
+                  }}
+                  className={cn(
+                    "px-1.5 py-0.5 rounded transition-all",
+                    canvasBg === "white"
+                      ? (isFullscreenDarkText ? "bg-black text-white " : "bg-white text-black ")
+                      : "opacity-60 hover:opacity-100"
+                  )}
+                >
+                  WHT
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCanvasBg("black");
+                  }}
+                  className={cn(
+                    "px-1.5 py-0.5 rounded transition-all",
+                    canvasBg === "black"
+                      ? (isFullscreenDarkText ? "bg-black text-white " : "bg-white text-black ")
+                      : "opacity-60 hover:opacity-100"
+                  )}
+                >
+                  BLK
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCanvasBg("checker");
+                  }}
+                  className={cn(
+                    "px-1.5 py-0.5 rounded transition-all",
+                    canvasBg === "checker"
+                      ? (isFullscreenDarkText ? "bg-black text-white " : "bg-white text-black ")
+                      : "opacity-60 hover:opacity-100"
+                  )}
+                >
+                  CHK
+                </button>
+              </div>
 
+              {/* Image Controls Panel */}
+              <div
+                className={cn(
+                  "absolute bottom-[64px] right-6 flex flex-col items-center gap-1 py-1 rounded transition-colors pointer-events-auto border backdrop-blur-sm w-11",
+                  isFullscreenDarkText
+                    ? "bg-black/15 border-black/15 text-black"
+                    : "bg-white/10 border-white/15 text-white"
+                )}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="font-mono text-[9px] py-0.5 mt-0.5 w-[85%] flex items-center justify-center rounded bg-black/40 text-white/90 shadow-inner pointer-events-none">
+                  {Math.round(fullscreenScale * 100)}%
+                </div>
+                <button
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    startZoomIn();
+                  }}
+                  onPointerUp={stopZooming}
+                  onPointerLeave={stopZooming}
+                  className="p-1 hover:bg-white/20 rounded transition-colors touch-none"
+                  title="Zoom In"
+                >
+                  <ChevronUp size={20} />
+                </button>
+                <div className="h-[150px] w-8 relative flex items-center justify-center">
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.001"
+                    value={Math.log10(fullscreenScale)}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      const newScale = Math.pow(10, val);
+                      setFullscreenScale(newScale);
+                      if (newScale === 1) {
+                        imgControls.start({ x: 0, y: 0, scale: 1 });
+                      } else {
+                        imgControls.start({ scale: newScale });
+                      }
+                    }}
+                    className={cn(
+                      "h-1.5 accent-accent rounded-lg appearance-none cursor-pointer shrink-0",
+                      isFullscreenDarkText ? "bg-black/30" : "bg-white/30"
+                    )}
+                    style={{ width: "150px", transform: "rotate(-90deg)" }}
+                  />
+                </div>
+                <button
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    startZoomOut();
+                  }}
+                  onPointerUp={stopZooming}
+                  onPointerLeave={stopZooming}
+                  className="p-1 hover:bg-white/20 rounded transition-colors touch-none"
+                  title="Zoom Out"
+                >
+                  <ChevronDown size={20} />
+                </button>
+                
+                <div className={cn("w-full h-px my-1", isFullscreenDarkText ? "bg-black/15" : "bg-white/15")}></div>
+                
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setFullscreenFlipX(f => {
+                      const next = !f;
+                      imgControls.start({ rotateY: next ? 180 : 0, transition: { duration: 0.2 } });
+                      return next;
+                    });
+                  }}
+                  className="p-1.5 hover:bg-white/20 rounded transition-colors touch-none"
+                  title="Flip Horizontal"
+                >
+                  <FlipHorizontal size={18} />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setFullscreenRotation(r => {
+                      const next = r + 90;
+                      imgControls.start({ rotate: next, transition: { duration: 0.2 } });
+                      return next;
+                    });
+                  }}
+                  className="p-1.5 hover:bg-white/20 rounded transition-colors touch-none"
+                  title="Rotate 90°"
+                >
+                  <RotateCw size={18} />
+                </button>
+              </div>
               {/* Close Button */}
               <button
                 onClick={() => setIsFullscreen(false)}
@@ -2344,7 +2713,7 @@ export default function App() {
                 </SolidButton>
                 <button
                   onClick={confirmClearAll}
-                  className="px-4 py-2 border border-red-500 text-red-500 hover:bg-red-500/10 font-bold uppercase transition-colors outline-none"
+                  className="px-4 py-2 border border-red-500 text-red-500 hover:bg-red-500/10  uppercase transition-colors outline-none"
                 >
                   CONFIRM CLEAR
                 </button>
@@ -2400,7 +2769,7 @@ export default function App() {
                 </SolidButton>
                 <button
                   onClick={handleDeleteSelected}
-                  className="px-4 py-2 border border-red-500 text-red-500 hover:bg-red-500/10 font-bold uppercase transition-colors outline-none"
+                  className="px-4 py-2 border border-red-500 text-red-500 hover:bg-red-500/10  uppercase transition-colors outline-none"
                 >
                   CONFIRM
                 </button>
