@@ -32,7 +32,7 @@
   --theme-accent: #00f0ff;
 }
 
-[data-theme='midnight'] {
+[data-theme='black'] {
   --theme-bg: #000000;
   --theme-panel: #0a0a0a;
   --theme-header: #111111;
@@ -42,20 +42,20 @@
   --theme-text-primary: #ffffff;
   --theme-text-secondary: #888888;
   --theme-text-muted: #555555;
-  --theme-accent: #ff2a5f;
+  --theme-accent: #ffffff;
 }
 
 [data-theme='light'] {
-  --theme-bg: #f4f4f5;
-  --theme-panel: #fafafa;
+  --theme-bg: #e4e4e7;
+  --theme-panel: #f4f4f5;
   --theme-header: #ffffff;
   --theme-input: #ffffff;
-  --theme-border: #d4d4d8;
-  --theme-border-focus: #a1a1aa;
+  --theme-border: #a1a1aa;
+  --theme-border-focus: #71717a;
   --theme-text-primary: #18181b;
   --theme-text-secondary: #52525b;
   --theme-text-muted: #71717a;
-  --theme-accent: #0ea5e9;
+  --theme-accent: #18181b;
 }
 
 @layer utilities {

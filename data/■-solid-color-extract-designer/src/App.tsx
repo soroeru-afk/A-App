@@ -616,9 +616,9 @@ export default function App() {
               onChange={(e) => setTheme(e.target.value)}
               className="bg-app-panel border border-app-border px-2 py-1 text-app-text-muted font-mono text-[10px] tracking-widest shadow-[inset_0_1px_3px_rgba(0,0,0,0.5)] outline-none uppercase cursor-pointer hover:border-app-border-focus focus:border-app-accent transition-colors"
             >
-              <option value="navy">NAVY THEME</option>
-              <option value="midnight">MIDNIGHT</option>
-              <option value="light">LIGHT MODE</option>
+              <option value="navy">NAVY</option>
+              <option value="black">BLACK</option>
+              <option value="light">LIGHT</option>
             </select>
             <div className="bg-app-panel border border-app-border px-3 py-1.5 text-app-text-muted font-mono text-[10px] tracking-widest shadow-[inset_0_1px_3px_rgba(0,0,0,0.5)]">
               ENV: PRODUCTION
