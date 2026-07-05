@@ -30,6 +30,23 @@ async function startServer() {
     });
   });
 
+  app.get("/api/video", (req, res) => {
+    const videoPath = req.query.path as string;
+    if (!videoPath) {
+      return res.status(400).json({ error: "Path parameter is required" });
+    }
+    
+    // Resolve absolute path and serve it
+    res.sendFile(path.resolve(videoPath), (err) => {
+      if (err) {
+        console.error("Error serving video:", err);
+        if (!res.headersSent) {
+          res.status(404).json({ error: "File not found" });
+        }
+      }
+    });
+  });
+
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },

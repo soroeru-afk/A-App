@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Film, Trash2, Edit2, Play, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown } from 'lucide-react';
+import { Film, Trash2, Edit2, Play, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown, Monitor } from 'lucide-react';
 import { Category, VideoInfo, Language } from '../types';
 import { t } from '../translations';
 
@@ -11,9 +11,10 @@ interface VideoListProps {
   onBulkDelete: (ids: string[]) => void;
   onMoveVideo: (id: string, direction: 'up' | 'down' | 'top' | 'bottom') => void;
   lang: Language;
+  onPlayInline: (video: VideoInfo) => void;
 }
 
-export default function VideoList({ videos, categories, onDelete, onUpdateTitle, onBulkDelete, onMoveVideo, lang }: VideoListProps) {
+export default function VideoList({ videos, categories, onDelete, onUpdateTitle, onBulkDelete, onMoveVideo, lang, onPlayInline }: VideoListProps) {
   const txt = t(lang).videoList;
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
@@ -123,7 +124,7 @@ export default function VideoList({ videos, categories, onDelete, onUpdateTitle,
       <div className="flex-1 border border-border-main bg-panel-bg flex flex-col overflow-hidden">
         <div 
           className="grid gap-2 p-2 border-b border-border-main text-[10px] text-text-dim font-bold bg-base-bg items-center"
-          style={{ gridTemplateColumns: `40px 70px ${titleWidth}px 1fr 100px 190px` }}
+          style={{ gridTemplateColumns: `40px 100px ${titleWidth}px 1fr 100px 190px` }}
         >
           <div className="flex justify-center px-2">
               <input 
@@ -157,7 +158,7 @@ export default function VideoList({ videos, categories, onDelete, onUpdateTitle,
                     <div 
                       key={video.id} 
                       className="grid gap-2 p-2 border-b border-border-main/50 text-xs items-center hover:bg-base-bg group"
-                      style={{ gridTemplateColumns: `40px 70px ${titleWidth}px 1fr 100px 190px` }}
+                      style={{ gridTemplateColumns: `40px 100px ${titleWidth}px 1fr 100px 190px` }}
                     >
                         
                         <div className="flex justify-center px-2">
@@ -169,20 +170,30 @@ export default function VideoList({ videos, categories, onDelete, onUpdateTitle,
                             />
                         </div>
 
-                         <div className="flex justify-center">
+                         <div className="flex justify-center gap-1">
+                             {/* External Play */}
                              {video.localPath ? (
                                  <a
                                      href={`solid-play://?path=${encodeURIComponent(video.localPath)}`}
-                                     className="w-14 h-6 flex items-center justify-center border border-blue-900/60 bg-blue-950/20 text-blue-400 hover:bg-blue-900/30 hover:text-blue-300 transition-all rounded-sm"
+                                     className="w-10 h-6 flex items-center justify-center border border-blue-900/60 bg-blue-950/20 text-blue-400 hover:bg-blue-900/30 hover:text-blue-300 transition-all rounded-sm"
                                      title={txt.playExternalTooltip}
                                  >
-                                     <Play size={12} className="fill-current" />
+                                     <Play size={10} className="fill-current" />
                                  </a>
                              ) : (
-                                 <div className="w-14 h-6 flex items-center justify-center border border-border-main text-text-dim opacity-40 rounded-sm" title="絶対パス未登録">
-                                     <Play size={12} />
+                                 <div className="w-10 h-6 flex items-center justify-center border border-border-main text-text-dim opacity-40 rounded-sm" title="絶対パス未登録">
+                                     <Play size={10} />
                                  </div>
                              )}
+
+                             {/* Inline Play */}
+                             <button
+                                 onClick={() => onPlayInline(video)}
+                                 className="w-10 h-6 flex items-center justify-center border border-emerald-900/60 bg-emerald-950/20 text-emerald-400 hover:bg-emerald-900/30 hover:text-emerald-300 transition-all rounded-sm"
+                                 title={lang === 'ja' ? 'アプリ内再生 (ブラウザ)' : 'Play in Browser'}
+                             >
+                                 <Monitor size={10} />
+                             </button>
                          </div>
                         
                         <div className="flex items-center gap-2 truncate">

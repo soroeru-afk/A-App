@@ -53,16 +53,16 @@ const THEMES = {
     borderStrong: "#99a5b8"
   },
   red: {
-    bg: "#151212",
-    panel: "#1f1818",
-    surface: "#2b2222",
-    surface2: "#241d1d",
-    text: "#f0e9e9",
-    muted: "#b9a8a8",
-    accent: "#c5aa88",
-    controlAccent: "#c5aa88",
-    border: "#443232",
-    borderStrong: "#5a3f3f"
+    bg: "#110606",
+    panel: "#180909",
+    surface: "#240d0d",
+    surface2: "#1e0b0b",
+    text: "#ffffff",
+    muted: "#a65c5c",
+    accent: "#c85a5a",
+    controlAccent: "#c85a5a",
+    border: "#5c1a1a",
+    borderStrong: "#822525"
   }
 };
 
@@ -75,6 +75,75 @@ type Tab = {
   filename: string | null;
   originalText: string;
 };
+
+function CustomSelect({ value, onChange, options }: { value: string, onChange: (val: string) => void, options: {label: string, value: string}[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const selectedOption = options.find(o => o.value === value);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div ref={ref} className="custom-select-container" style={{ position: 'relative', width: '100%', height: '24px' }}>
+      <div 
+        className="custom-select-trigger" 
+        onClick={() => setOpen(!open)}
+        style={{
+          border: '1px solid var(--border)',
+          background: 'transparent',
+          color: 'var(--text)',
+          padding: '0 4px',
+          height: '24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          cursor: 'pointer',
+          fontFamily: 'var(--title-font)',
+          fontSize: '11px',
+          letterSpacing: '0.04em'
+        }}
+      >
+        <span>{selectedOption?.label}</span>
+        <span style={{ fontSize: '10px' }}>▼</span>
+      </div>
+      {open && (
+        <div 
+          className="custom-select-dropdown" 
+          style={{
+            position: 'absolute',
+            top: 'calc(100% - 1px)',
+            left: 0,
+            right: 0,
+            background: 'var(--panel)',
+            border: '1px solid var(--border-strong)',
+            zIndex: 10,
+            maxHeight: '150px',
+            overflowY: 'auto',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
+          }}
+        >
+          {options.map(o => (
+            <div 
+              key={o.value}
+              onClick={() => { onChange(o.value); setOpen(false); }}
+              className={`custom-select-option ${o.value === value ? 'selected' : ''}`}
+            >
+              {o.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 let activeHandles = new Map<string, any>(); // Non-serializable handles
 let findCursor = 0;
@@ -242,6 +311,9 @@ export default function App() {
   // Apply Theme and Paper Mode
   useEffect(() => {
     const root = document.documentElement;
+    root.setAttribute("data-theme", activeTheme);
+    root.setAttribute("data-paper-mode", paperModeEnabled ? "true" : "false");
+    
     const t = THEMES[activeTheme] || THEMES.dark;
     root.style.setProperty("--bg", t.bg);
     root.style.setProperty("--panel", t.panel);
@@ -262,12 +334,21 @@ export default function App() {
       root.style.setProperty("--editor-border", "#cecece");
       root.style.setProperty("--editor-shadow-top", "rgba(255, 255, 255, 0.75)");
       root.style.setProperty("--editor-shadow-bottom", "rgba(0, 0, 0, 0.08)");
+      root.style.setProperty("--slider-thumb-bg", "var(--control-accent)");
+    } else if (activeTheme === "red") {
+      root.style.setProperty("--editor-bg", t.panel);
+      root.style.setProperty("--editor-text", t.text);
+      root.style.setProperty("--editor-border", t.border);
+      root.style.setProperty("--editor-shadow-top", "rgba(255, 255, 255, 0.02)");
+      root.style.setProperty("--editor-shadow-bottom", "rgba(0, 0, 0, 0.45)");
+      root.style.setProperty("--slider-thumb-bg", "#ffffff");
     } else {
       root.style.setProperty("--editor-bg", "#171717");
       root.style.setProperty("--editor-text", "#f0f0f0");
       root.style.setProperty("--editor-border", "#363636");
       root.style.setProperty("--editor-shadow-top", "rgba(255, 255, 255, 0.02)");
-      root.style.setProperty("--editor-shadow-bottom", "rgba(0, 0, 0, 0.45)");
+      root.style.setProperty("--editor-shadow-bottom", "rgba(0, 0, 0, 0.35)");
+      root.style.setProperty("--slider-thumb-bg", "var(--control-accent)");
     }
   }, [activeTheme, paperModeEnabled]);
 
@@ -1017,13 +1098,17 @@ export default function App() {
           <div className="label-row">
             <label>04 FONT FAMILY</label>
           </div>
-          <select value={fontFamily} onChange={e => setFontFamily(e.target.value)}>
-            <option value="Meiryo, sans-serif">MEIRYO</option>
-            <option value="'MS Gothic', monospace">MS GOTHIC</option>
-            <option value="system-ui, sans-serif">SYSTEM UI</option>
-            <option value="'Yu Gothic UI', sans-serif">YU GOTHIC UI</option>
-            <option value="'Consolas', monospace">CONSOLAS</option>
-          </select>
+          <CustomSelect
+            value={fontFamily}
+            onChange={setFontFamily}
+            options={[
+              { value: "Meiryo, sans-serif", label: "MEIRYO" },
+              { value: "'MS Gothic', monospace", label: "MS GOTHIC" },
+              { value: "system-ui, sans-serif", label: "SYSTEM UI" },
+              { value: "'Yu Gothic UI', sans-serif", label: "YU GOTHIC UI" },
+              { value: "'Consolas', monospace", label: "CONSOLAS" }
+            ]}
+          />
         </div>
 
         <div className="control span-3">

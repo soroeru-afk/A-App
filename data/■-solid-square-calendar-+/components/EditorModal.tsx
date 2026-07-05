@@ -162,15 +162,21 @@ export function EditorModal({
   const displayTitle = (() => {
     const contentToSearch = content.trim();
     if (!contentToSearch) return "UNTITLED";
-    // 改行、または日本語の句点、感嘆符、疑問符、あるいは英語の末尾記号（.+スペース）で句切る。
-    const match = contentToSearch.match(
-      /^[\s\S]*?(?:[。！？\n]|[.!?](?:\s|$))/,
-    );
-    if (match) {
-      return match[0].trim();
-    } else {
-      return contentToSearch.trim();
+    const lines = contentToSearch.split("\n").map(l => l.trim()).filter(Boolean);
+    if (lines.length === 0) return "UNTITLED";
+    const firstLine = lines[0];
+    const isEmojiOrSymbolOnly = /^[^\w\s\u4e00-\u9faf\u3040-\u309f\u30a0-\u30ff\uff66-\uff9f]{1,4}$/u.test(firstLine);
+    if (isEmojiOrSymbolOnly && lines.length > 1) {
+      const secondLine = lines[1];
+      const match = secondLine.match(/^[^。！？.!?]*(?:[。！？]|[.!?](?:\s|$))?/);
+      const secondLineFirstSentence = match ? match[0].trim() : secondLine;
+      return `${firstLine} ${secondLineFirstSentence}`;
     }
+    const match = firstLine.match(/^[^。！？.!?]*(?:[。！？]|[.!?](?:\s|$))?/);
+    if (match && match[0].trim()) {
+      return match[0].trim();
+    }
+    return firstLine;
   })();
 
   const colors = getThemeColors(theme as Theme);
@@ -213,13 +219,13 @@ export function EditorModal({
       if (!isEditing && e.target instanceof HTMLElement) {
          const tagName = e.target.tagName.toLowerCase();
          if (tagName !== "textarea" && tagName !== "input") {
-            if (e.key === "k" && hasPrev && onNavigate) {
-               e.preventDefault();
-               onNavigate('PREV');
-            }
-            if (e.key === "j" && hasNext && onNavigate) {
+            if (e.key === "k" && hasNext && onNavigate) {
                e.preventDefault();
                onNavigate('NEXT');
+            }
+            if (e.key === "j" && hasPrev && onNavigate) {
+               e.preventDefault();
+               onNavigate('PREV');
             }
          }
       }
@@ -282,7 +288,7 @@ export function EditorModal({
 
             {/* Toolbar */}
             <div
-              className={`flex items-center justify-between gap-x-4 gap-y-3 w-full text-[10px] uppercase tracking-wider ${colors.textSub} font-bold select-none flex-wrap overflow-x-auto no-scrollbar`}
+              className={`flex items-center justify-between gap-x-4 gap-y-3 w-full text-[10px] uppercase tracking-wider ${colors.textMain} font-bold select-none flex-wrap overflow-x-auto no-scrollbar`}
             >
               <div className="flex items-center gap-3 flex-wrap">
                 {/* Text Size Controls */}
@@ -485,7 +491,7 @@ export function EditorModal({
                   <button
                     onClick={() => hasPrev && onNavigate('PREV')}
                     disabled={!hasPrev}
-                    title="新しく古いファイルへ"
+                    title="古いファイルへ"
                     className={`${colors.borderStrong} border px-3 py-0.5 rounded-sm flex items-center transition-colors ${hasPrev ? colors.textSubHover : "opacity-30 cursor-not-allowed"}`}
                   >
                     PREV
@@ -493,7 +499,7 @@ export function EditorModal({
                   <button
                     onClick={() => hasNext && onNavigate('NEXT')}
                     disabled={!hasNext}
-                    title="古いファイルへ"
+                    title="新しいファイルへ"
                     className={`${colors.borderStrong} border px-3 py-0.5 rounded-sm flex items-center transition-colors ${hasNext ? colors.textSubHover : "opacity-30 cursor-not-allowed"}`}
                   >
                     NEXT

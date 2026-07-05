@@ -369,6 +369,7 @@ export default function App() {
             onUpdateTitle={handleUpdateTitle}
             onBulkDelete={handleBulkDelete}
             onMoveVideo={handleMoveVideo}
+            onPlayInline={setPlayingVideo}
         />
       </div>
 

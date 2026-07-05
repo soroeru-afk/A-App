@@ -175,7 +175,7 @@ export default function PlayerView({ video, onClose, lang }: PlayerViewProps) {
         <div className="flex-1 bg-black relative flex items-center justify-center p-2" onClick={() => setShowSettings(false)}>
             <video
                 ref={videoRef}
-                src={video.url}
+                src={video.localPath ? `/api/video?path=${encodeURIComponent(video.localPath)}` : video.url}
                 className="w-full h-full object-contain"
                 controls
                 crossOrigin="anonymous"

@@ -44,7 +44,7 @@ export function GridSqView({
     <div className="h-full flex flex-col p-4 w-full">
       <div className="flex-none flex items-center justify-between mb-2">
         <div
-          className={`text-[10px] ${colors.textSub} tracking-widest uppercase`}
+          className={`text-[10px] ${colors.textMain} tracking-widest uppercase`}
         >
           04 CALENDAR BANKS
         </div>
@@ -63,7 +63,7 @@ export function GridSqView({
         {dayNames.map((name) => (
           <div
             key={name}
-            className={`text-[9px] font-bold ${colors.textSub} tracking-widest text-center py-1`}
+            className={`text-[9px] font-bold ${colors.textMain} tracking-widest text-center py-1`}
           >
             {name}
           </div>

@@ -144,7 +144,7 @@ export default function App() {
       const savedSettings = localStorage.getItem("solid-square-settings");
       if (savedSettings) {
         const parsed = JSON.parse(savedSettings);
-        if (parsed.theme) setTheme(parsed.theme);
+        if (parsed.theme) setTheme(parsed.theme === "ROSE" ? "RED" : parsed.theme);
         if (parsed.textSize) setTextSize(parsed.textSize);
         if (parsed.previewWidth) setPreviewWidth(parsed.previewWidth);
         if (parsed.previewHeight) setPreviewHeight(parsed.previewHeight);
@@ -385,9 +385,9 @@ export default function App() {
 
     let newIndex = currentIndex;
     if (dir === "PREV") {
-      newIndex = currentIndex - 1; // newer file (higher up in the visual list)
-    } else {
       newIndex = currentIndex + 1; // older file
+    } else {
+      newIndex = currentIndex - 1; // newer file
     }
 
     if (newIndex >= 0 && newIndex < logs.length) {
@@ -428,13 +428,23 @@ export default function App() {
         let extractedTitle = "UNTITLED";
         const contentToSearch = newContent.trim();
         if (contentToSearch) {
-          const match = contentToSearch.match(
-            /^[\s\S]*?(?:[。！？\n]|[.!?](?:\s|$))/,
-          );
-          if (match) {
-            extractedTitle = match[0].trim();
-          } else {
-            extractedTitle = contentToSearch.trim();
+          const lines = contentToSearch.split("\n").map(l => l.trim()).filter(Boolean);
+          if (lines.length > 0) {
+            const firstLine = lines[0];
+            const isEmojiOrSymbolOnly = /^[^\w\s\u4e00-\u9faf\u3040-\u309f\u30a0-\u30ff\uff66-\uff9f]{1,4}$/u.test(firstLine);
+            if (isEmojiOrSymbolOnly && lines.length > 1) {
+              const secondLine = lines[1];
+              const match = secondLine.match(/^[^。！？.!?]*(?:[。！？]|[.!?](?:\s|$))?/);
+              const secondLineFirstSentence = match ? match[0].trim() : secondLine;
+              extractedTitle = `${firstLine} ${secondLineFirstSentence}`;
+            } else {
+              const match = firstLine.match(/^[^。！？.!?]*(?:[。！？]|[.!?](?:\s|$))?/);
+              if (match && match[0].trim()) {
+                extractedTitle = match[0].trim();
+              } else {
+                extractedTitle = firstLine;
+              }
+            }
           }
         }
 
@@ -567,10 +577,29 @@ export default function App() {
 
   const colors = getThemeColors(theme as Theme);
 
+  let sliderBorder, sliderTrack, sliderThumb;
+  if (theme === "LIGHT") {
+    sliderBorder = "#cbd5e1";
+    sliderTrack = "#e2e8f0";
+    sliderThumb = "#64748b";
+  } else if (theme === "RED") {
+    sliderBorder = "#4f1818";
+    sliderTrack = "#260909";
+    sliderThumb = "#b85454";
+  } else if (theme === "MONOTONE") {
+    sliderBorder = "#3f3f46";
+    sliderTrack = "#18181b";
+    sliderThumb = "#a1a1aa";
+  } else {
+    sliderBorder = "#334155";
+    sliderTrack = "#1e293b";
+    sliderThumb = "#94a3b8";
+  }
+
   const sliderStyle = {
-    "--slider-border": theme === "LIGHT" ? "#cbd5e1" : "#334155",
-    "--slider-track": theme === "LIGHT" ? "#e2e8f0" : "#1e293b",
-    "--slider-thumb": theme === "LIGHT" ? "#64748b" : "#94a3b8",
+    "--slider-border": sliderBorder,
+    "--slider-track": sliderTrack,
+    "--slider-thumb": sliderThumb,
   } as React.CSSProperties;
 
   const showLogTitles =
@@ -648,7 +677,7 @@ export default function App() {
                 {/* THEME */}
                 <div className="flex flex-col gap-2">
                   <div
-                    className={`text-[10px] font-bold ${colors.textSub} tracking-widest flex items-center justify-between`}
+                    className={`text-[10px] font-bold ${colors.textMain} tracking-widest flex items-center justify-between`}
                   >
                     <span>THEME</span>
                     <span className={colors.textMain}>{theme}</span>
@@ -676,10 +705,10 @@ export default function App() {
                       BLACK
                     </button>
                     <button
-                      onClick={() => setTheme("ROSE")}
-                      className={`flex-1 py-1 text-xs font-bold font-mono tracking-widest ${theme === "ROSE" ? `${colors.activeBg} ${colors.activeText} shadow-sm` : colors.textSub}`}
+                      onClick={() => setTheme("RED")}
+                      className={`flex-1 py-1 text-xs font-bold font-mono tracking-widest ${theme === "RED" ? `${colors.activeBg} ${colors.activeText} shadow-sm` : colors.textSub}`}
                     >
-                      ROSE
+                      RED
                     </button>
                   </div>
                 </div>
@@ -687,7 +716,7 @@ export default function App() {
                 {/* SYSTEM FONT */}
                 <div className="flex flex-col gap-3">
                   <div
-                    className={`text-[10px] font-bold ${colors.textSub} tracking-widest flex items-center justify-between`}
+                    className={`text-[10px] font-bold ${colors.textMain} tracking-widest flex items-center justify-between`}
                   >
                     <span>SYSTEM FONT</span>
                   </div>
@@ -729,7 +758,7 @@ export default function App() {
                 {/* DATE NUMBER */}
                 <div className="flex flex-col gap-3">
                   <div
-                    className={`text-[10px] font-bold ${colors.textSub} tracking-widest flex items-center justify-between`}
+                    className={`text-[10px] font-bold ${colors.textMain} tracking-widest flex items-center justify-between`}
                   >
                     <span>DATE FONT</span>
                   </div>
@@ -757,7 +786,7 @@ export default function App() {
                     />
                   </div>
                   <div
-                    className={`text-[10px] font-bold ${colors.textSub} tracking-widest flex items-center justify-between mt-1`}
+                    className={`text-[10px] font-bold ${colors.textMain} tracking-widest flex items-center justify-between mt-1`}
                   >
                     <span>SIZE</span>
                     <span className={colors.textMain}>{dateSize}PX</span>
@@ -781,7 +810,7 @@ export default function App() {
                 {/* LOG TEXT */}
                 <div className="flex flex-col gap-3">
                   <div
-                    className={`text-[10px] font-bold ${colors.textSub} tracking-widest flex items-center justify-between`}
+                    className={`text-[10px] font-bold ${colors.textMain} tracking-widest flex items-center justify-between`}
                   >
                     <span>LOG FONT</span>
                   </div>
@@ -809,7 +838,7 @@ export default function App() {
                     />
                   </div>
                   <div
-                    className={`text-[10px] font-bold ${colors.textSub} tracking-widest flex items-center justify-between mt-1`}
+                    className={`text-[10px] font-bold ${colors.textMain} tracking-widest flex items-center justify-between mt-1`}
                   >
                     <span>PREVIEW SIZE</span>
                     <span className={colors.textMain}>{textSize}PX</span>
@@ -826,7 +855,7 @@ export default function App() {
                   />
 
                   <div
-                    className={`text-[10px] font-bold ${colors.textSub} tracking-widest flex items-center justify-between mt-3`}
+                    className={`text-[10px] font-bold ${colors.textMain} tracking-widest flex items-center justify-between mt-3`}
                   >
                     <span>PREVIEW WIDTH</span>
                     <span className={colors.textMain}>{previewWidth}%</span>
@@ -843,7 +872,7 @@ export default function App() {
                   />
 
                   <div
-                    className={`text-[10px] font-bold ${colors.textSub} tracking-widest flex items-center justify-between mt-3`}
+                    className={`text-[10px] font-bold ${colors.textMain} tracking-widest flex items-center justify-between mt-3`}
                   >
                     <span>PREVIEW HEIGHT</span>
                     <span className={colors.textMain}>{previewHeight}PX</span>
@@ -860,7 +889,7 @@ export default function App() {
                   />
 
                   <div
-                    className={`text-[10px] font-bold ${colors.textSub} tracking-widest flex items-center justify-between mt-3`}
+                    className={`text-[10px] font-bold ${colors.textMain} tracking-widest flex items-center justify-between mt-3`}
                   >
                     <span>PREVIEW OPACITY</span>
                     <span className={colors.textMain}>{previewOpacity}%</span>
@@ -879,7 +908,7 @@ export default function App() {
 
                 <div className="flex flex-col gap-3">
                   <div
-                    className={`text-[10px] font-bold ${colors.textSub} tracking-widest flex items-center justify-between mt-1`}
+                    className={`text-[10px] font-bold ${colors.textMain} tracking-widest flex items-center justify-between mt-1`}
                   >
                     <span>EDITOR SIZE</span>
                     <span className={colors.textMain}>{editorTextSize}PX</span>
@@ -904,7 +933,7 @@ export default function App() {
               <div className="flex flex-col gap-6">
                 <div className="flex flex-col gap-3">
                   <div
-                    className={`text-[10px] font-bold ${colors.textSub} tracking-widest flex items-center justify-between`}
+                    className={`text-[10px] font-bold ${colors.textMain} tracking-widest flex items-center justify-between`}
                   >
                     <span>VOICE</span>
                   </div>
@@ -954,7 +983,7 @@ export default function App() {
 
                 <div className="flex flex-col gap-3">
                   <div
-                    className={`text-[10px] font-bold ${colors.textSub} tracking-widest flex items-center justify-between mt-1`}
+                    className={`text-[10px] font-bold ${colors.textMain} tracking-widest flex items-center justify-between mt-1`}
                   >
                     <span>SPEED (RATE)</span>
                     <span className={colors.textMain}>
@@ -975,7 +1004,7 @@ export default function App() {
 
                 <div className="flex flex-col gap-3">
                   <div
-                    className={`text-[10px] font-bold ${colors.textSub} tracking-widest flex items-center justify-between mt-1`}
+                    className={`text-[10px] font-bold ${colors.textMain} tracking-widest flex items-center justify-between mt-1`}
                   >
                     <span>VOLUME</span>
                     <span className={colors.textMain}>
@@ -998,7 +1027,7 @@ export default function App() {
 
                 <div className="flex flex-col gap-3">
                   <div
-                    className={`text-[10px] font-bold ${colors.textSub} tracking-widest flex items-center justify-between mt-1`}
+                    className={`text-[10px] font-bold ${colors.textMain} tracking-widest flex items-center justify-between mt-1`}
                   >
                     <span>PITCH</span>
                     <span className={colors.textMain}>
@@ -1089,8 +1118,8 @@ export default function App() {
       {/* EDITOR */}
       {isEditorOpen && selectedLog && (() => {
         const currentIndex = logs.findIndex((l) => l.name === selectedLog.name);
-        const hasPrev = currentIndex > 0;
-        const hasNext = currentIndex >= 0 && currentIndex < logs.length - 1;
+        const hasPrev = currentIndex >= 0 && currentIndex < logs.length - 1;
+        const hasNext = currentIndex > 0;
         return (
           <EditorModal
             log={selectedLog}
