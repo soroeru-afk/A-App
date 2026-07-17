@@ -18,25 +18,17 @@ export const Panel = React.forwardRef<HTMLDivElement, PanelProps>(
     return (
       <div 
         ref={ref}
-        className={cn(
-          "bg-panel-bg border border-panel-border rounded-none flex flex-col overflow-hidden transition-all duration-300", 
-          className
-        )}
+        className={cn("bg-panel-bg border border-panel-border rounded-none flex flex-col overflow-hidden transition-all duration-300", className)}
         {...props}
       >
         {(title || headerRight || dragHandle) && (
           <div 
             className={cn(
-              "flex items-center px-4 py-2 bg-panel-header w-full select-none",
+              "flex items-center px-4 py-2 bg-panel-header w-full",
               (!isCollapsible || isExpanded) && "border-b border-panel-border",
-              isCollapsible && "cursor-pointer hover:bg-white/5"
+              isCollapsible && "cursor-pointer select-none hover:bg-white/5"
             )}
-            onClick={(e) => {
-              if (isCollapsible) {
-                // Ignore clicks from buttons, icons or interactive elements if they manage their own click
-                onToggle?.();
-              }
-            }}
+            onClick={isCollapsible ? onToggle : undefined}
           >
             {title && (
               <h3 className="font-mono text-xs uppercase text-text-secondary tracking-widest flex items-center gap-2 flex-1">
@@ -46,21 +38,12 @@ export const Panel = React.forwardRef<HTMLDivElement, PanelProps>(
             <div className="flex items-center gap-2 ml-auto">
               {headerRight && <div className="text-xs text-text-muted">{headerRight}</div>}
               {isCollapsible && (
-                <div 
-                  className="text-text-muted hover:text-text-primary p-0.5 cursor-pointer"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggle?.();
-                  }}
-                >
+                <div className="text-text-muted hover:text-text-primary">
                   {isExpanded ? <Minus size={14} /> : <Plus size={14} />}
                 </div>
               )}
               {dragHandle && (
-                <div 
-                  className="text-text-muted hover:text-text-primary cursor-grab active:cursor-grabbing sidebar-drag-handle ml-1 p-0.5" 
-                  onClick={(e) => e.stopPropagation()}
-                >
+                <div className="text-text-muted hover:text-text-primary cursor-grab active:cursor-grabbing sidebar-drag-handle ml-1" onClick={(e) => e.stopPropagation()}>
                   <GripVertical size={14} />
                 </div>
               )}
