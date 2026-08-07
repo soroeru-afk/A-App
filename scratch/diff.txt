@@ -1,0 +1,485 @@
+﻿diff --git "a/c:\\Users\\soroe\\A-App\\SOLID-DESKTOP-IMAGE-VIEWER\\src\\App.tsx" "b/c:\\Users\\soroe\\A-App\\data\\\342\226\240-solid-desktop-image-viewer\\src\\App.tsx"
+index 63e88f8..dedbe81 100644
+--- "a/c:\\Users\\soroe\\A-App\\SOLID-DESKTOP-IMAGE-VIEWER\\src\\App.tsx"
++++ "b/c:\\Users\\soroe\\A-App\\data\\\342\226\240-solid-desktop-image-viewer\\src\\App.tsx"
+@@ -30,6 +30,7 @@ import {
+   RotateCw,
+   RefreshCw,
+   Edit2,
++  Search,
+ } from "lucide-react";
+ import {
+   ImageRecord,
+@@ -49,7 +50,6 @@ import {
+   getImageCountByDataset,
+   updateDatasetDate,
+   updateImagesOrder,
+-  updateImageAutoBg,
+ } from "./lib/db";
+ import { Panel, SolidButton } from "./components/ui";
+ import { cn } from "./lib/utils";
+@@ -162,6 +162,7 @@ export default function App() {
+     "list",
+   );
+   const [images, setImages] = useState<LoadedImage[]>([]);
++  const [searchQuery, setSearchQuery] = useState("");
+   const [totalImagesCount, setTotalImagesCount] = useState<number>(0);
+   const [viewMode, setViewMode] = useState<ViewMode>(() => {
+     const saved = localStorage.getItem("app_viewMode");
+@@ -171,6 +172,26 @@ export default function App() {
+     const saved = localStorage.getItem("app_openAction");
+     return (saved as "click" | "dblclick") || "dblclick";
+   });
++  const [theme, setTheme] = useState<"NAVY" | "BLACK" | "LIGHT" | "PAPER">(
++    () => {
++      const saved = localStorage.getItem("app_theme");
++      return (saved as "NAVY" | "BLACK" | "LIGHT" | "PAPER") || "BLACK";
++    }
++  );
++  const [canvasBg, setCanvasBg] = useState<
++    "theme" | "black" | "white" | "checker"
++  >("white");
++  const [sortField, setSortField] = useState<"name" | "size" | "type" | "date" | "custom" | "random">(
++    "name",
++  );
++  const [randomSeed, setRandomSeed] = useState(0);
++  const [sortOrders, setSortOrders] = useState<Record<string, "asc" | "desc">>({
++    name: "asc",
++    size: "desc",
++    type: "asc",
++    date: "desc",
++    custom: "asc",
++  });
+   const [scales, setScales] = useState<Record<ViewMode, number>>({
+     "grid-sq": 140,
+     "grid-ma": 140,
+@@ -188,11 +209,7 @@ export default function App() {
+     if (activeDatasetId) {
+       const savedScales = localStorage.getItem(`app_scales_${activeDatasetId}`);
+       if (savedScales) {
+-        try {
+-          setScales(JSON.parse(savedScales));
+-        } catch (e) {
+-          console.error("Failed to parse saved scales:", e);
+-        }
++        setScales(JSON.parse(savedScales));
+       } else {
+         setScales({
+           "grid-sq": 140,
+@@ -204,11 +221,7 @@ export default function App() {
+ 
+       const savedGaps = localStorage.getItem(`app_gaps_${activeDatasetId}`);
+       if (savedGaps) {
+-        try {
+-          setGaps(JSON.parse(savedGaps));
+-        } catch (e) {
+-          console.error("Failed to parse saved gaps:", e);
+-        }
++        setGaps(JSON.parse(savedGaps));
+       } else {
+         setGaps({
+           "grid-sq": 24,
+@@ -217,6 +230,51 @@ export default function App() {
+           free: 0,
+         });
+       }
++
++      const savedCanvasBg = localStorage.getItem(`app_canvasBg_${activeDatasetId}`);
++      if (savedCanvasBg) {
++        setCanvasBg(savedCanvasBg as any);
++      } else {
++        setCanvasBg("white");
++      }
++
++      const savedSortField = localStorage.getItem(`app_sortField_${activeDatasetId}`);
++      if (savedSortField) {
++        setSortField(savedSortField as any);
++      } else {
++        setSortField("name");
++      }
++
++      const savedSortOrders = localStorage.getItem(`app_sortOrders_${activeDatasetId}`);
++      if (savedSortOrders) {
++        try {
++          setSortOrders({
++            name: "asc",
++            size: "desc",
++            type: "asc",
++            date: "desc",
++            custom: "asc",
++            ...JSON.parse(savedSortOrders)
++          });
++        } catch(e) {
++          // ignore
++        }
++      } else {
++        setSortOrders({
++          name: "asc",
++          size: "desc",
++          type: "asc",
++          date: "desc",
++          custom: "asc",
++        });
++      }
++
++      const savedRandomSeed = localStorage.getItem(`app_randomSeed_${activeDatasetId}`);
++      if (savedRandomSeed) {
++        setRandomSeed(parseInt(savedRandomSeed, 10));
++      } else {
++        setRandomSeed(0);
++      }
+     }
+   }, [activeDatasetId]);
+ 
+@@ -240,6 +298,34 @@ export default function App() {
+     }
+   }, [gaps, activeDatasetId]);
+ 
++  useEffect(() => {
++    localStorage.setItem("app_theme", theme);
++  }, [theme]);
++
++  useEffect(() => {
++    if (activeDatasetId) {
++      localStorage.setItem(`app_canvasBg_${activeDatasetId}`, canvasBg);
++    }
++  }, [canvasBg, activeDatasetId]);
++
++  useEffect(() => {
++    if (activeDatasetId) {
++      localStorage.setItem(`app_sortField_${activeDatasetId}`, sortField);
++    }
++  }, [sortField, activeDatasetId]);
++
++  useEffect(() => {
++    if (activeDatasetId) {
++      localStorage.setItem(`app_sortOrders_${activeDatasetId}`, JSON.stringify(sortOrders));
++    }
++  }, [sortOrders, activeDatasetId]);
++
++  useEffect(() => {
++    if (activeDatasetId) {
++      localStorage.setItem(`app_randomSeed_${activeDatasetId}`, randomSeed.toString());
++    }
++  }, [randomSeed, activeDatasetId]);
++
+   const itemScale = scales[viewMode];
+   const gridGap = gaps[viewMode];
+ 
+@@ -269,7 +355,60 @@ export default function App() {
+     imgY.set(0);
+     imgControls.start({ x: 0, y: 0, scale: 1, rotate: 0 });
+     setImgDims({ w: 0, h: 0 });
+-  }, [isFullscreen, selectedImage, imgControls, imgX, imgY]);
++  }, [isFullscreen, imgControls, imgX, imgY]);
++
++  // When selectedImage changes (next/prev image), reset only image dimensions and wait for the onLoad trigger
++  useEffect(() => {
++    setImgDims({ w: 0, h: 0 });
++  }, [selectedImage]);
++
++  // Preserve scale and rotation across image switch, and clamp x/y position to the new image bounds once loaded
++  useEffect(() => {
++    if (isFullscreen && imgDims.w > 0 && imgDims.h > 0) {
++      const currentCW = typeof window !== "undefined" ? window.innerWidth * 0.95 : 1000;
++      const currentCH = typeof window !== "undefined" ? window.innerHeight * 0.95 : 1000;
++
++      const aspectImg = imgDims.w / imgDims.h;
++      const aspectScreen = currentCW / currentCH;
++      let renderedW, renderedH;
++      if (aspectImg > aspectScreen) {
++        renderedW = currentCW;
++        renderedH = currentCW / aspectImg;
++      } else {
++        renderedH = currentCH;
++        renderedW = currentCH * aspectImg;
++      }
++      const scaledW = renderedW * fullscreenScale;
++      const scaledH = renderedH * fullscreenScale;
++      const rotW = Math.abs(fullscreenRotation % 180) === 90 ? scaledH : scaledW;
++      const rotH = Math.abs(fullscreenRotation % 180) === 90 ? scaledW : scaledH;
++      const mX = Math.max(0, (rotW - currentCW) / 2);
++      const mY = Math.max(0, (rotH - currentCH) / 2);
++
++      let currentX = imgX.get();
++      let currentY = imgY.get();
++
++      if (fullscreenScale <= 1.0) {
++        currentX = 0;
++        currentY = 0;
++      } else {
++        if (currentX > mX) currentX = mX;
++        if (currentX < -mX) currentX = -mX;
++        if (currentY > mY) currentY = mY;
++        if (currentY < -mY) currentY = -mY;
++      }
++
++      imgX.set(currentX);
++      imgY.set(currentY);
++      imgControls.start({
++        scale: fullscreenScale,
++        rotate: fullscreenRotation,
++        x: currentX,
++        y: currentY,
++        transition: { duration: 0 }
++      });
++    }
++  }, [imgDims, isFullscreen, fullscreenScale, fullscreenRotation, imgControls, imgX, imgY]);
+ 
+   const [sidebarPosition, setSidebarPosition] = useState<"left" | "right">(
+     "left",
+@@ -327,17 +466,6 @@ export default function App() {
+   const [fileNameInput, setFileNameInput] = useState("");
+   const [editingFileId, setEditingFileId] = useState<string | null>(null);
+   const [showClearAllModal, setShowClearAllModal] = useState(false);
+-  const [sortField, setSortField] = useState<"name" | "size" | "type" | "date" | "custom" | "random">(
+-    "name",
+-  );
+-  const [randomSeed, setRandomSeed] = useState(0);
+-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+-  const [theme, setTheme] = useState<"NAVY" | "BLACK" | "LIGHT" | "PAPER">(
+-    "BLACK",
+-  );
+-  const [canvasBg, setCanvasBg] = useState<
+-    "theme" | "black" | "white" | "checker"
+-  >("white");
+   const fileInputRef = React.useRef<HTMLInputElement>(null);
+   const fullscreenContainerRef = React.useRef<HTMLDivElement>(null);
+ 
+@@ -378,8 +506,14 @@ export default function App() {
+   }, [activeDatasetId]);
+ 
+   const sortedImages = useMemo(() => {
++    let filteredImages = images;
++    if (searchQuery.trim()) {
++      const q = searchQuery.toLowerCase();
++      filteredImages = images.filter(img => img.name.toLowerCase().includes(q));
++    }
++
+     if (sortField === "random") {
+-      const shuffled = [...images];
++      const shuffled = [...filteredImages];
+       for (let i = shuffled.length - 1; i > 0; i--) {
+         const j = Math.floor(Math.random() * (i + 1));
+         [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+@@ -387,7 +521,7 @@ export default function App() {
+       return shuffled;
+     }
+ 
+-    return [...images].sort((a, b) => {
++    return [...filteredImages].sort((a, b) => {
+       let comparison = 0;
+       switch (sortField) {
+         case "name":
+@@ -400,16 +534,16 @@ export default function App() {
+           comparison = a.type.localeCompare(b.type);
+           break;
+         case "date":
+-          comparison = a.lastModified - b.lastModified;
++          comparison = (a.addedAt || a.lastModified) - (b.addedAt || b.lastModified);
+           break;
+         case "custom":
+           comparison = (a.orderIndex ?? 0) - (b.orderIndex ?? 0);
+-          if (comparison === 0) comparison = a.lastModified - b.lastModified;
++          if (comparison === 0) comparison = (a.addedAt || a.lastModified) - (b.addedAt || b.lastModified);
+           break;
+       }
+-      return sortOrder === "asc" ? comparison : -comparison;
++      return sortOrders[sortField] === "asc" ? comparison : -comparison;
+     });
+-  }, [images, sortField, sortOrder, randomSeed]);
++  }, [images, sortField, sortOrders, randomSeed, searchQuery]);
+ 
+   const masonryColumns = useMemo(() => {
+     if (viewMode !== "grid-ma") return [];
+@@ -474,13 +608,11 @@ export default function App() {
+ 
+       const loaded = await Promise.all(
+         dbImages.map(async (img) => {
+-          // Use cached autoBg if available, otherwise analyze and save to DB
+           let autoBg = img.autoBg;
+           if (!autoBg) {
+             autoBg = await analyzeImageBlob(img.data);
+-            updateImageAutoBg(img.id, autoBg).catch((err) =>
+-              console.error("Failed to update autoBg cache", err)
+-            );
++            // Update the DB record in the background to cache it
++            storeImages([{ ...img, autoBg }]).catch(console.error);
+           }
+           return {
+             ...img,
+@@ -543,6 +675,7 @@ export default function App() {
+               type: f.type,
+               size: f.size,
+               lastModified: f.lastModified,
++              addedAt: Date.now(),
+               data: f,
+               autoBg,
+             };
+@@ -1563,7 +1696,31 @@ export default function App() {
+           </div>
+ 
+           <Panel
+-            title={t("04 DATA BANKS", "04 繝・・繧ｿ繝舌Φ繧ｯ")}
++            title={
++              <>
++                <span>{t("04 DATA BANKS", "04 繝・・繧ｿ繝舌Φ繧ｯ")}</span>
++                <div className="flex items-center gap-2 border border-panel-border bg-panel-bg px-2 py-1 rounded">
++                  <Search size={12} className="text-text-muted" />
++                  <input
++                    type="text"
++                    placeholder={t("SEARCH ALL...", "縺吶∋縺ｦ縺ｮ逕ｻ蜒上ｒ讀懃ｴ｢...")}
++                    value={searchQuery}
++                    onChange={(e) => {
++                      setSearchQuery(e.target.value);
++                      if (e.target.value && activeDatasetId !== "all") {
++                        setActiveDatasetId("all");
++                      }
++                    }}
++                    className="bg-transparent border-none outline-none text-text-primary w-40 text-[10px] placeholder:text-text-muted focus:ring-0"
++                  />
++                  {searchQuery && (
++                    <button onClick={() => setSearchQuery("")} className="text-text-muted hover:text-text-primary ml-1">
++                      <X size={12} />
++                    </button>
++                  )}
++                </div>
++              </>
++            }
+             contentClassName="p-0 transition-colors duration-300 relative"
+             headerRight={
+               isSelectionMode ? (
+@@ -1643,12 +1800,12 @@ export default function App() {
+                               setSortField("random");
+                               setRandomSeed((prev) => prev + 1);
+                             } else if (sortField === f) {
+-                              setSortOrder((prev) =>
+-                                prev === "asc" ? "desc" : "asc",
+-                              );
++                              setSortOrders((prev) => ({
++                                ...prev,
++                                [f]: prev[f] === "asc" ? "desc" : "asc",
++                              }));
+                             } else {
+                               setSortField(f);
+-                              setSortOrder("asc");
+                             }
+                           }}
+                           className={cn(
+@@ -1662,7 +1819,7 @@ export default function App() {
+                             <span>{f}</span>
+                             {f !== "random" && (
+                               <span className={cn("absolute left-full ml-1 flex items-center justify-center", sortField === f ? "opacity-100" : "opacity-0")}>
+-                                {sortField === f ? (sortOrder === "asc" ? "竊・ : "竊・) : "竊・}
++                                {sortField === f ? (sortOrders[f] === "asc" ? "竊・ : "竊・) : "竊・}
+                               </span>
+                             )}
+                           </span>
+@@ -1720,22 +1877,10 @@ export default function App() {
+                     const Container: any = isSortable ? ReactSortable : "div";
+                     const containerProps = isSortable ? {
+                       list: sortedImages.map(img => ({ ...img, id: img.id })),
+-                      setList: (newList: any[]) => {
+-                        // setList must update state to avoid react-sortablejs resetting the DOM on drag end
+-                        setImages((prev) => {
+-                          const copy = [...prev];
+-                          newList.forEach((item, idx) => {
+-                            const found = copy.find(c => c.id === item.id);
+-                            if (found) {
+-                              found.orderIndex = idx;
+-                            }
+-                          });
+-                          return copy;
+-                        });
+-                      },
++                      setList: () => {},
+                       onEnd: handleSortEnd,
+                       animation: 150,
+-                      disabled: sortOrder !== "asc",
++                      disabled: sortOrders[sortField] !== "asc",
+                       delay: 150,
+                       delayOnTouchOnly: true,
+                     } : {};
+@@ -2126,6 +2271,7 @@ export default function App() {
+                   key={selectedImage.id}
+                   src={selectedImage.url}
+                   style={{ x: imgX, y: imgY }}
++                  initial={{ scale: fullscreenScale, rotate: fullscreenRotation }}
+                   className={cn(
+                     "max-w-full max-h-full object-contain block",
+                     fullscreenScale > 1.0 ? "cursor-move" : "cursor-default",
+@@ -2220,6 +2366,74 @@ export default function App() {
+                 </>
+               )}
+ 
++              {/* BG Toggle Button Group */}
++              <div
++                className={cn(
++                  "absolute bottom-6 right-16 flex items-center gap-1.5 font-mono text-[9px] border px-2 py-1.5 rounded bg-black/15 backdrop-blur-sm transition-colors pointer-events-auto",
++                  isFullscreenDarkText
++                    ? "border-black/15 text-black"
++                    : "border-white/15 text-white",
++                )}
++              >
++                <span className={isFullscreenDarkText ? "text-black/60" : "text-white/60"}>BG:</span>
++                <button
++                  onClick={(e) => {
++                    e.stopPropagation();
++                    setCanvasBg("theme");
++                  }}
++                  className={cn(
++                    "px-1.5 py-0.5 rounded transition-all",
++                    canvasBg === "theme"
++                      ? (isFullscreenDarkText ? "bg-black text-white font-bold" : "bg-white text-black font-bold")
++                      : "opacity-60 hover:opacity-100"
++                  )}
++                >
++                  AUTO
++                </button>
++                <button
++                  onClick={(e) => {
++                    e.stopPropagation();
++                    setCanvasBg("white");
++                  }}
++                  className={cn(
++                    "px-1.5 py-0.5 rounded transition-all",
++                    canvasBg === "white"
++                      ? (isFullscreenDarkText ? "bg-black text-white font-bold" : "bg-white text-black font-bold")
++                      : "opacity-60 hover:opacity-100"
++                  )}
++                >
++                  WHT
++                </button>
++                <button
++                  onClick={(e) => {
++                    e.stopPropagation();
++                    setCanvasBg("black");
++                  }}
++                  className={cn(
++                    "px-1.5 py-0.5 rounded transition-all",
++                    canvasBg === "black"
++                      ? (isFullscreenDarkText ? "bg-black text-white font-bold" : "bg-white text-black font-bold")
++                      : "opacity-60 hover:opacity-100"
++                  )}
++                >
++                  BLK
++                </button>
++                <button
++                  onClick={(e) => {
++                    e.stopPropagation();
++                    setCanvasBg("checker");
++                  }}
++                  className={cn(
++                    "px-1.5 py-0.5 rounded transition-all",
++                    canvasBg === "checker"
++                      ? (isFullscreenDarkText ? "bg-black text-white font-bold" : "bg-white text-black font-bold")
++                      : "opacity-60 hover:opacity-100"
++                  )}
++                >
++                  CHK
++                </button>
++              </div>
++
+               {/* Rotate Button */}
+               <button
+                 onClick={(e) => {

@@ -7,7 +7,7 @@ import {
   Reorder,
 } from "motion/react";
 import {
-  FolderOpen,
+  FolderOpen, FolderPlus,
   LayoutGrid,
   List,
   ScatterChart,
@@ -32,9 +32,11 @@ import {
   Minus,
   RotateCw,
   RefreshCw,
+  MonitorSmartphone,
   Edit2,
   Search,
   FlipHorizontal,
+  Palette,
 } from "lucide-react";
 import {
   ImageRecord,
@@ -146,6 +148,57 @@ const formatBytes = (bytes: number) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 };
 
+
+const getFilesFromDataTransferItems = async (items: DataTransferItemList) => {
+  const files: File[] = [];
+  const queue: any[] = [];
+  const folderNames = new Set<string>();
+  
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (item.kind === 'file') {
+      const entry = item.webkitGetAsEntry?.();
+      if (entry) {
+        queue.push(entry);
+        if (entry.isDirectory) {
+          folderNames.add(entry.name);
+        }
+      } else {
+        const file = item.getAsFile();
+        if (file) files.push(file);
+      }
+    }
+  }
+  
+  while (queue.length > 0) {
+    const entry = queue.shift();
+    if (entry.isFile) {
+      const file = await new Promise<File>((resolve) => entry.file(resolve));
+      files.push(file);
+    } else if (entry.isDirectory) {
+      const dirReader = entry.createReader();
+      let allEntries: any[] = [];
+      
+      const readAll = async () => {
+        return new Promise<any[]>((resolve) => {
+          dirReader.readEntries(async (entries: any[]) => {
+            if (entries.length > 0) {
+              allEntries.push(...entries);
+              await readAll();
+            }
+            resolve(allEntries);
+          });
+        });
+      };
+      
+      await readAll();
+      queue.push(...allEntries);
+    }
+  }
+  
+  return { files, folderNames: Array.from(folderNames) };
+};
+
 export default function App() {
   const [datasets, setDatasets] = useState<DatasetRecord[]>([]);
   const [datasetCounts, setDatasetCounts] = useState<Record<string, number>>(
@@ -171,15 +224,18 @@ export default function App() {
   const [totalImagesCount, setTotalImagesCount] = useState<number>(0);
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const saved = localStorage.getItem("app_viewMode");
-    return (saved as ViewMode) || "grid-sq";
+
+  return (saved as ViewMode) || "grid-sq";
   });
   const [openAction, setOpenAction] = useState<"click" | "dblclick">(() => {
     const saved = localStorage.getItem("app_openAction");
-    return (saved as "click" | "dblclick") || "dblclick";
+
+  return (saved as "click" | "dblclick") || "dblclick";
   });
   const [appFont, setAppFont] = useState<"GOTHIC" | "MARU" | "MEIRYO" | "MONO">(() => {
     const saved = localStorage.getItem("app_font");
-    return (saved as "GOTHIC" | "MARU" | "MEIRYO" | "MONO") || "GOTHIC";
+
+  return (saved as "GOTHIC" | "MARU" | "MEIRYO" | "MONO") || "GOTHIC";
   });
 
   useEffect(() => {
@@ -190,12 +246,18 @@ export default function App() {
   const [theme, setTheme] = useState<"NAVY" | "BLACK" | "RED" | "LIGHT" | "PAPER">(
     () => {
       const saved = localStorage.getItem("app_theme");
-      return (saved as "NAVY" | "BLACK" | "RED" | "LIGHT" | "PAPER") || "BLACK";
+
+  return (saved as "NAVY" | "BLACK" | "RED" | "LIGHT" | "PAPER") || "BLACK";
     }
   );
   const [canvasBg, setCanvasBg] = useState<
     "theme" | "black" | "white" | "checker"
   >("white");
+  const cycleTheme = () => {
+    const themes: Array<"NAVY" | "BLACK" | "RED" | "LIGHT" | "PAPER"> = ["NAVY", "BLACK", "RED", "LIGHT", "PAPER"];
+    setTheme((prev) => themes[(themes.indexOf(prev) + 1) % themes.length]);
+  };
+
   const [sortField, setSortField] = useState<"name" | "size" | "type" | "date" | "custom" | "random">(
     "name",
   );
@@ -356,6 +418,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isReadingDirectory, setIsReadingDirectory] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showFullscreenUI, setShowFullscreenUI] = useState(true);
   const [fullscreenScale, setFullscreenScale] = useState(1);
   const [fullscreenRotation, setFullscreenRotation] = useState(0);
   const [fullscreenFlipX, setFullscreenFlipX] = useState(false);
@@ -370,17 +433,14 @@ export default function App() {
 
   const startSteppedScroll = (dir: "up" | "down") => {
     if (scrollIntervalRef.current || scrollTimeoutRef.current) return;
-    const scrollStep = dir === "down" ? window.innerHeight * 0.5 : -window.innerHeight * 0.5;
+    const scrollStep = dir === "down" ? 10 : -10;
     const stepScroll = () => {
       if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollBy({ top: scrollStep, behavior: "smooth" });
+        scrollContainerRef.current.scrollBy({ top: scrollStep, behavior: "auto" });
       }
     };
     stepScroll();
-    scrollTimeoutRef.current = setTimeout(() => {
-      stepScroll();
-      scrollIntervalRef.current = setInterval(stepScroll, 600);
-    }, 600);
+    scrollIntervalRef.current = setInterval(stepScroll, 16);
   };
 
   const startScroll = (dir: "up" | "down") => {
@@ -392,9 +452,7 @@ export default function App() {
       }
     };
     stepScroll();
-    scrollTimeoutRef.current = setTimeout(() => {
-      scrollIntervalRef.current = setInterval(stepScroll, 16);
-    }, 150);
+    scrollIntervalRef.current = setInterval(stepScroll, 16);
   };
 
   const stopScroll = () => {
@@ -475,11 +533,30 @@ export default function App() {
     setImgDims({ w: 0, h: 0 });
   }, [selectedImage]);
 
+
+
+  const [sidebarPosition, setSidebarPosition] = useState<"left" | "right">(
+    "left",
+  );
+  const [sidebarVisible, setSidebarVisible] = useState(true);
+    const [language, setLanguage] = useState<"EN" | "JP">("EN");
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragTarget, setDragTarget] = useState<"add" | "new" | null>(null);
+
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedImageIds, setSelectedImageIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [isAppFullscreen, setIsAppFullscreen] = useState(false);
+  const [portraitMode, setPortraitMode] = useState<"off" | "left" | "right">("off");
+  const isPortraitMode = portraitMode !== "off";
+  const [notification, setNotification] = useState<string | null>(null);
+
   // Preserve scale and rotation across image switch, and clamp x/y position to the new image bounds once loaded
   useEffect(() => {
     if (isFullscreen && imgDims.w > 0 && imgDims.h > 0) {
-      const currentCW = typeof window !== "undefined" ? window.innerWidth * 0.95 : 1000;
-      const currentCH = typeof window !== "undefined" ? window.innerHeight * 0.95 : 1000;
+      const currentCW = typeof window !== "undefined" ? (isPortraitMode ? window.innerHeight : window.innerWidth) * (isAppFullscreen ? 1 : 0.95) : 1000;
+      const currentCH = typeof window !== "undefined" ? (isPortraitMode ? window.innerWidth : window.innerHeight) * (isAppFullscreen ? 1 : 0.95) : 1000;
 
       const aspectImg = imgDims.w / imgDims.h;
       const aspectScreen = currentCW / currentCH;
@@ -521,21 +598,7 @@ export default function App() {
         transition: { duration: 0 }
       });
     }
-  }, [imgDims, isFullscreen, fullscreenScale, fullscreenRotation, imgControls, imgX, imgY]);
-
-  const [sidebarPosition, setSidebarPosition] = useState<"left" | "right">(
-    "left",
-  );
-  const [sidebarVisible, setSidebarVisible] = useState(true);
-    const [language, setLanguage] = useState<"EN" | "JP">("EN");
-  const [isDragging, setIsDragging] = useState(false);
-
-  const [isSelectionMode, setIsSelectionMode] = useState(false);
-  const [selectedImageIds, setSelectedImageIds] = useState<Set<string>>(
-    new Set(),
-  );
-  const [isAppFullscreen, setIsAppFullscreen] = useState(false);
-  const [notification, setNotification] = useState<string | null>(null);
+  }, [imgDims, isFullscreen, fullscreenScale, fullscreenRotation, imgControls, imgX, imgY, portraitMode, isAppFullscreen]);
 
   const showNotification = (msg: string) => {
     setNotification(msg);
@@ -549,7 +612,8 @@ export default function App() {
       setIsAppFullscreen(!!document.fullscreenElement);
     };
     document.addEventListener("fullscreenchange", handleFullscreenChange);
-    return () => {
+
+  return () => {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
   }, []);
@@ -570,6 +634,9 @@ export default function App() {
   const [lastSelectedIdx, setLastSelectedIdx] = useState<number | null>(null);
   const [showDeleteSelectedModal, setShowDeleteSelectedModal] = useState(false);
   const [showDeleteFullscreenModal, setShowDeleteFullscreenModal] = useState(false);
+  const [showDeleteDatasetModal, setShowDeleteDatasetModal] = useState(false);
+  const [datasetToDelete, setDatasetToDelete] = useState<string | null>(null);
+  const [overwriteFiles, setOverwriteFiles] = useState<{ files: File[], datasetId: string, forceLoad: boolean, existingMap: Map<string, ImageRecord> } | null>(null);
 
   // Custom Prompts/Modals because alert/prompt/confirm are unreliable in iframe
   const [showNewDatasetModal, setShowNewDatasetModal] = useState(false);
@@ -587,6 +654,16 @@ export default function App() {
   const [containerWidth, setContainerWidth] = useState(1000);
   const [containerHeight, setContainerHeight] = useState(800);
   
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const saved = localStorage.getItem("app_sidebarWidth");
+    return saved ? Math.max(300, parseInt(saved, 10)) : 300;
+  });
+  const [isResizingSidebar, setIsResizingSidebar] = useState(false);
+  
+  useEffect(() => {
+    localStorage.setItem("app_sidebarWidth", sidebarWidth.toString());
+  }, [sidebarWidth]);
+
   const [sidebarOrder, setSidebarOrder] = useState(() => {
     try {
       const saved = localStorage.getItem("sidebarOrder");
@@ -629,7 +706,8 @@ export default function App() {
       }
     });
     observer.observe(scatterContainerRef.current);
-    return () => observer.disconnect();
+
+  return () => observer.disconnect();
   }, []);
 
   // Apply Theme
@@ -782,6 +860,7 @@ export default function App() {
   const processFiles = async (
     fileList: FileList | File[],
     datasetId: string,
+    forceLoad: boolean = false
   ) => {
     const files: File[] = [];
     for (let i = 0; i < fileList.length; i++) {
@@ -797,14 +876,14 @@ export default function App() {
 
     try {
       const existingImages = await getImagesByDataset(datasetId);
-      const existingNames = new Set(existingImages.map((img) => img.name));
+      const existingMap = new Map<string, ImageRecord>(existingImages.map((img) => [img.name, img]));
 
       const newFiles: File[] = [];
-      let skippedCount = 0;
+      const duplicateFiles: File[] = [];
 
       for (const f of files) {
-        if (existingNames.has(f.name)) {
-          skippedCount++;
+        if (existingMap.has(f.name)) {
+          duplicateFiles.push(f);
         } else {
           newFiles.push(f);
         }
@@ -831,17 +910,13 @@ export default function App() {
 
         await storeImages(records);
         await loadDatasets();
-        if (datasetId === activeDatasetId) {
+        if (datasetId === activeDatasetId || forceLoad) {
           await loadImages(datasetId);
         }
       }
 
-      if (skippedCount > 0) {
-        showNotification(
-          language === "JP"
-            ? `${skippedCount} 件のファイルは既に存在するためスキップしました`
-            : `Skipped ${skippedCount} file(s) that already exist`
-        );
+      if (duplicateFiles.length > 0) {
+        setOverwriteFiles({ files: duplicateFiles, datasetId, forceLoad, existingMap });
       }
     } catch (e) {
       console.error(e);
@@ -990,11 +1065,78 @@ export default function App() {
     }
   };
 
-  const handleDeleteDataset = async (e: React.MouseEvent, id: string) => {
+  const handleDeleteDataset = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (!window.confirm("Are you sure you want to delete this dataset?")) return;
-    await deleteDataset(id);
+    setDatasetToDelete(id);
+    setShowDeleteDatasetModal(true);
+  };
+
+  const confirmOverwrite = async () => {
+    if (!overwriteFiles) return;
+    setIsLoading(true);
+    const data = overwriteFiles;
+    setOverwriteFiles(null);
+    try {
+      const { files, datasetId, forceLoad, existingMap } = data;
+      
+      const oldIds: string[] = [];
+      const newRecords: ImageRecord[] = [];
+
+      await Promise.all(files.map(async (f) => {
+        const oldImg = existingMap.get(f.name);
+        if (oldImg) {
+          oldIds.push(oldImg.id);
+        }
+        
+        const autoBg = await analyzeImageBlob(f);
+        newRecords.push({
+          id: `${datasetId}-${f.name}-${f.lastModified}-${f.size}`,
+          datasetId,
+          name: f.name,
+          type: f.type,
+          size: f.size,
+          lastModified: f.lastModified,
+          addedAt: oldImg?.addedAt || Date.now(),
+          orderIndex: oldImg?.orderIndex,
+          data: f,
+          autoBg,
+        });
+      }));
+
+      for (const oldId of oldIds) {
+        await deleteImage(oldId);
+      }
+
+      await storeImages(newRecords);
+      await loadDatasets();
+      if (datasetId === activeDatasetId || forceLoad) {
+        await loadImages(datasetId);
+      }
+
+      showNotification(
+        language === "JP"
+          ? `${files.length} 件のファイルを更新しました`
+          : `Updated ${files.length} file(s)`
+      );
+
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const confirmDeleteDataset = async () => {
+    if (!datasetToDelete) return;
+    setIsLoading(true);
+    await deleteDataset(datasetToDelete);
+    if (activeDatasetId === datasetToDelete) {
+      setActiveDatasetId(null);
+    }
     await loadDatasets();
+    setShowDeleteDatasetModal(false);
+    setDatasetToDelete(null);
+    setIsLoading(false);
   };
 
   const handleDeleteSelected = async () => {
@@ -1139,14 +1281,131 @@ export default function App() {
   }, [selectedImage, sortedImages]);
 
   useEffect(() => {
+    // 選択画像が変わったらスクロール (isFullscreen時も裏側でスクロールされて良い)
+    if (selectedImage && !isFullscreen) {
+      const el = document.getElementById(`image-card-${selectedImage.id}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'nearest' });
+      }
+    }
+  }, [selectedImage, isFullscreen]);
+
+  useEffect(() => {
+    const pressedKeys = new Set<string>();
+    let kbdScrollInterval: ReturnType<typeof setInterval> | null = null;
+
+    const startKbdScroll = () => {
+      if (kbdScrollInterval) return;
+      kbdScrollInterval = setInterval(() => {
+        if (!scrollContainerRef.current) return;
+        let dy = 0;
+        let dx = 0;
+        
+        // For list scrolling
+        if (!isFullscreen) {
+          if (pressedKeys.has("ArrowUp")) dy -= 15;
+          if (pressedKeys.has("ArrowDown")) dy += 15;
+        }
+
+        if (dy !== 0 || dx !== 0) {
+          scrollContainerRef.current.scrollBy({ top: dy, left: dx, behavior: "auto" });
+        }
+      }, 16);
+    };
+
+    const stopKbdScroll = () => {
+      if (kbdScrollInterval) {
+        clearInterval(kbdScrollInterval);
+        kbdScrollInterval = null;
+      }
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isFullscreen) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      
+      pressedKeys.add(e.key);
+      if (!isFullscreen && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+        e.preventDefault();
+        startKbdScroll();
+      }
+      // 共通ショートカット
+      const key = e.key;
+      const code = e.code;
+      
+      // input などの入力中は除外
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      if (key === "f" || key === "F") {
+        e.preventDefault();
+        toggleAppFullscreen();
+        return;
+      }
+      if (key === "p" || key === "P") {
+        e.preventDefault();
+        if (portraitMode === "off") setPortraitMode("left");
+        else if (portraitMode === "left") setPortraitMode("right");
+        else setPortraitMode("off");
+        return;
+      }
+      if (key === "r" || key === "R") {
+        e.preventDefault();
+        if (isFullscreen) {
+          setFullscreenRotation(r => {
+            const next = r + 90;
+            imgControls.start({ rotate: next, transition: { duration: 0.2 } });
+            return next;
+          });
+        }
+        return;
+      }
+      if (key === "h" || key === "H") {
+        e.preventDefault();
+        if (isFullscreen) {
+          setFullscreenFlipX(flip => {
+            const next = !flip;
+            imgControls.start({ rotateY: next ? 180 : 0, transition: { duration: 0.2 } });
+            return next;
+          });
+        }
+        return;
+      }
+
+      if (!isFullscreen) {
+        // 一覧画面での操作
+        if (key === "ArrowRight") {
+          e.preventDefault();
+          goToNextImage();
+        } else if (key === "ArrowLeft") {
+          e.preventDefault();
+          goToPrevImage();
+        } else if (key === "Enter") {
+          e.preventDefault();
+          if (selectedImage) {
+            setIsFullscreen(true);
+          }
+        }
+        return;
+      }
+
+      // フルスクリーン時
+      if (key === "u" || key === "U") {
+        e.preventDefault();
+        setShowFullscreenUI(prev => !prev);
+        return;
+      }
+      if (key === "Escape" || key === "Backspace") {
+        e.preventDefault();
+        setIsFullscreen(false);
+        return;
+      }
 
       const getDragBounds = () => {
         let mX = 0;
         let mY = 0;
-        const cw = window.innerWidth * (isAppFullscreen ? 1 : 0.95);
-        const ch = window.innerHeight * (isAppFullscreen ? 1 : 0.95);
+        const cw = (isPortraitMode ? window.innerHeight : window.innerWidth) * (isAppFullscreen ? 1 : 0.95);
+        const ch = (isPortraitMode ? window.innerWidth : window.innerHeight) * (isAppFullscreen ? 1 : 0.95);
         if (imgDims.w > 0 && imgDims.h > 0) {
           const aspectImg = imgDims.w / imgDims.h;
           const aspectScreen = cw / ch;
@@ -1160,38 +1419,65 @@ export default function App() {
         return { mX, mY };
       };
 
-      if (e.key === "ArrowRight") {
+      const panX = (delta: number) => {
+        if (fullscreenScale <= 1) return;
+        const { mX } = getDragBounds();
+        const newX = Math.max(-mX, Math.min(mX, imgX.get() + delta));
+        imgControls.start({ x: newX, transition: { duration: 0.05, ease: "linear" } });
+      };
+      
+      const panY = (delta: number) => {
+        if (fullscreenScale <= 1) return;
+        const { mY } = getDragBounds();
+        const newY = Math.max(-mY, Math.min(mY, imgY.get() + delta));
+        imgControls.start({ y: newY, transition: { duration: 0.05, ease: "linear" } });
+      };
+
+      let isNext = key === "ArrowRight";
+      let isPrev = key === "ArrowLeft";
+      let isPanRight = code === "Numpad6" || key === "6";
+      let isPanLeft = code === "Numpad4" || key === "4";
+      let isPanUp = key === "ArrowUp" || code === "Numpad8" || key === "8";
+      let isPanDown = key === "ArrowDown" || code === "Numpad2" || key === "2";
+
+      if (portraitMode === "left") {
+        isPanRight = key === "ArrowDown" || code === "Numpad2" || key === "2";
+        isPanLeft = key === "ArrowUp" || code === "Numpad8" || key === "8";
+        isPanUp = code === "Numpad4" || key === "4";
+        isPanDown = code === "Numpad6" || key === "6";
+      } else if (portraitMode === "right") {
+        isPanRight = key === "ArrowUp" || code === "Numpad8" || key === "8";
+        isPanLeft = key === "ArrowDown" || code === "Numpad2" || key === "2";
+        isPanUp = code === "Numpad6" || key === "6";
+        isPanDown = code === "Numpad4" || key === "4";
+      }
+
+      if (isNext) {
+        e.preventDefault();
         goToNextImage();
-      } else if (e.key === "ArrowLeft") {
+      } else if (isPrev) {
+        e.preventDefault();
         goToPrevImage();
-      } else if (e.code === "Numpad6" || e.key === "6") {
-        if (fullscreenScale > 1) {
-          e.preventDefault();
-          const { mX } = getDragBounds();
-          const newX = Math.max(imgX.get() - 20, -mX);
-          imgControls.start({ x: newX, transition: { duration: 0.05, ease: "linear" } });
-        }
-      } else if (e.code === "Numpad4" || e.key === "4") {
-        if (fullscreenScale > 1) {
-          e.preventDefault();
-          const { mX } = getDragBounds();
-          const newX = Math.min(imgX.get() + 20, mX);
-          imgControls.start({ x: newX, transition: { duration: 0.05, ease: "linear" } });
-        }
-      } else if (e.key === "ArrowUp" || e.code === "Numpad8" || e.key === "8") {
+      } else if (isPanRight) {
         e.preventDefault();
-        if (fullscreenScale > 1) {
-          const { mY } = getDragBounds();
-          const newY = Math.min(imgY.get() + 20, mY);
-          imgControls.start({ y: newY, transition: { duration: 0.05, ease: "linear" } });
-        }
-      } else if (e.key === "ArrowDown" || e.code === "Numpad2" || e.key === "2") {
+        if (portraitMode === "left") panY(20);
+        else if (portraitMode === "right") panY(-20);
+        else panX(-20);
+      } else if (isPanLeft) {
         e.preventDefault();
-        if (fullscreenScale > 1) {
-          const { mY } = getDragBounds();
-          const newY = Math.max(imgY.get() - 20, -mY);
-          imgControls.start({ y: newY, transition: { duration: 0.05, ease: "linear" } });
-        }
+        if (portraitMode === "left") panY(-20);
+        else if (portraitMode === "right") panY(20);
+        else panX(20);
+      } else if (isPanUp) {
+        e.preventDefault();
+        if (portraitMode === "left") panX(20);
+        else if (portraitMode === "right") panX(-20);
+        else panY(20);
+      } else if (isPanDown) {
+        e.preventDefault();
+        if (portraitMode === "left") panX(-20);
+        else if (portraitMode === "right") panX(20);
+        else panY(-20);
       } else if (e.key === "+" || e.code === "NumpadAdd") {
         e.preventDefault();
         setFullscreenScale((s) => {
@@ -1216,8 +1502,22 @@ export default function App() {
         imgControls.start({ x: 0, y: 0, scale: 1, transition: { duration: 0 } });
       }
     };
+    
+    const handleKeyUp = (e: KeyboardEvent) => {
+      pressedKeys.delete(e.key);
+      if (!pressedKeys.has("ArrowUp") && !pressedKeys.has("ArrowDown")) {
+        stopKbdScroll();
+      }
+    };
+    
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+
+  return () => {
+    window.removeEventListener("keydown", handleKeyDown);
+    window.removeEventListener("keyup", handleKeyUp);
+    stopKbdScroll();
+  };
   }, [
     isFullscreen,
     goToNextImage,
@@ -1229,6 +1529,7 @@ export default function App() {
     imgX,
     imgY,
     isAppFullscreen,
+    portraitMode,
   ]);
 
   const handleClear = () => {
@@ -1243,10 +1544,47 @@ export default function App() {
     setShowClearAllModal(false);
   };
 
+  const handleFilesDrop = async (e: React.DragEvent | DragEvent, forceNewDataset: boolean) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    setDragTarget(null);
+    // reset global counter by simulating drag end
+    
+    if (e.dataTransfer && e.dataTransfer.items) {
+      setIsReadingDirectory(true);
+      const { files, folderNames } = await getFilesFromDataTransferItems(e.dataTransfer.items as any);
+      setIsReadingDirectory(false);
+      
+      if (files.length === 0) return;
+      
+      let targetDatasetId = activeDatasetId;
+      
+      if (forceNewDataset || !targetDatasetId || targetDatasetId === "all") {
+        const dsName = folderNames.length > 0 ? folderNames[0] : "NEW DATASET";
+        const ds = await createDataset(dsName.toUpperCase());
+        targetDatasetId = ds.id;
+        setActiveDatasetId(ds.id);
+        await loadDatasets();
+      }
+      
+      if (targetDatasetId && targetDatasetId !== "all") {
+        await processFiles(files, targetDatasetId, forceNewDataset || !activeDatasetId || activeDatasetId === "all");
+      }
+    } else if (e.dataTransfer && e.dataTransfer.files) {
+      if (forceNewDataset || !activeDatasetId || activeDatasetId === "all") {
+         const ds = await createDataset("NEW DATASET");
+         setActiveDatasetId(ds.id);
+         await loadDatasets();
+         await processFiles(e.dataTransfer.files, ds.id, true);
+      } else {
+         await processFiles(e.dataTransfer.files, activeDatasetId);
+      }
+    }
+  };
+
   // Setup Global Drag & Drop on the window
   useEffect(() => {
-    if (!activeDatasetId || activeDatasetId === "all") return;
-
     let dragCounter = 0;
 
     const onDragEnter = (e: DragEvent) => {
@@ -1280,9 +1618,8 @@ export default function App() {
       e.stopPropagation();
       dragCounter = 0;
       setIsDragging(false);
-      if (e.dataTransfer && e.dataTransfer.files) {
-        await processFiles(e.dataTransfer.files, activeDatasetId);
-      }
+      setDragTarget(null);
+      await handleFilesDrop(e, false);
     };
 
     window.addEventListener("dragenter", onDragEnter);
@@ -1290,7 +1627,7 @@ export default function App() {
     window.addEventListener("dragover", onDragOver);
     window.addEventListener("drop", onDrop);
 
-    return () => {
+  return () => {
       window.removeEventListener("dragenter", onDragEnter);
       window.removeEventListener("dragleave", onDragLeave);
       window.removeEventListener("dragover", onDragOver);
@@ -1298,8 +1635,8 @@ export default function App() {
     };
   }, [activeDatasetId]);
 
-  const cW = typeof window !== "undefined" ? window.innerWidth * (isAppFullscreen ? 1 : 0.95) : 1000;
-  const cH = typeof window !== "undefined" ? window.innerHeight * (isAppFullscreen ? 1 : 0.95) : 1000;
+  const cW = typeof window !== "undefined" ? (isPortraitMode ? window.innerHeight : window.innerWidth) * (isAppFullscreen ? 1 : 0.95) : 1000;
+  const cH = typeof window !== "undefined" ? (isPortraitMode ? window.innerWidth : window.innerHeight) * (isAppFullscreen ? 1 : 0.95) : 1000;
   let maxDragX = 0;
   let maxDragY = 0;
 
@@ -1344,10 +1681,9 @@ export default function App() {
     isMultiSelected: boolean,
   ) => (
     <motion.div
+      id={`image-card-${img.id}`}
       key={img.id}
-      layout={
-        viewMode === "grid-sq" || viewMode === "grid-ma"
-      }
+      layout={viewMode === "grid-sq" || viewMode === "grid-ma"}
       drag={viewMode === "free"}
       dragConstraints={
         viewMode === "free" ? false : scatterContainerRef
@@ -1359,9 +1695,9 @@ export default function App() {
         zIndex: 100,
         boxShadow: "0 20px 40px rgba(0,0,0,0.6)",
       }}
-      whileHover={{
-        scale: viewMode !== "free" ? 1.01 : 1.02,
-      }}
+      whileHover={
+        viewMode === "free" ? { scale: 1.02 } : {}
+      }
       initial={
         viewMode === "free"
           ? {
@@ -1575,20 +1911,24 @@ export default function App() {
 
   return (
     <div className="h-screen w-screen flex flex-col p-4 gap-4 box-border overflow-hidden select-none">
+      
+
       {/* Drag & Drop Overlay */}
       <AnimatePresence>
-        {isDragging && activeDatasetId && (
+        {isDragging && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] bg-root-bg/80 backdrop-blur-sm border-2 border-dashed border-accent m-4 flex flex-col items-center justify-center font-mono pointer-events-none"
           >
-            <FolderOpen size={64} className="text-accent mb-4" />
+            <FolderPlus size={64} className="text-accent mb-4" />
             <h2 className="text-2xl text-text-primary tracking-widest mb-2">
-              DROP FILES HERE
+              {t("DROP TO ADD TO ACTIVE", "ドロップして現在のリストに追加")}
             </h2>
-            <p className="text-text-secondary">ADDING TO ACTIVE DATASET</p>
+            <p className="text-text-secondary">
+              {t("OR DRAG TO 'CREATE BY FOLDER' IN SIDEBAR", "新規リストとして作成する場合はサイドバーへ")}
+            </p>
           </motion.div>
         )}
       </AnimatePresence>
@@ -1623,99 +1963,62 @@ export default function App() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4 h-full">
-          <div className="flex items-center gap-2 h-full mr-2">
+        <div className="flex items-center gap-4 h-full mr-4">
+          <div className="flex items-center gap-2 h-full">
+            <span className="text-[10px] uppercase font-mono tracking-widest text-text-muted">SIZE:</span>
+            <div className="w-40 flex items-center">
+              <input type="range" min="60" max="600" value={itemScale} onChange={(e) => setItemScale(Number(e.target.value))} />
+            </div>
+            <span className="text-[10px] font-mono text-text-primary w-10 text-right">{itemScale}px</span>
+          </div>
+
+          <div className="flex items-center gap-2 h-full">
+            <span className="text-[10px] uppercase font-mono tracking-widest text-text-muted">GAP:</span>
+            <div className="w-40 flex items-center">
+              <input type="range" min="0" max="120" value={gridGap} onChange={(e) => setGridGap(Number(e.target.value))} />
+            </div>
+            <span className="text-[10px] font-mono text-text-primary w-10 text-right">{gridGap}px</span>
+          </div>
+
+          <div className="flex items-center gap-2 h-full">
             <span className="text-[10px] uppercase font-mono tracking-widest text-text-muted">
               CANVAS:
             </span>
-            <div className="flex gap-1 h-full py-1">
-              <SolidButton
-                active={canvasBg === "theme"}
-                onClick={() => setCanvasBg("theme")}
-                className="w-[42px] px-0 py-0 text-[10px]"
-              >
-                AUTO
-              </SolidButton>
-              <SolidButton
-                active={canvasBg === "black"}
-                onClick={() => setCanvasBg("black")}
-                className="w-[42px] px-0 py-0 text-[10px]"
-              >
-                BLK
-              </SolidButton>
-              <SolidButton
-                active={canvasBg === "white"}
-                onClick={() => setCanvasBg("white")}
-                className="w-[42px] px-0 py-0 text-[10px]"
-              >
-                WHT
-              </SolidButton>
-              <SolidButton
-                active={canvasBg === "checker"}
-                onClick={() => setCanvasBg("checker")}
-                className="w-[42px] px-0 py-0 text-[10px]"
-              >
-                CHK
-              </SolidButton>
+            <div className="flex gap-1 h-full py-2 items-center">
+              <SolidButton active={canvasBg === "theme"} onClick={() => setCanvasBg("theme")} className="w-10 h-6 px-0 py-0 text-[10px]">AUTO</SolidButton>
+              <SolidButton active={canvasBg === "black"} onClick={() => setCanvasBg("black")} className="w-10 h-6 px-0 py-0 text-[10px]">BLK</SolidButton>
+              <SolidButton active={canvasBg === "white"} onClick={() => setCanvasBg("white")} className="w-10 h-6 px-0 py-0 text-[10px]">WHT</SolidButton>
+              <SolidButton active={canvasBg === "checker"} onClick={() => setCanvasBg("checker")} className="w-10 h-6 px-0 py-0 text-[10px]">CHK</SolidButton>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 h-full mr-2">
-            <span className="text-[10px] uppercase font-mono tracking-widest text-text-muted">
-              THEME:
-            </span>
-            <div className="flex gap-1 h-full py-1">
-              <SolidButton
-                active={theme === "NAVY"}
-                onClick={() => setTheme("NAVY")}
-                className="w-[42px] px-0 py-0 text-[10px]"
-              >
-                NAVY
-              </SolidButton>
-              <SolidButton
-                active={theme === "BLACK"}
-                onClick={() => setTheme("BLACK")}
-                className="w-[42px] px-0 py-0 text-[10px]"
-              >
-                BLACK
-              </SolidButton>
-              <SolidButton
-                active={theme === "RED"}
-                onClick={() => setTheme("RED")}
-                className="w-[42px] px-0 py-0 text-[10px]"
-              >
-                RED
-              </SolidButton>
-              <SolidButton
-                active={theme === "LIGHT"}
-                onClick={() => setTheme("LIGHT")}
-                className="w-[42px] px-0 py-0 text-[10px]"
-              >
-                LIGHT
-              </SolidButton>
-              <SolidButton
-                active={theme === "PAPER"}
-                onClick={() => setTheme("PAPER")}
-                className="w-[42px] px-0 py-0 text-[10px]"
-              >
-                PAPER
-              </SolidButton>
-            </div>
-            <div className="w-px h-6 bg-panel-border mx-2" />
+          <div className="flex items-center gap-2 h-full">
             <span className="text-[10px] uppercase font-mono tracking-widest text-text-muted">
               FONT:
             </span>
             <select
               value={appFont}
               onChange={(e) => setAppFont(e.target.value as any)}
-              className="bg-transparent outline-none text-[10px] uppercase font-mono tracking-wider text-text-primary cursor-pointer border py-0.5 px-1 border-panel-border rounded"
+              className="bg-panel-bg outline-none text-[10px] uppercase font-mono tracking-wider text-text-primary cursor-pointer border h-6 px-2 border-panel-border rounded"
             >
-              <option value="GOTHIC" className="bg-root-bg text-text-primary">GOTHIC</option>
-              <option value="MARU" className="bg-root-bg text-text-primary">MARU</option>
-              <option value="MEIRYO" className="bg-root-bg text-text-primary">MEIRYO</option>
-              <option value="MONO" className="bg-root-bg text-text-primary">MONO</option>
+              <option value="GOTHIC">GOTHIC</option>
+              <option value="MARU">MARU</option>
+              <option value="MEIRYO">MEIRYO</option>
+              <option value="MONO">MONO</option>
             </select>
           </div>
+
+          <div className="flex items-center h-full">
+            <SolidButton
+              active={true}
+              onClick={cycleTheme}
+              className="h-6 px-3 py-0 text-[10px] flex items-center justify-start gap-2 w-32"
+            >
+              <Palette size={12} /> THEME: {theme}
+            </SolidButton>
+          </div>
+
+          <div className="w-px h-6 bg-panel-border mx-1" />
 
           <div className="flex bg-root-bg rounded border border-panel-border overflow-hidden text-[10px] font-mono leading-none h-6 hidden sm:flex">
             <button
@@ -1781,10 +2084,40 @@ export default function App() {
         {/* Left Sidebar */}
         <aside
           className={cn(
-            "flex flex-col gap-4 shrink-0 transition-all duration-300",
-            sidebarVisible ? "w-[300px]" : "w-0 overflow-hidden opacity-0",
+            "flex flex-col gap-4 shrink-0 relative",
+            !isResizingSidebar && "transition-all duration-300",
+            !sidebarVisible && "w-0 overflow-hidden opacity-0",
           )}
+          style={sidebarVisible ? { width: `${sidebarWidth}px` } : undefined}
         >
+          {sidebarVisible && (
+            <div
+              className={cn(
+                "absolute top-0 bottom-0 w-2 cursor-col-resize z-50 hover:bg-white/5 transition-colors",
+                sidebarPosition === "left" ? "-right-1" : "-left-1"
+              )}
+              onPointerDown={(e) => {
+                e.preventDefault();
+                setIsResizingSidebar(true);
+                const startX = e.clientX;
+                const startWidth = sidebarWidth;
+
+                const onPointerMove = (eMove: PointerEvent) => {
+                  const delta = sidebarPosition === "left" ? eMove.clientX - startX : startX - eMove.clientX;
+                  setSidebarWidth(Math.min(650, Math.max(300, startWidth + delta)));
+                };
+
+                const onPointerUp = () => {
+                  setIsResizingSidebar(false);
+                  window.removeEventListener("pointermove", onPointerMove);
+                  window.removeEventListener("pointerup", onPointerUp);
+                };
+
+                window.addEventListener("pointermove", onPointerMove);
+                window.addEventListener("pointerup", onPointerUp);
+              }}
+            />
+          )}
           <ReactSortable
             list={sidebarOrder}
             setList={setSidebarOrder}
@@ -1794,7 +2127,8 @@ export default function App() {
           >
             {sidebarOrder.map((section) => {
               if (section.id === "formation") {
-                return (
+
+  return (
                   <Panel
                     key="formation"
                     title={t("01 FORMATION ENGINE", "01 フォーム設定")}
@@ -1839,41 +2173,7 @@ export default function App() {
               </SolidButton>
             </div>
 
-            <div className="mt-4 pt-4 border-t border-panel-border flex flex-col gap-2">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-[10px] font-mono text-text-muted uppercase tracking-widest">
-                  IMAGE SCALE
-                </span>
-                <span className="text-[10px] font-mono text-accent">
-                  {itemScale} PX
-                </span>
-              </div>
-              <input
-                type="range"
-                min="60"
-                max="600"
-                value={itemScale}
-                onChange={(e) => setItemScale(Number(e.target.value))}
-              />
-            </div>
 
-            <div className="mt-2 flex flex-col gap-2">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-[10px] font-mono text-text-muted uppercase tracking-widest">
-                  GRID GAP
-                </span>
-                <span className="text-[10px] font-mono text-accent">
-                  {gridGap} PX
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="120"
-                value={gridGap}
-                onChange={(e) => setGridGap(Number(e.target.value))}
-              />
-            </div>
 
             <div className="mt-4 pt-4 border-t border-panel-border flex flex-col gap-2">
               <span className="text-[10px] font-mono text-text-muted uppercase tracking-widest mb-1">
@@ -1896,10 +2196,12 @@ export default function App() {
                 </SolidButton>
               </div>
             </div>
+            
                   </Panel>
                 );
               } else if (section.id === "datasets") {
-                return (
+
+  return (
                   <Panel
                     key="datasets"
                     title={t("02 DATA SETS", "02 データセット")}
@@ -1999,6 +2301,8 @@ export default function App() {
                       <Reorder.Item
                         key={ds.id}
                         value={ds}
+                        layout="position"
+                        style={{ width: "100%" }}
                         onClick={() => {
                           setActiveDatasetId(ds.id);
                           setSearchQuery("");
@@ -2111,10 +2415,55 @@ export default function App() {
                 </div>
               )}
             </div>
+            {/* DROP ZONES */}
+            <div className="shrink-0 flex gap-2 pt-2 border-t border-panel-border mt-auto">
+              {/* ADD TO ACTIVE DATASET AREA */}
+              <div
+                className={cn(
+                  "flex-1 border border-dashed flex flex-col items-center justify-center transition-all duration-300 py-3 rounded cursor-pointer",
+                  dragTarget === "add" ? "border-accent bg-accent/10" : "border-text-muted bg-panel-bg text-text-muted hover:border-text-secondary hover:text-text-secondary"
+                )}
+                onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragTarget("add"); }}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragTarget("add"); e.dataTransfer.dropEffect = "copy"; }}
+                onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setDragTarget(null); }}
+                onDrop={(e) => { 
+                   e.preventDefault(); e.stopPropagation();
+                   handleFilesDrop(e, false);
+                   setDragTarget(null);
+                }}
+              >
+                <FolderPlus size={16} className={dragTarget === "add" ? "text-accent mb-1" : "mb-1"} />
+                <span className={cn("text-[9px] tracking-widest text-center leading-tight font-mono", dragTarget === "add" ? "text-text-primary" : "")}>
+                  {t("ADD TO", "現在のリストに")}<br/>{t("ACTIVE", "追加")}
+                </span>
+              </div>
+              
+              {/* CREATE NEW DATASET AREA */}
+              <div
+                className={cn(
+                  "flex-1 border border-dashed flex flex-col items-center justify-center transition-all duration-300 py-3 rounded cursor-pointer",
+                  dragTarget === "new" ? "border-accent bg-accent/10" : "border-text-muted bg-panel-bg text-text-muted hover:border-text-secondary hover:text-text-secondary"
+                )}
+                onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragTarget("new"); }}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragTarget("new"); e.dataTransfer.dropEffect = "copy"; }}
+                onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setDragTarget(null); }}
+                onDrop={(e) => {
+                   e.preventDefault(); e.stopPropagation();
+                   handleFilesDrop(e, true);
+                   setDragTarget(null);
+                }}
+              >
+                <FolderOpen size={16} className={dragTarget === "new" ? "text-accent mb-1" : "mb-1"} />
+                <span className={cn("text-[9px] tracking-widest text-center leading-tight font-mono", dragTarget === "new" ? "text-text-primary" : "")}>
+                  {t("CREATE BY", "フォルダー名で")}<br/>{t("FOLDER", "リストを作成")}
+                </span>
+              </div>
+            </div>
                   </Panel>
                 );
               } else if (section.id === "trackInfo") {
-                return (
+
+  return (
                   <Panel
                     key="trackInfo"
                     title={t("03 TRACK INFO", "03 トラック情報")}
@@ -2472,44 +2821,11 @@ export default function App() {
                       delay: 150,
                       delayOnTouchOnly: true,
                     } : {};
-
+                    
                     return (
-                      <Container
-                        {...containerProps}
-                        className={cn(
-                          "w-full h-auto",
-                          viewMode === "grid-sq" &&
-                            "grid content-start justify-center",
-                          viewMode === "grid-ma" && "flex items-start",
-                          viewMode === "list" && "flex flex-col",
-                        )}
-                        style={{
-                          ...(viewMode === "grid-sq"
-                            ? {
-                                gridTemplateColumns: `repeat(auto-fill, minmax(${itemScale}px, 1fr))`,
-                                gap: `${gridGap}px`,
-                              }
-                            : {}),
-                          ...(viewMode === "grid-ma"
-                            ? { gap: `${gridGap}px` }
-                            : {}),
-                          ...(viewMode === "list" ? { gap: `${gridGap}px` } : {}),
-                        }}
-                      >
-                    {(() => {
-
-                    if (searchQuery.trim()) {
-                      const groupedImages: Record<string, typeof sortedImages> = {};
-                      sortedImages.forEach(img => {
-                         if (!groupedImages[img.datasetId]) {
-                            groupedImages[img.datasetId] = [];
-                         }
-                         groupedImages[img.datasetId].push(img);
-                      });
-                      
-                      return (
-                        <div className="flex flex-col w-full h-auto">
-                          <div className="sticky top-4 z-50 flex items-center justify-center pointer-events-none mb-6">
+                      <>
+                        {searchQuery.trim() && (
+                          <div className="absolute top-4 left-0 w-full z-50 flex items-center justify-center pointer-events-none mb-6">
                             <div className="bg-panel-bg/70 backdrop-blur-md border border-panel-border/50 shadow-lg rounded-full px-6 py-2.5 flex items-center gap-3">
                               <span className="font-mono text-accent uppercase tracking-widest text-xs font-bold drop-shadow-md">
                                 SEARCH RESULTS: "{searchQuery}"
@@ -2520,12 +2836,48 @@ export default function App() {
                               </span>
                             </div>
                           </div>
+                        )}
+                        <Container
+                        {...containerProps}
+                        className={cn(
+                          "w-full h-auto",
+                          !searchQuery.trim() && viewMode === "grid-sq" &&
+                            "grid content-start justify-center",
+                          !searchQuery.trim() && viewMode === "grid-ma" && "flex items-start",
+                          (!searchQuery.trim() && viewMode === "list") && "flex flex-col",
+                        )}
+                        style={{
+                          ...(!searchQuery.trim() && viewMode === "grid-sq"
+                            ? {
+                                gridTemplateColumns: `repeat(auto-fill, minmax(${itemScale}px, 1fr))`,
+                                gap: `${gridGap}px`,
+                              }
+                            : {}),
+                          ...(!searchQuery.trim() && viewMode === "grid-ma"
+                            ? { gap: `${gridGap}px` }
+                            : {}),
+                          ...(!searchQuery.trim() && viewMode === "list" ? { gap: `${gridGap}px` } : {}),
+                        }}
+                      >
+                    {(() => {
+
+                    if (searchQuery.trim() && viewMode !== "free") {
+                      const groupedImages: Record<string, typeof sortedImages> = {};
+                      sortedImages.forEach(img => {
+                         if (!groupedImages[img.datasetId]) {
+                            groupedImages[img.datasetId] = [];
+                         }
+                         groupedImages[img.datasetId].push(img);
+                      });
+
+                      return (
+                        <div className="flex flex-col w-full h-auto mt-16">
                           <div className="flex flex-col gap-8 w-full h-auto px-4 pb-8">
                           {Object.entries(groupedImages).map(([datasetId, imgs]) => {
                              const dataset = datasets.find(d => d.id === datasetId);
                              const datasetName = dataset ? dataset.name : "UNKNOWN";
-                             
-                             return (
+
+  return (
                                <div key={datasetId} className="flex flex-col gap-2">
                                  <div className="bg-panel-bg border border-panel-border px-4 py-2 font-mono text-accent text-sm tracking-widest font-bold border-l-2 border-l-accent uppercase flex items-center justify-between">
                                    <span>{datasetName}</span>
@@ -2613,6 +2965,7 @@ export default function App() {
                       });
                     })()}
                   </Container>
+                      </>
                     );
                   })()}
                   {sortedImages.length === 0 && !isLoading && (
@@ -2687,11 +3040,23 @@ export default function App() {
           >
             <motion.div
               className={cn(
-                "relative w-full h-full rounded-none overflow-hidden flex items-center justify-center bg-panel-bg transition-all duration-300",
-                isAppFullscreen
-                  ? "max-w-[100vw] max-h-[100vh] border-0 shadow-none"
-                  : "max-w-[95vw] max-h-[95vh] border border-panel-border shadow-[0_0_50px_rgba(0,0,0,0.8)]"
+                "relative rounded-none overflow-hidden flex items-center justify-center bg-panel-bg transition-all duration-300 origin-center",
+                isAppFullscreen ? "border-0 shadow-none" : "border border-panel-border shadow-[0_0_50px_rgba(0,0,0,0.8)]",
               )}
+              style={
+                isPortraitMode
+                  ? {
+                      width: isAppFullscreen ? "100vh" : "95vh",
+                      height: isAppFullscreen ? "100vw" : "95vw",
+                      transform: portraitMode === "left" ? "rotate(-90deg)" : "rotate(90deg)",
+                    }
+                  : {
+                      width: "100%",
+                      height: "100%",
+                      maxWidth: isAppFullscreen ? "100vw" : "95vw",
+                      maxHeight: isAppFullscreen ? "100vh" : "95vh",
+                    }
+              }
               onClick={(e) => e.stopPropagation()}
               onPointerDown={(e) => e.stopPropagation()}
             >
@@ -2784,6 +3149,13 @@ export default function App() {
                 />
               </div>
 
+              <AnimatePresence>
+                {showFullscreenUI && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  >
               {/* Overlay Meta */}
               <div className="absolute top-0 left-0 p-3 pointer-events-none max-w-[80%] flex flex-col gap-1">
                 <h2
@@ -3002,7 +3374,7 @@ export default function App() {
                     });
                   }}
                   className="p-1.5 hover:bg-white/20 rounded transition-colors touch-none"
-                  title="Flip Horizontal"
+                  title={t("Flip Horizontal (H)", "左右反転 (H)")}
                 >
                   <FlipHorizontal size={18} />
                 </button>
@@ -3016,37 +3388,62 @@ export default function App() {
                     });
                   }}
                   className="p-1.5 hover:bg-white/20 rounded transition-colors touch-none"
-                  title="Rotate 90°"
+                  title={t("Rotate 90° (R)", "90度回転 (R)")}
                 >
                   <RotateCw size={18} />
                 </button>
               </div>
+              {/* Portrait Mode Toggle Button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (portraitMode === "off") setPortraitMode("left");
+                  else if (portraitMode === "left") setPortraitMode("right");
+                  else setPortraitMode("off");
+                }}
+                className={cn(
+                  "absolute top-6 right-[136px] w-12 h-12 flex items-center justify-center rounded-full transition-all hover:scale-110 outline-none focus:outline-none backdrop-blur-sm border shadow-sm",
+                  isFullscreenDarkText
+                    ? "bg-white/20 border-black/10 text-black/70 hover:text-black hover:bg-white/40"
+                    : "bg-black/20 border-white/10 text-white/70 hover:text-white hover:bg-black/40",
+                  portraitMode !== "off" && (isFullscreenDarkText ? "bg-white/50 text-black border-black/20" : "bg-black/50 text-white border-white/20")
+                )}
+                title={t("Portrait Mode (P)", "ポートレート切替 (P)")}
+              >
+                <MonitorSmartphone size={24} className={cn("transition-transform duration-300", portraitMode === "left" ? "-rotate-90" : portraitMode === "right" ? "rotate-90" : "")} />
+              </button>
+
               {/* Borderless Toggle Button */}
               <button
                 onClick={(e) => { e.stopPropagation(); toggleAppFullscreen(); }}
                 className={cn(
-                  "absolute top-6 right-20 p-2 transition-colors drop-shadow-md hover:scale-110 outline-none focus:outline-none",
+                  "absolute top-6 right-[76px] w-12 h-12 flex items-center justify-center rounded-full transition-all hover:scale-110 outline-none focus:outline-none backdrop-blur-sm border shadow-sm",
                   isFullscreenDarkText
-                    ? "text-black/50 hover:text-black"
-                    : "text-white/50 hover:text-white",
+                    ? "bg-white/20 border-black/10 text-black/70 hover:text-black hover:bg-white/40"
+                    : "bg-black/20 border-white/10 text-white/70 hover:text-white hover:bg-black/40",
+                  isAppFullscreen && (isFullscreenDarkText ? "bg-white/50 text-black border-black/20" : "bg-black/50 text-white border-white/20")
                 )}
-                title="TOGGLE BORDERLESS"
+                title={t("Borderless (F)", "ボーダレス (F)")}
               >
-                {isAppFullscreen ? <Minimize size={28} /> : <Maximize size={28} />}
+                {isAppFullscreen ? <Minimize size={24} /> : <Maximize size={24} />}
               </button>
 
               {/* Close Button */}
               <button
                 onClick={() => setIsFullscreen(false)}
                 className={cn(
-                  "absolute top-6 right-6 p-2 transition-colors drop-shadow-md hover:scale-110 outline-none focus:outline-none",
+                  "absolute top-6 right-4 w-12 h-12 flex items-center justify-center rounded-full transition-all hover:scale-110 outline-none focus:outline-none backdrop-blur-sm border shadow-sm",
                   isFullscreenDarkText
-                    ? "text-black/50 hover:text-black"
-                    : "text-white/50 hover:text-white",
+                    ? "bg-white/20 border-black/10 text-black/70 hover:text-black hover:bg-white/40"
+                    : "bg-black/20 border-white/10 text-white/70 hover:text-white hover:bg-black/40"
                 )}
+                title={t("Close (Esc)", "閉じる (Esc)")}
               >
-                <X size={32} />
+                <X size={26} />
               </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           </motion.div>
         )}
@@ -3219,6 +3616,82 @@ export default function App() {
                 >
                   CONFIRM
                 </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Overwrite Confirmation Modal */}
+      <AnimatePresence>
+        {overwriteFiles && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] bg-root-bg/80 flex items-center justify-center p-8 backdrop-blur-sm"
+          >
+            <div className="bg-panel-bg border border-orange-500/50 p-6 font-mono w-[400px] shadow-[0_0_30px_rgba(249,115,22,0.2)]">
+              <h2 className="text-orange-500 mb-4 uppercase">
+                {t("UPDATE EXISTING FILES", "既存のファイルを更新")}
+              </h2>
+              <p className="text-text-primary text-xs mb-6 leading-relaxed">
+                {t(
+                  `${overwriteFiles.files.length} file(s) already exist. Do you want to overwrite and update them?`,
+                  `同じ名前の画像が ${overwriteFiles.files.length} 件あります。これらを新しい画像で上書き更新しますか？`
+                )}
+              </p>
+              <div className="flex justify-end gap-3">
+                <SolidButton
+                  onClick={() => setOverwriteFiles(null)}
+                  className="bg-transparent border-transparent text-text-secondary hover:text-text-primary shadow-none"
+                >
+                  {t("CANCEL", "キャンセル")}
+                </SolidButton>
+                <SolidButton
+                  onClick={confirmOverwrite}
+                  className="text-orange-500 hover:text-orange-400 border-orange-900/50"
+                >
+                  {t("UPDATE", "更新する")}
+                </SolidButton>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Dataset Modal */}
+      <AnimatePresence>
+        {showDeleteDatasetModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] bg-root-bg/80 flex items-center justify-center p-8 backdrop-blur-sm"
+          >
+            <div className="bg-panel-bg border border-red-500/50 p-6 font-mono w-[400px] shadow-[0_0_30px_rgba(239,68,68,0.2)]">
+              <h2 className="text-red-500 mb-4 uppercase">
+                DELETE DATASET
+              </h2>
+              <p className="text-text-primary text-xs mb-6">
+                Are you sure you want to delete this dataset? This action cannot be undone.
+              </p>
+              <div className="flex justify-end gap-3">
+                <SolidButton
+                  onClick={() => {
+                    setShowDeleteDatasetModal(false);
+                    setDatasetToDelete(null);
+                  }}
+                  className="bg-transparent border-transparent text-text-secondary hover:text-text-primary shadow-none"
+                >
+                  CANCEL
+                </SolidButton>
+                <SolidButton
+                  onClick={confirmDeleteDataset}
+                  className="text-red-500 hover:text-red-400 border-red-900/50"
+                >
+                  DELETE DATASET
+                </SolidButton>
               </div>
             </div>
           </motion.div>

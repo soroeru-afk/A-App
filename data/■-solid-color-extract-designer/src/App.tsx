@@ -15,6 +15,7 @@ import {
   Pipette,
   Maximize2,
   Minimize2,
+  X,
 } from "lucide-react";
 import {
   hsvToRgb,
@@ -323,7 +324,27 @@ export default function App() {
   const [previewFontFamily, setPreviewFontFamily] = useState("font-sans");
 
   // Stock colors state
-  const [stockColors, setStockColors] = useState<string[]>(Array(10).fill(""));
+  const [stockColors, setStockColors] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("solid_color_stock_colors");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          const filtered = parsed.filter(c => typeof c === "string" && c !== "").slice(0, 5);
+          return filtered.concat(Array(5).fill("")).slice(0, 5);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load stock colors", e);
+    }
+    return Array(5).fill("");
+  });
+
+  // Save stock colors to localStorage
+  useEffect(() => {
+    localStorage.setItem("solid_color_stock_colors", JSON.stringify(stockColors));
+  }, [stockColors]);
+
   const [isEyeDropperActive, setIsEyeDropperActive] = useState(false);
   const [pickedFlashColor, setPickedFlashColor] = useState<string | null>(null);
   
@@ -331,13 +352,91 @@ export default function App() {
   const [isCompactMode, setIsCompactMode] = useState(false);
   const [compactCopied, setCompactCopied] = useState(false);
 
+  // Save window metrics
+  const saveWindowMetrics = () => {
+    try {
+      const width = window.outerWidth || window.innerWidth || document.documentElement.clientWidth;
+      const height = window.outerHeight || window.innerHeight || document.documentElement.clientHeight;
+      const x = window.screenX !== undefined ? window.screenX : window.screenLeft;
+      const y = window.screenY !== undefined ? window.screenY : window.screenTop;
+
+      if (isCompactMode) {
+        if (width > 300 && height > 300) {
+          localStorage.setItem("solid_color_window_width_compact", String(width));
+          localStorage.setItem("solid_color_window_height_compact", String(height));
+        }
+      } else {
+        if (width > 350 && height > 350) {
+          localStorage.setItem("solid_color_window_width_full", String(width));
+          localStorage.setItem("solid_color_window_height_full", String(height));
+        }
+        localStorage.setItem("solid_color_window_x", String(x));
+        localStorage.setItem("solid_color_window_y", String(y));
+      }
+    } catch (e) {
+      console.error("Failed to save window metrics", e);
+    }
+  };
+
+  const enterCompactMode = () => {
+    saveWindowMetrics(); // Save current size before entering compact mode
+    setIsCompactMode(true);
+    try {
+      const savedW = localStorage.getItem("solid_color_window_width_compact");
+      const savedH = localStorage.getItem("solid_color_window_height_compact");
+      const w = savedW ? parseInt(savedW, 10) : 400;
+      const h = savedH ? parseInt(savedH, 10) : 550;
+      window.resizeTo(w, h);
+    } catch (e) {
+      console.error("Failed to resize to compact size", e);
+    }
+  };
+
+  const exitCompactMode = () => {
+    setIsCompactMode(false);
+    try {
+      const savedW = localStorage.getItem("solid_color_window_width_full");
+      const savedH = localStorage.getItem("solid_color_window_height_full");
+      const savedX = localStorage.getItem("solid_color_window_x");
+      const savedY = localStorage.getItem("solid_color_window_y");
+
+      const w = savedW ? parseInt(savedW, 10) : 1280;
+      let h = savedH ? parseInt(savedH, 10) : 1150;
+      if (h === 880 || h === 1050 || h === 920 || h === 1200) h = 1150; // Force update for old default
+      window.resizeTo(w, h);
+      if (savedX !== null && savedY !== null) {
+        window.moveTo(parseInt(savedX, 10), parseInt(savedY, 10));
+      }
+    } catch (e) {
+      console.error("Failed to restore window metrics", e);
+    }
+  };
+
+  // Set up window resize listener to track full screen bounds
+  useEffect(() => {
+    let debounceTimer: any;
+    const handleResize = () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(saveWindowMetrics, 200);
+    };
+
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("move", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("move", handleResize);
+      clearTimeout(debounceTimer);
+    };
+  }, [isCompactMode]);
+
   const handleStockColor = () => {
     if (!stockColors.includes(hex)) {
       setStockColors((prev) =>
         [hex, ...prev.filter((c) => c !== "")]
-          .slice(0, 10)
-          .concat(Array(10).fill(""))
-          .slice(0, 10),
+          .slice(0, 5)
+          .concat(Array(5).fill(""))
+          .slice(0, 5),
       );
     }
   };
@@ -355,13 +454,13 @@ export default function App() {
     }
   };
 
-  const handleRemoveStock = (e: React.MouseEvent, index: number) => {
+  const handleRemoveStock = (e: React.MouseEvent | React.TouchEvent, index: number) => {
     e.preventDefault();
     setStockColors((prev) => {
       const newStock = [...prev];
       newStock[index] = "";
       const filtered = newStock.filter((c) => c !== "");
-      return filtered.concat(Array(10).fill("")).slice(0, 10);
+      return filtered.concat(Array(5).fill("")).slice(0, 5);
     });
   };
 
@@ -516,7 +615,7 @@ export default function App() {
               <span>EYE DROPPER</span>
             </div>
             <button 
-              onClick={() => setIsCompactMode(false)} 
+              onClick={exitCompactMode} 
               className="text-app-text-muted hover:text-white transition-colors" 
               title="Return to Full Mode"
             >
@@ -627,7 +726,7 @@ export default function App() {
               SYS. V4
             </div>
             <button
-              onClick={() => setIsCompactMode(true)}
+              onClick={enterCompactMode}
               className="bg-app-panel border border-app-border text-app-text-muted hover:text-white px-2.5 flex items-center justify-center focus:border-app-accent transition-colors"
               title="Compact Mode"
             >
@@ -784,14 +883,30 @@ export default function App() {
                   {stockColors.map((sc, i) => (
                     <div
                       key={i}
-                      onClick={() => sc && handleApplyStock(sc)}
-                      onContextMenu={(e) => sc && handleRemoveStock(e, i)}
-                      className={`w-full h-7 border ${sc ? "cursor-pointer border-black/20 shadow-[inset_0_1px_3px_rgba(0,0,0,0.8)]" : "border-app-border border-dashed opacity-30"} transition-transform hover:scale-105`}
-                      style={{ backgroundColor: sc || "transparent" }}
-                      title={
-                        sc ? `${sc} (Right click to remove)` : "Empty Slot"
-                      }
-                    />
+                      className="relative group w-full h-7"
+                    >
+                      <div
+                        onClick={() => sc && handleApplyStock(sc)}
+                        onContextMenu={(e) => sc && handleRemoveStock(e, i)}
+                        className={`w-full h-full border ${sc ? "cursor-pointer border-black/20 shadow-[inset_0_1px_3px_rgba(0,0,0,0.8)]" : "border-app-border border-dashed opacity-30"} transition-transform group-hover:scale-105`}
+                        style={{ backgroundColor: sc || "transparent" }}
+                        title={
+                          sc ? `${sc} (Right click or click X to remove)` : "Empty Slot"
+                        }
+                      />
+                      {sc && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveStock(e, i);
+                          }}
+                          className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-black hover:bg-neutral-800 text-white rounded-full flex items-center justify-center shadow opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-10"
+                          title="Remove Color"
+                        >
+                          <X size={9} strokeWidth={3} />
+                        </button>
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>

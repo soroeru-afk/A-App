@@ -70,9 +70,8 @@ export const SolidButton = React.forwardRef<HTMLButtonElement, SolidButtonProps>
     return (
       <motion.button
         ref={ref}
-        whileTap={{ scale: 0.98, y: 1 }}
         className={cn(
-          "relative px-4 py-2 text-xs font-mono tracking-wider uppercase flex items-center justify-center gap-2 transition-colors",
+          "relative px-4 py-2 text-xs font-mono tracking-wider uppercase flex items-center justify-center gap-2",
           "border outline-none rounded-none shadow-[0_2px_4px_rgba(0,0,0,0.2)]",
           active 
             ? "bg-btn-active-bg border-btn-active-border border-b-btn-active-border-b border-r-btn-active-border-r text-btn-active-text" 

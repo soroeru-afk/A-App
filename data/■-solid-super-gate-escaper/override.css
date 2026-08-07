@@ -1,0 +1,28 @@
+
+/* Override text colors in header for mocha theme */
+.theme-mocha .h-12.bg-header-bg\/80 .text-white\/90,
+.theme-mocha .h-12.bg-header-bg\/80 .text-white {
+  color: #fdf5eb !important;
+}
+
+.theme-mocha .h-12.bg-header-bg\/80 .hover\:text-white:hover {
+  color: #ffffff !important;
+}
+
+.theme-mocha .h-12.bg-header-bg\/80 .border-white\/20 {
+  border-color: rgba(253, 245, 235, 0.2) !important;
+}
+
+.theme-mocha .h-12.bg-header-bg\/80 .hover\:bg-white\/20:hover {
+  background-color: rgba(253, 245, 235, 0.2) !important;
+}
+
+.theme-mocha .h-12.bg-header-bg\/80 .hover\:bg-white\/10:hover {
+  background-color: rgba(253, 245, 235, 0.1) !important;
+}
+
+/* Also for the sidebar header if needed */
+.theme-mocha .bg-header-bg .text-white\/90,
+.theme-mocha .bg-header-bg .text-white {
+  color: #fdf5eb !important;
+}

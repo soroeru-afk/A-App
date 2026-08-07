@@ -1,0 +1,714 @@
+import React, { useState, useEffect } from 'react';
+import { Check, Settings2, Plus, Trash2, Save, ChevronDown, ChevronUp, Edit2, RotateCcw } from 'lucide-react';
+import { Language } from '../i18n';
+
+type PresetItem = { label: string; value: string };
+type Presets = {
+  race: PresetItem[];
+  age: PresetItem[];
+  physique: PresetItem[];
+  pose: PresetItem[];
+  characteristics: PresetItem[];
+  expression: PresetItem[];
+  clothing: PresetItem[];
+  hair: PresetItem[];
+  bodyHair: PresetItem[];
+  accessories: PresetItem[];
+  angle: PresetItem[];
+  location: PresetItem[];
+  situation: PresetItem[];
+  partner: PresetItem[];
+  freeText1: PresetItem[];
+  freeText2: PresetItem[];
+};
+
+type Combination = {
+  id: string;
+  name: string;
+  selections: Record<keyof Presets, number>;
+  negativePrompt: string;
+};
+
+const DEFAULT_PRESETS: Presets = {
+  race: [
+    { label: '指定なし / None', value: '' },
+    { label: '日本人 / Japanese 🌟', value: '1japanese girl, ' },
+    { label: 'ロシア人 / Russian 🌟', value: '1russian girl, white skin, ' },
+    { label: 'イギリス人 / British', value: '1british girl, ' },
+    { label: 'アメリカ人 / American', value: '1american girl, ' },
+    { label: 'ドイツ人 / German', value: '1german girl, ' },
+    { label: '白人 / Caucasian', value: '1caucasian girl, ' },
+    { label: '黒人 / Black', value: '1dark skin girl, ' },
+    { label: 'ラテン系 / Latina', value: '1latina girl, ' }
+  ],
+  age: [
+    { label: '指定なし / None', value: '' },
+    { label: '大人の女性 / Adult 🌟', value: 'adult woman, mature female, ' },
+    { label: '熟女 / Mature 🌟', value: 'mature woman, milf, ' },
+    { label: '人妻 / MILF', value: 'milf, mature woman, ' },
+    { label: '老人 / Old Woman', value: 'old woman, aged, wrinkles, ' },
+    { label: '若い女性 / Young Woman 🌟', value: 'young woman, youth, ' },
+    { label: '10代 / Teen', value: 'teenager, teen girl, ' },
+    { label: '女子高生 / High School Girl 🌟', value: 'high school girl, school uniform, ' }
+  ],
+  physique: [
+    { label: '指定なし / None', value: '' },
+    { label: 'スリム・美しい体型 / Slender 🌟', value: 'slender body, slim, ' },
+    { label: 'ガチ重量級 / Heavyweight', value: 'heavyweight, colossal female, thick, fat, ' },
+    { label: '筋肉質 / Muscular', value: 'muscular female, abs, ' },
+    { label: 'カーヴィー(安産型) / Curvy', value: 'curvy, wide hips, thick thighs, ' },
+    { label: '小柄・貧乳 / Petite', value: 'petite, small breasts, short, ' }
+  ],
+  pose: [
+    { label: '指定なし / None', value: '' },
+    { label: '直立姿勢 / Standing', value: 'standing, ' },
+    { label: '座った姿勢 / Sitting', value: 'sitting, ' },
+    { label: '蹲踞の姿勢 / Squatting', value: 'squatting, ' },
+    { label: '両腕を上げた姿勢 / Arms Raised', value: 'arms up, hands up, ' }
+  ],
+  characteristics: [
+    { label: '指定なし / None', value: '' },
+    { label: '照れ・赤面 / Shy & Blushing', value: 'shy, blushing, ' },
+    { label: '自信満々・ドヤ顔 / Confident & Smug', value: 'confident, smug, smiling, ' },
+    { label: 'ヤンデレ / Yandere', value: 'yandere, empty eyes, dark aura, ' },
+    { label: 'ツンデレ / Tsundere', value: 'tsundere, glaring, ' },
+    { label: '眠そう / Sleepy', value: 'sleepy, rubbing eyes, ' },
+    { label: '巨乳 / Huge Breasts', value: 'huge breasts, large breasts, ' },
+    { label: '絶壁 / Flat Chest', value: 'flat chest, small breasts, ' },
+    { label: '巨尻 / Big Butt', value: 'huge butt, wide hips, ' },
+    { label: '太い腕 / Thick Arms', value: 'thick arms, ' }
+  ],
+  expression: [
+    { label: '指定なし / None', value: '' },
+    { label: '嬉しい・笑顔 / Happy & Smiling', value: 'happy, smiling, ' },
+    { label: '悲しい・涙 / Sad & Crying', value: 'sad, crying, tears, ' },
+    { label: '寂しい / Lonely', value: 'lonely, melancholic, ' },
+    { label: '怒り / Angry', value: 'angry, glaring, ' },
+    { label: '驚き / Surprised', value: 'surprised, wide eyes, ' },
+    { label: '無表情 / Emotionless', value: 'emotionless, blank stare, expressionless, ' },
+    { label: '苦悶 / Agony', value: 'agony, pained expression, ' },
+    { label: '恍惚 / Ecstasy', value: 'ecstasy, trance, ' },
+    { label: '困り / Troubled', value: 'troubled, confused, frowned eyebrows, ' },
+    { label: '口半開き / Parted Lips', value: 'parted lips, half-open mouth, ' }
+  ],
+  clothing: [
+    { label: '指定なし / None', value: '' },
+    { label: '全裸 / Nude', value: 'nude, naked, ' },
+    { label: '制服(セーラー) / School Uniform', value: 'school uniform, sailor collar, ' },
+    { label: 'メイド服 / Maid Outfit', value: 'maid outfit, apron, ' },
+    { label: 'OLスーツ / Office Lady', value: 'office lady, business suit, pencil skirt, ' },
+    { label: 'ビキニ / Bikini', value: 'bikini, swimsuit, ' },
+    { label: 'ランジェリー / Lingerie', value: 'lingerie, bra, panties, ' },
+    { label: '私服 / Casual', value: 'casual wear, t-shirt, jeans, ' }
+  ],
+  hair: [
+    { label: '指定なし / None', value: '' },
+    { label: 'ショート / Short Hair', value: 'short hair, ' },
+    { label: 'ロング / Long Hair', value: 'long hair, ' },
+    { label: 'ボブ / Bob Cut', value: 'bob cut, ' },
+    { label: 'ポニーテール / Ponytail', value: 'ponytail, ' },
+    { label: 'ツインテール / Twintails', value: 'twintails, ' },
+    { label: '束ねた髪型 / Low Chignon', value: 'low chignon hairstyle, ' },
+    { label: '寝癖・ボサボサ / Messy Hair', value: 'messy hair, bedhead, ' },
+    { label: '金髪 / Blonde', value: 'blonde hair, ' },
+    { label: '黒髪 / Black Hair', value: 'black hair, ' },
+    { label: '茶髪 / Brown Hair', value: 'brown hair, ' },
+    { label: 'ピンク髪 / Pink Hair', value: 'pink hair, ' }
+  ],
+  bodyHair: [
+    { label: '指定なし / None', value: '' },
+    { label: 'アンダーヘアあり / Pubic Hair', value: 'pubic hair, ' },
+    { label: 'アンダーヘアなし / Hairless', value: 'hairless, shaved, ' },
+    { label: '濃いアンダーヘア / Bushy Pubic Hair', value: 'bushy pubic hair, ' },
+    { label: '脇毛あり / Armpit Hair', value: 'armpit hair, ' },
+    { label: '脇毛なし / Shaved Armpits', value: 'shaved armpits, ' }
+  ],
+  accessories: [
+    { label: '指定なし / None', value: '' },
+    { label: 'メガネ / Glasses', value: 'glasses, ' },
+    { label: '首輪・チョーカー / Collar & Choker', value: 'collar, choker, ' },
+    { label: '猫耳 / Cat Ears', value: 'cat ears, ' },
+    { label: 'カチューシャ / Hairband', value: 'hairband, ' },
+    { label: 'ピアス・イヤリング / Earrings', value: 'earrings, ' },
+    { label: 'タトゥー / Tattoo', value: 'tattoo, ' },
+    { label: '液体 (汗・ミルク等) / Liquid', value: 'liquid, body fluid, sweat, semen, milk, ' }
+  ],
+  angle: [
+    { label: '指定なし / None', value: '' },
+    { label: '正面 / Front View 🌟', value: 'front view, ' },
+    { label: '右斜め前から / From Front Right', value: 'from front right, ' },
+    { label: '横顔 / Side View', value: 'side view, profile, ' },
+    { label: '斜め後ろから / From Back Oblique', value: 'from behind and side, oblique back angle, ' },
+    { label: '後ろ姿 / Back View', value: 'back view, from behind, ' },
+    { label: '見返り / Looking Back', value: 'looking back, ' },
+    { label: '俯瞰(上から) / From Above 🌟', value: 'from above, high angle, ' },
+    { label: 'アオリ(下から) / From Below', value: 'from below, low angle, ' },
+    { label: 'カウボーイショット / Cowboy Shot', value: 'cowboy shot, ' },
+    { label: '遠くから(ロング) / From a distance', value: 'from a distance, extreme long shot, wide shot, ' }
+  ],
+  location: [
+    { label: '指定なし / None', value: '' },
+    { label: 'ベッドルーム / Bedroom 🌟', value: 'bedroom, bed, ' },
+    { label: 'リビング / Living Room', value: 'living room, sofa, ' },
+    { label: 'バスルーム / Bathroom', value: 'bathroom, bathtub, ' },
+    { label: '屋外 / Outdoors 🌟', value: 'outdoors, nature, daylight, ' },
+    { label: 'ビーチ / Beach', value: 'beach, ocean, sand, ' },
+    { label: 'ホテル / Hotel Room', value: 'hotel room, ' },
+    { label: 'オフィス / Office', value: 'office, desk, ' },
+    { label: '教室 / Classroom', value: 'classroom, school desk, ' },
+    { label: 'ジム / Gym', value: 'gym, fitness equipment, ' },
+    { label: '裏路地 / Back Alley', value: 'back alley, dark street, ' },
+    { label: '公園 / Park', value: 'park, trees, grass, ' },
+    { label: '森林 / Forest', value: 'forest, nature, trees, ' }
+  ],
+  situation: [
+    { label: '指定なし / None', value: '' },
+    { label: '睡眠中 / Sleeping', value: 'sleeping, closed eyes, ' },
+    { label: '食事中 / Eating', value: 'eating, food, ' },
+    { label: '汗だく / Sweating', value: 'sweat, heavy breathing, ' },
+    { label: '泣いている / Crying', value: 'crying, tears, ' },
+    { label: '拘束・縛られ / Bound & Tied', value: 'bound, tied up, ' },
+    { label: '膝枕 / Lap Pillow', value: 'lap pillow, resting head on lap, ' },
+    { label: '添い寝 / Sleeping Together', value: 'sleeping together, sharing bed, ' },
+    { label: '合体中 / Intercourse', value: 'intercourse, sex, mating, ' },
+    { label: '後ろから合体中(バック) / Doggy Style', value: 'doggy style, back mating, male from behind, ' },
+    { label: '騎乗位 / Cowgirl', value: 'cowgirl position, riding, ' },
+    { label: '正常位 / Missionary', value: 'missionary position, on back, ' },
+    { label: '授乳的スタイル / Nursing Style', value: 'breastfeeding, nursing, breast sucking, ' }
+  ],
+  partner: [
+    { label: '指定なし / None', value: '' },
+    { label: '日本人の男 / Japanese Man', value: 'japanese man, ' },
+    { label: '日本人の老人 / Japanese Old Man', value: 'japanese old man, ' },
+    { label: 'アグバ・醜い男 / Ugly Bastard 🌟', value: 'ugly bastard, fat ugly man, ' },
+    { label: '老人 / Old Man', value: 'old man, ' },
+    { label: 'イケメン / Handsome', value: 'handsome young man, ' },
+    { label: '主観視点 / POV 🌟', value: 'pov, pov shot, ' },
+    { label: '複数人 / Multiple Men', value: 'multiple boys, gangbang, ' }
+  ],
+  freeText1: [
+    { label: '指定なし / None', value: '' }
+  ],
+  freeText2: [
+    { label: '指定なし / None', value: '' }
+  ]
+};
+
+const DEFAULT_SELECTIONS: Record<keyof Presets, number> = {
+  race: 0,
+  age: 0,
+  physique: 0,
+  pose: 0,
+  characteristics: 0,
+  expression: 0,
+  clothing: 0,
+  hair: 0,
+  bodyHair: 0,
+  accessories: 0,
+  angle: 0,
+  location: 0,
+  situation: 0,
+  partner: 0,
+  freeText1: 0,
+  freeText2: 0
+};
+
+interface AttributeMixerProps {
+  onApply: (pos: string, neg: string, target?: string) => void;
+  theme?: string;
+  lang?: Language;
+}
+
+export const AttributeMixer: React.FC<AttributeMixerProps> = ({ onApply, theme = 'default', lang = 'ja' }) => {
+  const [negativePrompt, setNegativePrompt] = useState('');
+  const [combinationName, setCombinationName] = useState('');
+  const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
+  
+  const [isSavedListOpen, setIsSavedListOpen] = useState(false);
+  const [editingCombId, setEditingCombId] = useState<string | null>(null);
+  const [editingCombName, setEditingCombName] = useState('');
+  
+  const [activeCombinationId, setActiveCombinationId] = useState<string>('');
+  
+  const [presets, setPresets] = useState<Presets>(() => {
+    const saved = localStorage.getItem('attribute_mixer_custom_presets_v6') || 
+                  localStorage.getItem('attribute_mixer_custom_presets_v5') || 
+                  localStorage.getItem('attribute_mixer_custom_presets_v4') ||
+                  localStorage.getItem('attribute_mixer_custom_presets_v3');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        const merged = { ...DEFAULT_PRESETS };
+        for (const key of Object.keys(DEFAULT_PRESETS) as (keyof Presets)[]) {
+          if (parsed[key] && Array.isArray(parsed[key])) {
+             const defaultLabels = new Set(merged[key].map(item => item.label));
+             let customItems = parsed[key].filter((item: PresetItem) => !defaultLabels.has(item.label));
+             if (key === 'partner') {
+               customItems = customItems.filter((item: PresetItem) => 
+                 !item.label.includes('顔なし男') && 
+                 !item.label.includes('オーク') &&
+                 !item.label.includes('Faceless Male') &&
+                 !item.label.includes('Orc')
+               );
+             }
+             merged[key] = [...merged[key], ...customItems];
+          }
+        }
+        return merged;
+      } catch (e) {}
+    }
+    return DEFAULT_PRESETS;
+  });
+
+  const [combinations, setCombinations] = useState<Combination[]>(() => {
+    const saved = localStorage.getItem('attribute_mixer_combinations_v1');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('attribute_mixer_custom_presets_v6', JSON.stringify(presets));
+  }, [presets]);
+
+  useEffect(() => {
+    localStorage.setItem('attribute_mixer_combinations_v1', JSON.stringify(combinations));
+  }, [combinations]);
+
+  useEffect(() => {
+    const handleImported = () => {
+      const savedPresets = localStorage.getItem('attribute_mixer_custom_presets_v6');
+      if (savedPresets) {
+        try {
+          const parsed = JSON.parse(savedPresets);
+          setPresets({ ...DEFAULT_PRESETS, ...parsed, location: parsed.location || DEFAULT_PRESETS.location });
+        } catch (e) {}
+      }
+      const savedCombos = localStorage.getItem('attribute_mixer_combinations_v1');
+      if (savedCombos) {
+        try {
+          setCombinations(JSON.parse(savedCombos));
+        } catch (e) {}
+      }
+    };
+    window.addEventListener('attributeMixerDataImported', handleImported);
+    return () => window.removeEventListener('attributeMixerDataImported', handleImported);
+  }, []);
+
+  const [selections, setSelections] = useState<Record<string, number>>(DEFAULT_SELECTIONS);
+
+  const [editModes, setEditModes] = useState<Record<string, boolean>>({});
+
+  const handleApply = () => {
+    const parts = [
+      presets.partner[selections.partner]?.value || '',
+      presets.race[selections.race]?.value || '',
+      presets.age[selections.age]?.value || '',
+      presets.physique[selections.physique]?.value || '',
+      presets.pose[selections.pose]?.value || '',
+      presets.characteristics[selections.characteristics]?.value || '',
+      presets.expression[selections.expression]?.value || '',
+      presets.clothing[selections.clothing]?.value || '',
+      presets.hair[selections.hair]?.value || '',
+      presets.bodyHair[selections.bodyHair]?.value || '',
+      presets.accessories[selections.accessories]?.value || '',
+      presets.angle[selections.angle]?.value || '',
+      presets.location[selections.location]?.value || '',
+      presets.situation[selections.situation]?.value || '',
+      presets.freeText1[selections.freeText1]?.value || '',
+      presets.freeText2[selections.freeText2]?.value || ''
+    ].filter(Boolean);
+
+    const pos = parts.join('');
+    // Remove target replacement string (third argument is empty)
+    onApply(pos, negativePrompt, '');
+  };
+
+  const handleReset = () => {
+    setSelections(DEFAULT_SELECTIONS);
+    setNegativePrompt('');
+    setCombinationName('');
+    setActiveCombinationId('');
+  };
+
+  const saveCombination = () => {
+    if (!combinationName.trim()) return;
+    const newComb: Combination = {
+      id: Date.now().toString(),
+      name: combinationName.trim(),
+      selections: { ...selections } as Record<keyof Presets, number>,
+      negativePrompt
+    };
+    setCombinations(prev => [...prev, newComb]);
+    setActiveCombinationId(newComb.id);
+    
+    setSaveSuccessMessage('新規保存しました！ (Saved!)');
+    setTimeout(() => setSaveSuccessMessage(null), 3000);
+  };
+
+  const updateActiveCombination = () => {
+    if (!activeCombinationId) return;
+    setCombinations(prev => prev.map(c => 
+      c.id === activeCombinationId 
+        ? { ...c, selections: { ...selections } as Record<keyof Presets, number>, negativePrompt }
+        : c
+    ));
+    setSaveSuccessMessage('上書き保存しました！ (Overwritten!)');
+    setTimeout(() => setSaveSuccessMessage(null), 3000);
+  };
+
+  const loadCombination = (id: string) => {
+    if (!id) return;
+    const comb = combinations.find(c => c.id === id);
+    if (comb) {
+      // Ensure defaults for any newly added keys that might not exist in saved combinations
+      const safeSelections = { ...DEFAULT_SELECTIONS, ...comb.selections };
+      setSelections(safeSelections);
+      setNegativePrompt(comb.negativePrompt || '');
+      setActiveCombinationId(id);
+      setCombinationName(comb.name);
+    }
+  };
+
+  const deleteCombination = (id: string) => {
+    setCombinations(prev => prev.filter(c => c.id !== id));
+    if (id === activeCombinationId) {
+      setActiveCombinationId('');
+      setCombinationName('');
+    }
+  };
+
+  const startEditingCombination = (id: string, currentName: string) => {
+    setEditingCombId(id);
+    setEditingCombName(currentName);
+  };
+
+  const saveEditedCombination = (id: string) => {
+    if (!editingCombName.trim()) return;
+    setCombinations(prev => prev.map(c => c.id === id ? { ...c, name: editingCombName.trim() } : c));
+    setEditingCombId(null);
+  };
+
+  const updatePresetItem = (category: keyof Presets, index: number, field: 'label' | 'value', newValue: string) => {
+    setPresets(prev => {
+      const newCategory = [...prev[category]];
+      newCategory[index] = { ...newCategory[index], [field]: newValue };
+      return { ...prev, [category]: newCategory };
+    });
+  };
+
+  const addPresetItem = (category: keyof Presets) => {
+    setPresets(prev => {
+      const newCategory = [...prev[category], { label: 'New Item', value: '' }];
+      setSelections(s => ({ ...s, [category]: newCategory.length - 1 }));
+      return { ...prev, [category]: newCategory };
+    });
+    setEditModes(prev => ({ ...prev, [category]: true }));
+  };
+
+  const removePresetItem = (category: keyof Presets, index: number) => {
+    if (index === 0) return;
+    setPresets(prev => {
+      const newCategory = [...prev[category]];
+      newCategory.splice(index, 1);
+      return { ...prev, [category]: newCategory };
+    });
+    
+    if (selections[category] === index) {
+      setSelections(prev => ({ ...prev, [category]: 0 }));
+    } else if (selections[category] > index) {
+      setSelections(prev => ({ ...prev, [category]: prev[category] - 1 }));
+    }
+  };
+
+  const renderCategory = (key: keyof Presets, label: string) => {
+    const items = presets[key] || DEFAULT_PRESETS[key] || [];
+    const currentIdx = selections[key] ?? 0;
+    const isEditing = editModes[key] || false;
+
+    return (
+      <div className="flex flex-col gap-1.5" key={key}>
+        <div className="flex items-center justify-between">
+          <label className="text-[13px] text-text-dim font-mono">{label}</label>
+          <button
+            onClick={() => setEditModes(prev => ({ ...prev, [key]: !prev[key] }))}
+            className={`w-[64px] justify-center px-2 py-0.5 rounded text-[10px] font-bold transition-colors shrink-0 flex items-center gap-1 border ${
+              isEditing 
+                ? 'bg-blue-600 hover:bg-blue-500 text-white border-blue-600' 
+                : 'bg-bg-surface hover:bg-bg-input text-text-dim border-border-main'
+            }`}
+          >
+            {isEditing ? (
+              <><Check className="w-2.5 h-2.5" /> 適用</>
+            ) : (
+              <><Settings2 className="w-2.5 h-2.5" /> 編集</>
+            )}
+          </button>
+        </div>
+        
+        {isEditing ? (
+          <div className="flex flex-col gap-2 p-2 border border-blue-500/30 rounded bg-blue-500/5">
+            {items.map((item, idx) => (
+              <div key={idx} className="flex gap-1 items-start">
+                <div className="flex flex-col gap-1 flex-1">
+                  <input 
+                    value={item.label}
+                    onChange={(e) => updatePresetItem(key, idx, 'label', e.target.value)}
+                    className="w-full bg-bg-input border border-border-main rounded px-2 py-1 text-[11px] text-text-main"
+                    placeholder="項目名 (例: Russian)"
+                    disabled={idx === 0}
+                  />
+                  {idx !== 0 && (
+                    <textarea 
+                      value={item.value}
+                      onChange={(e) => updatePresetItem(key, idx, 'value', e.target.value)}
+                      className="w-full bg-bg-surface border border-border-main rounded px-2 py-1 text-[11px] text-text-main font-mono h-[40px] resize-y min-h-[40px]"
+                      placeholder="プロンプト (例: 1russian girl, )"
+                    />
+                  )}
+                </div>
+                {idx !== 0 && (
+                  <button 
+                    onClick={() => removePresetItem(key, idx)}
+                    className="p-1.5 text-red-500 hover:bg-red-500/10 rounded shrink-0"
+                    title="削除"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            ))}
+            <button 
+              onClick={() => addPresetItem(key)}
+              className="flex items-center justify-center gap-1 w-full py-1.5 mt-1 border border-dashed border-blue-500/50 text-blue-500 hover:bg-blue-500/10 rounded text-[11px] transition-colors"
+            >
+              <Plus className="w-3 h-3" /> 新規項目を追加
+            </button>
+          </div>
+        ) : (
+          <div className="flex gap-2 items-start">
+            <select 
+              value={currentIdx} 
+              onChange={e => setSelections(prev => ({ ...prev, [key]: Number(e.target.value) }))} 
+              className="flex-1 bg-bg-input border border-border-main rounded px-2 py-1.5 text-[13px] text-text-main"
+            >
+              {items.map((o, idx) => <option key={idx} value={idx}>{o.label}</option>)}
+            </select>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="w-full flex flex-col gap-4 p-4">
+      
+      <div className="flex gap-2 pb-2 border-b border-border-main">
+        <button 
+          onClick={handleReset}
+          className="flex-1 px-3 py-2 bg-gray-500 hover:bg-gray-400 text-white rounded text-[13px] font-mono font-bold transition-colors"
+        >
+          リセット
+        </button>
+        <button 
+          onClick={handleApply}
+          className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded text-[13px] font-mono font-bold transition-colors flex items-center justify-center gap-1"
+        >
+          <Check className="w-4 h-4" /> 適用する
+        </button>
+      </div>
+
+      {/* 組み合わせ保存・ロード領域 */}
+      <div className="flex flex-col gap-2 p-3 bg-bg-surface border border-border-main rounded mb-2 relative">
+        {saveSuccessMessage && (
+          <div className="absolute -top-3 right-2 z-50 bg-green-600 text-white shadow-lg border border-green-500 px-3 py-1.5 rounded text-[12px] font-bold animate-in fade-in slide-in-from-top-2 duration-300 pointer-events-none flex items-center gap-1.5">
+            <Check className="w-3.5 h-3.5" />
+            {saveSuccessMessage}
+          </div>
+        )}
+        <label className="text-[13px] font-bold text-text-main font-mono flex items-center gap-1.5">
+          <Save className="w-4 h-4 text-blue-500" />
+          設定の保存と呼び出し
+        </label>
+        
+        <div className="flex gap-2 items-center">
+          <select 
+            onChange={(e) => {
+              loadCombination(e.target.value);
+              // Resetting select value to let it act as a command menu if needed
+              // However since value is bound to activeCombinationId, it will update anyway
+            }}
+            className="flex-1 bg-bg-input border border-border-main rounded px-2 py-1.5 text-[13px] text-text-main font-mono"
+            value={activeCombinationId || ""}
+          >
+            <option value="" disabled>保存した設定を呼び出す...</option>
+            {combinations.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          {activeCombinationId && (
+            <button
+              onClick={() => loadCombination(activeCombinationId)}
+              className="p-1.5 bg-bg-input hover:bg-border-hover border border-border-main rounded text-text-dim transition-colors shrink-0"
+              title="保存状態に戻す (Revert to saved)"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-wrap sm:flex-nowrap gap-2 mt-1">
+          <input 
+            type="text" 
+            placeholder="新しい設定の名前"
+            value={combinationName}
+            onChange={e => setCombinationName(e.target.value)}
+            className="flex-1 w-full min-w-[120px] bg-bg-input border border-border-main rounded px-2 py-1.5 text-[13px] text-text-main placeholder-text-dim font-mono"
+          />
+          {activeCombinationId ? (
+            <div className="flex gap-1 shrink-0 w-full sm:w-auto">
+              <button 
+                onClick={updateActiveCombination}
+                className="flex-1 sm:flex-none px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded text-[12px] font-bold transition-colors whitespace-nowrap"
+              >
+                上書き保存
+              </button>
+              <button 
+                onClick={saveCombination}
+                disabled={!combinationName.trim()}
+                className="flex-1 sm:flex-none px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded text-[12px] font-bold transition-colors whitespace-nowrap"
+              >
+                新規保存
+              </button>
+            </div>
+          ) : (
+            <button 
+              onClick={saveCombination}
+              disabled={!combinationName.trim()}
+              className="w-full sm:w-auto px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded text-[12px] font-bold transition-colors whitespace-nowrap shrink-0"
+            >
+              保存
+            </button>
+          )}
+        </div>
+        
+        {combinations.length > 0 && (
+          <div className="mt-2 flex flex-col gap-1 border-t border-border-main pt-2">
+            <button 
+              onClick={() => setIsSavedListOpen(!isSavedListOpen)}
+              className="flex items-center justify-between w-full text-[12px] text-text-dim hover:text-text-main py-1"
+            >
+              <span>保存済み一覧 ({combinations.length}件)</span>
+              {isSavedListOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+            
+            {isSavedListOpen && (
+              <div className="flex flex-col gap-1.5 mt-1 max-h-[220px] overflow-y-auto pr-1">
+                {combinations.map(c => (
+                  <div key={c.id} className="flex flex-col gap-1.5 bg-bg-input p-2 rounded border border-border-main">
+                    <div className="flex items-center justify-between">
+                      {editingCombId === c.id ? (
+                        <div className="flex items-center gap-1 flex-1 mr-2">
+                          <input 
+                            type="text" 
+                            value={editingCombName}
+                            onChange={(e) => setEditingCombName(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') saveEditedCombination(c.id); }}
+                            className="flex-1 bg-bg-surface border border-blue-500/50 rounded px-1.5 py-0.5 text-[12px] text-text-main font-mono"
+                            autoFocus
+                          />
+                          <button onClick={() => saveEditedCombination(c.id)} className="text-blue-500 p-1 hover:bg-blue-500/10 rounded">
+                            <Check className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-[12px] text-text-main font-bold font-mono truncate flex-1">{c.name}</span>
+                      )}
+                      
+                      <div className="flex items-center gap-1 shrink-0">
+                        {editingCombId !== c.id && (
+                          <button 
+                            onClick={() => startEditingCombination(c.id, c.name)}
+                            className="text-text-dim hover:text-text-main p-1 rounded transition-colors"
+                            title="名前を変更"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => deleteCombination(c.id)}
+                          className="text-red-500/70 hover:text-red-500 hover:bg-red-500/10 p-1 rounded transition-colors"
+                          title="削除"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <button 
+                      onClick={() => loadCombination(c.id)}
+                      className="w-full text-center py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-500 rounded text-[11px] font-bold transition-colors"
+                    >
+                      この設定を呼び出す
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-3">
+        {renderCategory('race', '人種 (Race)')}
+        {renderCategory('age', '年齢 (Age)')}
+        {renderCategory('physique', '体型 (Physique)')}
+        {renderCategory('pose', '体位・ポーズ (Pose)')}
+        {renderCategory('characteristics', '特徴・個性 (Characteristics)')}
+        {renderCategory('expression', '表情・気持ち (Expression)')}
+        {renderCategory('clothing', '衣類・コスチューム (Clothing)')}
+        {renderCategory('hair', 'ヘア・髪型 (Hair)')}
+        {renderCategory('bodyHair', 'アンダーヘア・脇毛 (Body Hair)')}
+        {renderCategory('accessories', 'アクセサリー (Accessories)')}
+        {renderCategory('angle', 'アングル (Angle)')}
+        {renderCategory('location', '場所・背景 (Location)')}
+        {renderCategory('situation', 'シチュエーション・状況 (Situation)')}
+        {renderCategory('freeText1', '自由・フリー設定 1 (Free Text 1)')}
+        {renderCategory('freeText2', '自由・フリー設定 2 (Free Text 2)')}
+      </div>
+      
+      <div className="flex flex-col gap-2 pt-2 border-t border-border-main mt-2">
+        {renderCategory('partner', '男 (Partner)')}
+      </div>
+
+      <div className="flex flex-col gap-1.5 pt-2 border-t border-border-main mt-2">
+        <label className="text-[13px] font-bold text-text-main font-mono">⛔ ネガティブプロンプト (Negative Prompt)</label>
+        <textarea 
+          value={negativePrompt}
+          onChange={e => setNegativePrompt(e.target.value)}
+          placeholder="ネガティブプロンプトを追加..."
+          className="w-full bg-bg-input border border-border-main rounded px-2 py-1.5 text-[13px] text-text-main font-mono min-h-[60px] resize-y"
+        />
+      </div>
+
+      <div className="flex gap-2 pt-2 mt-2 border-t border-border-main">
+        <button 
+          onClick={handleReset}
+          className="flex-1 px-3 py-2 bg-gray-500 hover:bg-gray-400 text-white rounded text-[13px] font-mono font-bold transition-colors"
+        >
+          リセット
+        </button>
+        <button 
+          onClick={handleApply}
+          className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded text-[13px] font-mono font-bold transition-colors flex items-center justify-center gap-1"
+        >
+          <Check className="w-4 h-4" /> 適用する
+        </button>
+      </div>
+    </div>
+  );
+};
+

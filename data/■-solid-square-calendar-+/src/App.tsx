@@ -19,12 +19,23 @@ import {
   ChevronDown,
   PanelLeftClose,
   PanelLeft,
+  Palette,
+  Maximize,
+  Minimize,
 } from "lucide-react";
 
 const FONT_OPTIONS = [
   { label: "DEFAULT SANS", value: "ui-sans-serif, system-ui, sans-serif" },
   { label: "DEFAULT MONO", value: "ui-monospace, SFMono-Regular, monospace" },
   { label: "DEFAULT SERIF", value: "ui-serif, Georgia, serif" },
+  { label: "MEIRYO", value: '"Meiryo", "メイリオ", sans-serif' },
+  { label: "IMPACT", value: 'Impact, Charcoal, sans-serif' },
+  { label: "ARIAL BLACK", value: '"Arial Black", Gadget, sans-serif' },
+  {
+    label: "NOTO SANS JP BLACK",
+    value: '"Noto Sans JP", sans-serif',
+    family: "Noto+Sans+JP:wght@900",
+  },
   {
     label: "DELA GOTHIC ONE",
     value: '"Dela Gothic One", sans-serif',
@@ -115,7 +126,7 @@ export default function App() {
     "ui-sans-serif, system-ui, sans-serif",
   );
   const [editorTextSize, setEditorTextSize] = useState<number>(20);
-  const [editorMaxWidth, setEditorMaxWidth] = useState<number>(760);
+  const [editorMaxWidth, setEditorMaxWidth] = useState<number>(960);
   const [editorLineHeight, setEditorLineHeight] = useState<number>(1.75);
   const [showLogTitlesSquare, setShowLogTitlesSquare] =
     useState<boolean>(false);
@@ -144,7 +155,7 @@ export default function App() {
       const savedSettings = localStorage.getItem("solid-square-settings");
       if (savedSettings) {
         const parsed = JSON.parse(savedSettings);
-        if (parsed.theme) setTheme(parsed.theme === "ROSE" ? "RED" : parsed.theme);
+        if (parsed.theme) setTheme(parsed.theme);
         if (parsed.textSize) setTextSize(parsed.textSize);
         if (parsed.previewWidth) setPreviewWidth(parsed.previewWidth);
         if (parsed.previewHeight) setPreviewHeight(parsed.previewHeight);
@@ -428,23 +439,13 @@ export default function App() {
         let extractedTitle = "UNTITLED";
         const contentToSearch = newContent.trim();
         if (contentToSearch) {
-          const lines = contentToSearch.split("\n").map(l => l.trim()).filter(Boolean);
-          if (lines.length > 0) {
-            const firstLine = lines[0];
-            const isEmojiOrSymbolOnly = /^[^\w\s\u4e00-\u9faf\u3040-\u309f\u30a0-\u30ff\uff66-\uff9f]{1,4}$/u.test(firstLine);
-            if (isEmojiOrSymbolOnly && lines.length > 1) {
-              const secondLine = lines[1];
-              const match = secondLine.match(/^[^。！？.!?]*(?:[。！？]|[.!?](?:\s|$))?/);
-              const secondLineFirstSentence = match ? match[0].trim() : secondLine;
-              extractedTitle = `${firstLine} ${secondLineFirstSentence}`;
-            } else {
-              const match = firstLine.match(/^[^。！？.!?]*(?:[。！？]|[.!?](?:\s|$))?/);
-              if (match && match[0].trim()) {
-                extractedTitle = match[0].trim();
-              } else {
-                extractedTitle = firstLine;
-              }
-            }
+          const match = contentToSearch.match(
+            /^[\s\S]*?(?:[。！？\n]|[.!?](?:\s|$))/,
+          );
+          if (match) {
+            extractedTitle = match[0].trim();
+          } else {
+            extractedTitle = contentToSearch.trim();
           }
         }
 
@@ -582,7 +583,7 @@ export default function App() {
     sliderBorder = "#cbd5e1";
     sliderTrack = "#e2e8f0";
     sliderThumb = "#64748b";
-  } else if (theme === "RED") {
+  } else if (theme === "ROSE") {
     sliderBorder = "#4f1818";
     sliderTrack = "#260909";
     sliderThumb = "#b85454";
@@ -590,6 +591,10 @@ export default function App() {
     sliderBorder = "#3f3f46";
     sliderTrack = "#18181b";
     sliderThumb = "#a1a1aa";
+  } else if (theme === "JAPAN") {
+    sliderBorder = "#cbd5e1";
+    sliderTrack = "#e2e8f0";
+    sliderThumb = "#000000";
   } else {
     sliderBorder = "#334155";
     sliderTrack = "#1e293b";
@@ -611,6 +616,8 @@ export default function App() {
       setShowLogTitlesList(val);
     }
   };
+
+  const controlTextClass = (theme === "LIGHT" || theme === "JAPAN") ? "text-slate-500" : colors.textMain;
 
   return (
     <div
@@ -634,21 +641,77 @@ export default function App() {
             )}
           </button>
           <h1
-            className={`text-xs font-bold tracking-[0.2em] ${colors.textMain}`}
+            className={`text-xs font-bold tracking-[0.2em] ${controlTextClass}`}
           >
             SOLID SQUARE CALENDAR
           </h1>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div
-            className={`${colors.textSub} text-[10px] uppercase font-bold tracking-widest hidden md:block`}
+        <div className="flex items-center gap-2 md:gap-4">
+          <button
+            onClick={() => {
+              if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+              } else {
+                document.exitFullscreen().catch(() => {});
+              }
+            }}
+            className={`w-6 h-6 flex items-center justify-center border ${colors.border} ${colors.textSub} ${colors.accentBgHover} transition-colors`}
           >
-            v1.2.0
+            {document.fullscreenElement ? <Minimize size={12} /> : <Maximize size={12} />}
+          </button>
+
+          <div className={`hidden md:flex items-center gap-2 border ${colors.border} px-2 h-6`}>
+             <span className={`text-[10px] font-bold ${controlTextClass} tracking-widest`}>SIZE</span>
+             <div className="w-20 h-full flex items-center">
+               <input
+                 type="range"
+                 min="12"
+                 max="140"
+                 value={dateSize}
+                 onChange={(e) => setDateSize(Number(e.target.value))}
+                 className="square-slider !h-5 !border-none"
+                 style={{ ...sliderStyle, padding: "0 2px" }}
+               />
+             </div>
+             <span className={`text-[10px] font-bold ${controlTextClass} tracking-widest min-w-[32px] text-right`}>{dateSize}PX</span>
+          </div>
+
+          <div className={`hidden md:flex relative items-center h-6 border ${colors.border} pl-2 pr-1 w-32`}>
+            <select
+              value={dateFont}
+              onChange={(e) => setDateFont(e.target.value)}
+              className={`text-[10px] w-full font-bold ${controlTextClass} tracking-widest bg-transparent appearance-none outline-none pr-4 cursor-pointer truncate`}
+            >
+              {FONT_OPTIONS.map((f) => (
+                <option key={f.label} value={f.value} className="bg-slate-900 text-slate-100">
+                  {f.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={10} className={`absolute right-1 ${colors.textSub} pointer-events-none`} />
+          </div>
+
+          <button
+            onClick={() => {
+              const themes: Theme[] = ["LIGHT", "NAVY", "MONOTONE", "ROSE", "JAPAN"];
+              const idx = themes.indexOf(theme as Theme);
+              setTheme(themes[(idx + 1) % themes.length]);
+            }}
+            className={`hidden md:flex items-center justify-center gap-2 h-6 border ${colors.border} px-2 ${controlTextClass} ${colors.accentBgHover} transition-colors text-[10px] font-bold tracking-widest uppercase w-32`}
+          >
+            <Palette size={12} className={`shrink-0 ${colors.textSub}`} />
+            <span className="w-full text-left truncate">THEME: {theme}</span>
+          </button>
+
+          <div
+            className={`${colors.textSub} text-[10px] uppercase font-bold tracking-widest hidden md:block ml-1`}
+          >
+            v1.2.0 OS
           </div>
           <button
             onClick={() => setIsThemeMenuOpen(!isThemeMenuOpen)}
-            className={`w-8 h-8 flex items-center justify-center border ${isThemeMenuOpen ? colors.activeBg : colors.border} ${isThemeMenuOpen ? colors.activeText : colors.textSub} ${colors.accentBgHover} transition-colors`}
+            className={`w-8 h-8 flex items-center justify-center border ${isThemeMenuOpen ? colors.activeBg : colors.border} ${isThemeMenuOpen ? colors.activeText : colors.textSub} ${colors.accentBgHover} transition-colors ml-1`}
           >
             <Settings2 size={16} />
           </button>
@@ -702,13 +765,19 @@ export default function App() {
                       onClick={() => setTheme("MONOTONE")}
                       className={`flex-1 py-1 text-xs font-bold font-mono tracking-widest ${theme === "MONOTONE" ? `${colors.activeBg} ${colors.activeText} shadow-sm` : colors.textSub}`}
                     >
-                      BLACK
+                      MONO
                     </button>
                     <button
-                      onClick={() => setTheme("RED")}
-                      className={`flex-1 py-1 text-xs font-bold font-mono tracking-widest ${theme === "RED" ? `${colors.activeBg} ${colors.activeText} shadow-sm` : colors.textSub}`}
+                      onClick={() => setTheme("ROSE")}
+                      className={`flex-1 py-1 text-xs font-bold font-mono tracking-widest ${theme === "ROSE" ? `${colors.activeBg} ${colors.activeText} shadow-sm` : colors.textSub}`}
                     >
                       RED
+                    </button>
+                    <button
+                      onClick={() => setTheme("JAPAN")}
+                      className={`flex-1 py-1 text-xs font-bold font-mono tracking-widest ${theme === "JAPAN" ? `${colors.activeBg} ${colors.activeText} shadow-sm` : colors.textSub}`}
+                    >
+                      JAPAN
                     </button>
                   </div>
                 </div>
@@ -960,18 +1029,6 @@ export default function App() {
                         className="bg-slate-900 text-slate-100 py-1"
                       >
                         Haruka (JP)
-                      </option>
-                      <option
-                        value="Keita"
-                        className="bg-slate-900 text-slate-100 py-1"
-                      >
-                        Keita (JP)
-                      </option>
-                      <option
-                        value="Nanami"
-                        className="bg-slate-900 text-slate-100 py-1"
-                      >
-                        Nanami (JP)
                       </option>
                     </select>
                     <ChevronDown

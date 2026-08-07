@@ -1,0 +1,30 @@
+﻿diff --git "a/c:\\Users\\soroe\\A-App\\SOLID-DESKTOP-IMAGE-VIEWER\\src\\App.tsx" "b/c:\\Users\\soroe\\A-App\\data\\\342\226\240-solid-desktop-image-viewer\\src\\App.tsx"
+index d45221c..dedbe81 100644
+--- "a/c:\\Users\\soroe\\A-App\\SOLID-DESKTOP-IMAGE-VIEWER\\src\\App.tsx"
++++ "b/c:\\Users\\soroe\\A-App\\data\\\342\226\240-solid-desktop-image-viewer\\src\\App.tsx"
+@@ -209,11 +209,7 @@ export default function App() {
+     if (activeDatasetId) {
+       const savedScales = localStorage.getItem(`app_scales_${activeDatasetId}`);
+       if (savedScales) {
+-        try {
+-          setScales(JSON.parse(savedScales));
+-        } catch (e) {
+-          console.error("Failed to parse saved scales:", e);
+-        }
++        setScales(JSON.parse(savedScales));
+       } else {
+         setScales({
+           "grid-sq": 140,
+@@ -225,11 +221,7 @@ export default function App() {
+ 
+       const savedGaps = localStorage.getItem(`app_gaps_${activeDatasetId}`);
+       if (savedGaps) {
+-        try {
+-          setGaps(JSON.parse(savedGaps));
+-        } catch (e) {
+-          console.error("Failed to parse saved gaps:", e);
+-        }
++        setGaps(JSON.parse(savedGaps));
+       } else {
+         setGaps({
+           "grid-sq": 24,

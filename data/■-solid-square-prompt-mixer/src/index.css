@@ -1,0 +1,154 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg-base: var(--bg-base);
+  --color-bg-panel: var(--bg-panel);
+  --color-bg-input: var(--bg-input);
+  --color-bg-surface: var(--bg-surface);
+  --color-border-main: var(--border-main);
+  --color-border-hover: var(--border-hover);
+  --color-text-main: var(--text-main);
+  --color-text-dim: var(--text-dim);
+  --color-accent-main: var(--accent-main);
+  --color-accent-dim: var(--accent-dim);
+}
+
+:root, .theme-dark {
+  --bg-base: #0A0A0B;
+  --bg-panel: #111215;
+  --bg-input: #151619;
+  --bg-surface: #1E1F23;
+  --border-main: #2A2B2F;
+  --border-hover: #404040;
+  --text-main: #FFFFFF;
+  --text-dim: #888888;
+  --accent-main: #3B82F6;
+  --accent-dim: rgba(59, 130, 246, 0.3);
+  --thumb-bg: #4b5563;
+}
+
+.theme-black {
+  --bg-base: #000000;
+  --bg-panel: #050505;
+  --bg-input: #0a0a0a;
+  --bg-surface: #121212;
+  --border-main: #1f1f1f;
+  --border-hover: #333333;
+  --text-main: #ffffff;
+  --text-dim: #737373;
+  --accent-main: #333333;
+  --accent-dim: rgba(255, 255, 255, 0.1);
+  --thumb-bg: #525252;
+}
+
+.theme-red {
+  --bg-base: #140505;
+  --bg-panel: #1c0a0a;
+  --bg-input: #240a0a;
+  --bg-surface: #361010;
+  --border-main: #4a1515;
+  --border-hover: #6b1f1f;
+  --text-main: #ffe5e5;
+  --text-dim: #fca5a5;
+  --accent-main: #ef4444;
+  --accent-dim: rgba(239, 68, 68, 0.3);
+  --thumb-bg: #ef4444;
+}
+
+.theme-light {
+  --bg-base: #f9fafb;
+  --bg-panel: #e5e7eb;
+  --bg-input: #ffffff;
+  --bg-surface: #ffffff;
+  --border-main: #9ca3af;
+  --border-hover: #4b5563;
+  --text-main: #111827;
+  --text-dim: #374151;
+  --accent-main: #2563eb;
+  --accent-dim: rgba(37, 99, 235, 0.2);
+  --thumb-bg: #4b5563;
+}
+
+
+.theme-mono {
+  --bg-base: #ffffff;
+  --bg-panel: #f3f4f6;
+  --bg-input: #ffffff;
+  --bg-surface: #e5e7eb;
+  --border-main: #000000;
+  --border-hover: #000000;
+  --text-main: #000000;
+  --text-dim: #333333;
+  --accent-main: #000000;
+  --accent-dim: rgba(0, 0, 0, 0.1);
+  --thumb-bg: #000000;
+}
+
+.theme-navy {
+  --bg-base: #060913;
+  --bg-panel: #0d1222;
+  --bg-input: #12192b;
+  --bg-surface: #182138;
+  --border-main: #283554;
+  --border-hover: #3d5282;
+  --text-main: #f1f5f9;
+  --text-dim: #94a3b8;
+  --accent-main: #3b82f6;
+  --accent-dim: rgba(59, 130, 246, 0.3);
+  --thumb-bg: #4b5563;
+}
+
+body {
+  @apply bg-bg-base text-text-main font-mono antialiased overflow-hidden;
+}
+
+/* Custom Scrollbar for DAW feel */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-base);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-main);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-hover);
+}
+
+/* Custom Slider */
+input[type=range].custom-slider {
+  -webkit-appearance: none;
+  background: transparent;
+  height: 24px;
+}
+input[type=range].custom-slider:focus {
+  outline: none;
+}
+input[type=range].custom-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 16px;
+  width: 10px;
+  border-radius: 2px;
+  background: var(--thumb-bg);
+  cursor: pointer;
+  margin-top: -7px;
+  box-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+  border: 1px solid var(--border-hover);
+}
+input[type=range].custom-slider::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 3px;
+  cursor: pointer;
+  background: var(--border-main);
+  border-radius: 1px;
+}
+
+.badge-count {
+  background-color: rgba(100, 116, 139, 0.8);
+}
+.theme-mono .badge-count {
+  background-color: #000000;
+}

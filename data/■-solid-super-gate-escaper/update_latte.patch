@@ -1,0 +1,21 @@
+--- src/index.css
++++ src/index.css
+@@ -75,12 +75,12 @@
+   --color-slate-900: #F2E8DC; /* Slightly lighter for cards */
+   --color-slate-800: #d4c5b0;
+-  --color-slate-700: #b5a086;
++  --color-slate-700: #b5a086; 
+   --color-slate-600: #9E8668; 
+-  --color-slate-500: #8c765c;
+-  --color-slate-400: #7A6652; /* Shifted the darkest colors to be lighter/softer */
+-  --color-slate-300: #66523d;
+-  --color-slate-200: #52402e; /* Soft dark brown for text */
+-  --color-white: #4a3a29; /* Text color inverse */
++  --color-slate-500: #66523d; /* Shifted to be darker for better contrast */
++  --color-slate-400: #52402e; 
++  --color-slate-300: #4a3a29;
++  --color-slate-200: #33261a; 
++  --color-white: #22180e; /* Text color inverse */
+   --color-black: #F5F0E6; /* Text color for accent buttons */
+   
+   --color-header-bg: #9E8668; /* Requested header color */

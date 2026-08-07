@@ -4,17 +4,17 @@ import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User 
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
 const THEMES = {
-  dark: {
-    bg: "#121722",
-    panel: "#191f2c",
-    surface: "#212a38",
-    surface2: "#1b2432",
-    text: "#e8edf7",
-    muted: "#8f98aa",
-    accent: "#8ea3c7",
-    controlAccent: "#8ea3c7",
-    border: "#303b4c",
-    borderStrong: "#435167"
+  navy: {
+    bg: "#0a0f18",
+    panel: "#0f1623",
+    surface: "#172132",
+    surface2: "#121a28",
+    text: "#c4d1e6",
+    muted: "#7887a3",
+    accent: "#6c93d6",
+    controlAccent: "#6c93d6",
+    border: "#253147",
+    borderStrong: "#354561"
   },
   light: {
     bg: "#eceff3",
@@ -30,9 +30,9 @@ const THEMES = {
   },
   black: {
     bg: "#121212",
-    panel: "#1b1b1b",
-    surface: "#232323",
-    surface2: "#1f1f1f",
+    panel: "#141414",
+    surface: "#161616",
+    surface2: "#121212",
     text: "#ececec",
     muted: "#9b9b9b",
     accent: "#8a8f99",
@@ -158,7 +158,7 @@ export default function App() {
   const [lineHeight, setLineHeight] = useState("1.6");
   const [fontFamily, setFontFamily] = useState("Meiryo, sans-serif");
   
-  const [activeTheme, setActiveTheme] = useState<keyof typeof THEMES>("dark");
+  const [activeTheme, setActiveTheme] = useState<keyof typeof THEMES>("navy");
   const [paperModeEnabled, setPaperModeEnabled] = useState(false);
   const [isHtmlMode, setIsHtmlMode] = useState(false);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
@@ -266,7 +266,7 @@ export default function App() {
         setFontWeight(loaded.fontWeight || "400");
         setLineHeight(loaded.lineHeight || "1.6");
         setFontFamily(loaded.fontFamily || "Meiryo, sans-serif");
-        setActiveTheme(loaded.theme || "dark");
+        setActiveTheme(loaded.theme || "navy");
         setPaperModeEnabled(Boolean(loaded.paperMode));
         setIsVertical(Boolean(loaded.isVertical));
         
@@ -314,7 +314,7 @@ export default function App() {
     root.setAttribute("data-theme", activeTheme);
     root.setAttribute("data-paper-mode", paperModeEnabled ? "true" : "false");
     
-    const t = THEMES[activeTheme] || THEMES.dark;
+    const t = THEMES[activeTheme] || THEMES.navy;
     root.style.setProperty("--bg", t.bg);
     root.style.setProperty("--panel", t.panel);
     root.style.setProperty("--surface", t.surface);
@@ -1160,7 +1160,7 @@ export default function App() {
             <label>05 THEME BANK</label>
           </div>
           <div className="theme-buttons">
-            <button className="theme-btn" aria-pressed={activeTheme === "dark"} onClick={() => {setActiveTheme("dark"); setStatusText("THEME CHANGED: DARK");}}>Dark</button>
+            <button className="theme-btn" aria-pressed={activeTheme === "navy"} onClick={() => {setActiveTheme("navy"); setStatusText("THEME CHANGED: NAVY");}}>Navy</button>
             <button className="theme-btn" aria-pressed={activeTheme === "light"} onClick={() => {setActiveTheme("light"); setStatusText("THEME CHANGED: LIGHT");}}>Light</button>
             <button className="theme-btn" aria-pressed={activeTheme === "black"} onClick={() => {setActiveTheme("black"); setStatusText("THEME CHANGED: BLACK");}}>Black</button>
             <button className="theme-btn" aria-pressed={activeTheme === "gray"} onClick={() => {setActiveTheme("gray"); setStatusText("THEME CHANGED: GRAY");}}>Gray</button>
