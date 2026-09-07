@@ -7,7 +7,7 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
 export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
   return {
-    base: './', // Use relative path for single file
+    base: './',
     plugins: [react(), tailwindcss(), viteSingleFile()],
     define: {
       'process.env': {},
