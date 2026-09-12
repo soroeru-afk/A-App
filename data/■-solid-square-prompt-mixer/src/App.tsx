@@ -8,12 +8,12 @@ import { SavePartModal } from './components/SavePartModal';
 import { SaveMasterModal } from './components/SaveMasterModal';
 import { SaveMixerModal } from './components/SaveMixerModal';
 import { Toast } from './components/Toast';
-import { ImportModal } from './components/ImportModal';
 import { initialData } from './data';
 import { AppData, MasterPrompt, VariationPart } from './types';
 import { Language, t, translations } from './i18n';
-import { ArrowLeftRight, Undo2, Redo2, ChevronLeft, ChevronRight, Check, Maximize, Minimize } from 'lucide-react';
+import { ArrowLeftRight, Undo2, Redo2, ChevronLeft, ChevronRight, Check, Maximize, Minimize, Layers, FileText, Bookmark, HardDrive, ChevronDown, ChevronUp } from 'lucide-react';
 import { getFileHandle, setFileHandle, clearFileHandle } from './idb';
+import { calculateCursorPos } from './utils/cursorUtils';
 
 const STORAGE_KEY = 'prompt_console_data';
 
@@ -122,7 +122,7 @@ export default function App() {
   const [activeMasterTab, setActiveMasterTab] = useState<'master' | 'negative'>(() => {
     return (localStorage.getItem('ui_active_master_tab') as any) || 'master';
   });
-  const [activeVariationTab, setActiveVariationTab] = useState<'parts' | 'memo'>(() => {
+  const [activeVariationTab, setActiveVariationTab] = useState<'parts' | 'mixer'>(() => {
     return (localStorage.getItem('ui_active_variation_tab') as any) || 'parts';
   });
   const [selectedMemoId, setSelectedMemoId] = useState<string | null>(null);
@@ -131,10 +131,6 @@ export default function App() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved) as AppData;
-        if (!parsed.parts.some(p => p.section === 2)) {
-          const newPoses = initialData.parts.filter(p => p.section === 2);
-          parsed.parts = [...parsed.parts, ...newPoses];
-        }
         return parsed;
       } catch (e) {
         console.error('Failed to parse saved data', e);
@@ -234,8 +230,7 @@ export default function App() {
         { id: 'camera', label: 'カメラ・アングル (Camera/Angle)' }
       ];
       
-      if (isEvent) {
-        const saved = localStorage.getItem('attribute_mixer_categories_v2') || localStorage.getItem('attribute_mixer_categories_v1') || localStorage.getItem('attribute_mixer_categories');
+      const saved = localStorage.getItem('attribute_mixer_categories_v2') || localStorage.getItem('attribute_mixer_categories_v1') || localStorage.getItem('attribute_mixer_categories');
         if (saved) {
           try { 
             const parsed = JSON.parse(saved); 
@@ -246,7 +241,6 @@ export default function App() {
             }
           } catch(e) {}
         }
-      }
       
       setMixerCategories(finalCats);
     };
@@ -254,9 +248,11 @@ export default function App() {
     const handleCatsUpdate = () => loadCats(true);
     window.addEventListener('attributeMixerDataImported', handleCatsUpdate);
     window.addEventListener('mixer_presets_updated', handleCatsUpdate);
+    window.addEventListener('mixer_categories_updated', handleCatsUpdate);
     return () => {
       window.removeEventListener('attributeMixerDataImported', handleCatsUpdate);
       window.removeEventListener('mixer_presets_updated', handleCatsUpdate);
+      window.removeEventListener('mixer_categories_updated', handleCatsUpdate);
     }
   }, []);
 
@@ -282,13 +278,18 @@ export default function App() {
     return localStorage.getItem('ui_selected_negative_id');
   });
   const [activePartId, setActivePartId] = useState<string | null>(null);
-  const [tabs, setTabs] = useState<{id: string, name: string, pos: string, neg: string}[]>(() => {
+  const [tabs, setTabs] = useState<{id: string, name: string, pos: string, neg: string, isMemo?: boolean}[]>(() => {
     const saved = localStorage.getItem('ui_editor_tabs');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((t, i) => ({ ...t, name: `TAB ${String(i + 1).padStart(2, '0')}` }));
+          let normalCount = 0;
+          return parsed.map((t: any) => {
+            if (t.isMemo) return { ...t, name: t.name || 'MEMO' };
+            normalCount++;
+            return { ...t, name: `TAB ${String(normalCount).padStart(2, '0')}` };
+          });
         }
       } catch (e) {}
     }
@@ -335,9 +336,15 @@ export default function App() {
       return t;
     }));
   }, [activeTabId]);
-  const [activeEditor, setActiveEditor] = useState<'positive' | 'negative'>(() => {
+  const [activeEditor, setActiveEditor] = useState<'positive' | 'negative' | 'find' | 'replace'>(() => {
     return (localStorage.getItem('ui_active_editor') as any) || 'positive';
   });
+  const [findText, setFindText] = useState('');
+  const [replaceText, setReplaceText] = useState('');
+  const [findCursorPos, setFindCursorPos] = useState<number | null>(null);
+  const [replaceCursorPos, setReplaceCursorPos] = useState<number | null>(null);
+  const [findSelectionEnd, setFindSelectionEnd] = useState<number | null>(null);
+  const [replaceSelectionEnd, setReplaceSelectionEnd] = useState<number | null>(null);
 
   useEffect(() => {
     if (selectedMasterId) localStorage.setItem('ui_selected_master_id', selectedMasterId);
@@ -355,7 +362,9 @@ export default function App() {
     localStorage.setItem('ui_active_editor', activeEditor);
   }, [activeEditor]);
   const [positiveCursorPos, setPositiveCursorPos] = useState<number | null>(null);
+  const [positiveSelectionEnd, setPositiveSelectionEnd] = useState<number | null>(null);
   const [negativeCursorPos, setNegativeCursorPos] = useState<number | null>(null);
+  const [negativeSelectionEnd, setNegativeSelectionEnd] = useState<number | null>(null);
 
   // History State for Undo/Redo
   const [canUndo, setCanUndo] = useState(false);
@@ -434,7 +443,12 @@ export default function App() {
     const newId = `tab-${Date.now()}`;
     setTabs(prev => {
       const newTabs = [...prev, { id: newId, name: '', pos: '', neg: '' }];
-      return newTabs.map((t, i) => ({ ...t, name: `TAB ${String(i + 1).padStart(2, '0')}` }));
+      let normalCount = 0;
+      return newTabs.map((t) => {
+        if (t.isMemo) return t;
+        normalCount++;
+        return { ...t, name: `TAB ${String(normalCount).padStart(2, '0')}` };
+      });
     });
     setActiveTabId(newId);
   }, []);
@@ -458,7 +472,12 @@ export default function App() {
       }
       delete historyRef.current[id];
       delete indexRef.current[id];
-      return newTabs.map((t, i) => ({ ...t, name: `TAB ${String(i + 1).padStart(2, '0')}` }));
+      let normalCount = 0;
+      return newTabs.map((t) => {
+        if (t.isMemo) return t;
+        normalCount++;
+        return { ...t, name: `TAB ${String(normalCount).padStart(2, '0')}` };
+      });
     });
   }, [activeTabId]);
 
@@ -489,30 +508,41 @@ export default function App() {
     return ids;
   }, [data.parts, editorText, negativeEditorText]);
 
-  const [sidebarSwapped, setSidebarSwapped] = useState(() => {
-    return localStorage.getItem('sidebar_swapped') === 'true';
+  const [sidebarPosition, setSidebarPosition] = useState<'left' | 'right'>(() => {
+    return (localStorage.getItem('sidebar_position') as 'left' | 'right') || 'left';
   });
-  const [leftWidth, setLeftWidth] = useState(() => {
-    return Math.max(320, Number(localStorage.getItem('left_width')) || 320);
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    return Math.max(340, Number(localStorage.getItem('sidebar_width')) || 420);
   });
-  const [rightWidth, setRightWidth] = useState(() => {
-    return Math.max(384, Number(localStorage.getItem('right_width')) || 384);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    return localStorage.getItem('ui_is_sidebar_open') !== 'false';
   });
-  
-  const [isLeftOpen, setIsLeftOpen] = useState(() => {
-    return localStorage.getItem('ui_is_left_open') !== 'false';
+  const [sidebarTab, setSidebarTab] = useState<'parts' | 'master' | 'memo'>(() => {
+    return (localStorage.getItem('ui_sidebar_tab') as 'parts' | 'master' | 'memo') || 'parts';
   });
-  const [isRightOpen, setIsRightOpen] = useState(() => {
-    return localStorage.getItem('ui_is_right_open') !== 'false';
+  const [isDataManagementOpen, setIsDataManagementOpen] = useState(() => {
+    return localStorage.getItem('ui_is_data_management_open') === 'true';
   });
 
   useEffect(() => {
-    localStorage.setItem('ui_is_left_open', String(isLeftOpen));
-  }, [isLeftOpen]);
+    localStorage.setItem('sidebar_position', sidebarPosition);
+  }, [sidebarPosition]);
 
   useEffect(() => {
-    localStorage.setItem('ui_is_right_open', String(isRightOpen));
-  }, [isRightOpen]);
+    localStorage.setItem('sidebar_width', String(sidebarWidth));
+  }, [sidebarWidth]);
+
+  useEffect(() => {
+    localStorage.setItem('ui_is_sidebar_open', String(isSidebarOpen));
+  }, [isSidebarOpen]);
+
+  useEffect(() => {
+    localStorage.setItem('ui_sidebar_tab', sidebarTab);
+  }, [sidebarTab]);
+
+  useEffect(() => {
+    localStorage.setItem('ui_is_data_management_open', String(isDataManagementOpen));
+  }, [isDataManagementOpen]);
 
   const [exportDirectoryName, setExportDirectoryName] = useState<string>('');
   const [iframeWarning, setIframeWarning] = useState(false);
@@ -528,9 +558,6 @@ export default function App() {
       saveTimerRef.current = null;
     }, 2000);
   }, []);
-  const [loadSuccessMessage, setLoadSuccessMessage] = useState<string | null>(null);
-  const [importPendingData, setImportPendingData] = useState<any>(null);
-
   useEffect(() => {
     getFileHandle('export_directory').then(async handle => {
       if (handle && handle.name) {
@@ -560,12 +587,12 @@ export default function App() {
           setData(parsed);
           mergeMixerData(parsed, true);
           setSelectedMasterId(parsed.masters[0]?.id || null);
-          setLoadSuccessMessage(`Resumed from ${latestFile.name}`);
-          setTimeout(() => setLoadSuccessMessage(null), 3000);
+          setSaveSuccessMessage(`Resumed from ${latestFile.name}`);
+          setTimeout(() => setSaveSuccessMessage(null), 3000);
         }
       } else {
-        setLoadSuccessMessage('No JSON files found in directory');
-        setTimeout(() => setLoadSuccessMessage(null), 3000);
+        setSaveSuccessMessage('No JSON files found in directory');
+        setTimeout(() => setSaveSuccessMessage(null), 3000);
       }
     } catch (e) {
       console.error("Failed to load latest file", e);
@@ -618,27 +645,17 @@ export default function App() {
   };
 
 
-  useEffect(() => {
-    localStorage.setItem('sidebar_swapped', String(sidebarSwapped));
-  }, [sidebarSwapped]);
-
-  useEffect(() => {
-    localStorage.setItem('left_width', String(leftWidth));
-  }, [leftWidth]);
-
-  useEffect(() => {
-    localStorage.setItem('right_width', String(rightWidth));
-  }, [rightWidth]);
-
-  const startLeftResize = useCallback((e: React.MouseEvent) => {
-
+  const startSidebarResize = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     const startX = e.clientX;
-    const startWidth = leftWidth;
+    const startWidth = sidebarWidth;
 
     const onMouseMove = (moveEvent: MouseEvent) => {
-      const newWidth = startWidth + (moveEvent.clientX - startX);
-      setLeftWidth(Math.max(320, Math.min(800, newWidth)));
+      const delta = moveEvent.clientX - startX;
+      const newWidth = sidebarPosition === 'left' 
+        ? startWidth + delta 
+        : startWidth - delta;
+      setSidebarWidth(Math.max(340, Math.min(850, newWidth)));
     };
     const onMouseUp = () => {
       document.removeEventListener('mousemove', onMouseMove);
@@ -646,46 +663,35 @@ export default function App() {
     };
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
-  }, [leftWidth]);
-
-  const startRightResize = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    const startX = e.clientX;
-    const startWidth = rightWidth;
-
-    const onMouseMove = (moveEvent: MouseEvent) => {
-      const newWidth = startWidth - (moveEvent.clientX - startX);
-      setRightWidth(Math.max(384, Math.min(800, newWidth)));
-    };
-    const onMouseUp = () => {
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
-    };
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
-  }, [rightWidth]);
+  }, [sidebarWidth, sidebarPosition]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   }, [data]);
 
   const cleanString = (text: string) => {
-    if (!autoOptimize) return text;
+    if (!autoOptimize || activeTab?.isMemo) return text;
     return text
       .split('\n')
-      .map(line => 
-        line
+      .map(line => {
+        let cleanedLine = line
           .replace(/[\u3000]/g, ' ')
           .replace(/[ \t]+/g, ' ')
           .replace(/[ \t]+,/g, ',')
           .replace(/,+/g, ',')
           .replace(/,[ \t]*,/g, ',')
           .replace(/,([^\s])/g, ', $1')
-          .trim()
-      )
+          .trim();
+        if (cleanedLine.length > 0) {
+          if (!/[。！？：…・、,」』】）]$/.test(cleanedLine)) {
+            cleanedLine = cleanedLine.replace(/[\s,]*$/, ',');
+          }
+        }
+        return cleanedLine;
+      })
       .join('\n')
       .replace(/\n{3,}/g, '\n\n')
-      .replace(/^[\s,]+|[\s,]+$/g, '')
+      .replace(/^[\s,]+/g, '')
       .trim();
   };
 
@@ -742,7 +748,7 @@ export default function App() {
     };
 
     setEditorText(prev => {
-      let result = prev;
+      let result = prev || '';
       let replaced = false;
       
       if (targetToReplace) {
@@ -755,7 +761,38 @@ export default function App() {
       } 
       
       if (!replaced && posStr) {
-        result = posStr + (posStr.endsWith(' ') || posStr.endsWith(',') ? '' : ', ') + result;
+        const actualPos = positiveCursorPos === null ? result.length : positiveCursorPos;
+        const endPos = positiveSelectionEnd === null ? actualPos : positiveSelectionEnd;
+        const start = Math.min(actualPos, endPos);
+        const end = Math.max(actualPos, endPos);
+        
+        if (start !== end) {
+          // If there is a selection, replace the selection
+          const before = result.slice(0, start);
+          const after = result.slice(end);
+          const prefix = autoOptimize && before.length > 0 && !before.match(/,\s*$/) && !before.endsWith('\n') ? ', ' : '';
+          const suffix = autoOptimize && after.length > 0 && !after.match(/^\s*,/) && !after.startsWith('\n') ? ', ' : '';
+          const insertedStr = prefix + posStr + suffix;
+          const cleaned = cleanString(before + insertedStr + after);
+          const isAtEnd = after.replace(/[\s,]/g, '').length === 0;
+          const finalPos = calculateCursorPos(before, insertedStr, cleaned, isAtEnd);
+          setPositiveCursorPos(finalPos);
+          setPositiveSelectionEnd(finalPos);
+          result = before + insertedStr + after;
+        } else {
+          // Otherwise, insert at cursor position
+          const before = result.slice(0, start);
+          const after = result.slice(start);
+          const prefix = autoOptimize && before.length > 0 && !before.match(/,\s*$/) && !before.endsWith('\n') ? ', ' : '';
+          const suffix = autoOptimize && after.length > 0 && !after.match(/^\s*,/) && !after.startsWith('\n') ? ', ' : '';
+          const insertedStr = prefix + posStr + suffix;
+          const cleaned = cleanString(before + insertedStr + after);
+          const isAtEnd = after.replace(/[\s,]/g, '').length === 0;
+          const finalPos = calculateCursorPos(before, insertedStr, cleaned, isAtEnd);
+          setPositiveCursorPos(finalPos);
+          setPositiveSelectionEnd(finalPos);
+          result = before + insertedStr + after;
+        }
       }
       
       result = result.replace(/,\s*,/g, ',');
@@ -764,7 +801,7 @@ export default function App() {
     });
 
     setNegativeEditorText(prev => {
-      let result = prev;
+      let result = prev || '';
       let replaced = false;
       
       if (targetToReplace) {
@@ -776,44 +813,127 @@ export default function App() {
       }
       
       if (!replaced && negStr) {
-        result = negStr + (negStr.endsWith(' ') || negStr.endsWith(',') ? '' : ', ') + result;
+        const actualPos = negativeCursorPos === null ? result.length : negativeCursorPos;
+        const endPos = negativeSelectionEnd === null ? actualPos : negativeSelectionEnd;
+        const start = Math.min(actualPos, endPos);
+        const end = Math.max(actualPos, endPos);
+
+        if (start !== end) {
+          const before = result.slice(0, start);
+          const after = result.slice(end);
+          const prefix = autoOptimize && before.length > 0 && !before.match(/,\s*$/) && !before.endsWith('\n') ? ', ' : '';
+          const suffix = autoOptimize && after.length > 0 && !after.match(/^\s*,/) && !after.startsWith('\n') ? ', ' : '';
+          const insertedStr = prefix + negStr + suffix;
+          const cleaned = cleanString(before + insertedStr + after);
+          const isAtEnd = after.replace(/[\s,]/g, '').length === 0;
+          const finalPos = calculateCursorPos(before, insertedStr, cleaned, isAtEnd);
+          setNegativeCursorPos(finalPos);
+          setNegativeSelectionEnd(finalPos);
+          result = before + insertedStr + after;
+        } else {
+          const before = result.slice(0, start);
+          const after = result.slice(start);
+          const prefix = autoOptimize && before.length > 0 && !before.match(/,\s*$/) && !before.endsWith('\n') ? ', ' : '';
+          const suffix = autoOptimize && after.length > 0 && !after.match(/^\s*,/) && !after.startsWith('\n') ? ', ' : '';
+          const insertedStr = prefix + negStr + suffix;
+          const cleaned = cleanString(before + insertedStr + after);
+          const isAtEnd = after.replace(/[\s,]/g, '').length === 0;
+          const finalPos = calculateCursorPos(before, insertedStr, cleaned, isAtEnd);
+          setNegativeCursorPos(finalPos);
+          setNegativeSelectionEnd(finalPos);
+          result = before + insertedStr + after;
+        }
       }
       
       result = result.replace(/,\s*,/g, ',');
       result = result.replace(/^,\s*/, '');
       return result.trim();
     });
-  }, [setEditorText, setNegativeEditorText]);
+  }, [autoOptimize, positiveCursorPos, positiveSelectionEnd, negativeCursorPos, negativeSelectionEnd, setEditorText, setNegativeEditorText]);
 
   const handleInsertText = useCallback((text: string, forceNegative?: boolean) => {
+    if (activeEditor === 'find') {
+      setFindText(prev => {
+        const safePrev = prev || '';
+        const actualPos = findCursorPos === null ? safePrev.length : findCursorPos;
+        const endPos = findSelectionEnd === null ? actualPos : findSelectionEnd;
+        const start = Math.min(actualPos, endPos);
+        const end = Math.max(actualPos, endPos);
+        const before = safePrev.slice(0, start);
+        const after = safePrev.slice(end);
+        const insertedStr = text;
+        const cleaned = cleanString(before + insertedStr + after);
+          const isAtEnd = after.replace(/[\s,]/g, '').length === 0;
+          const finalPos = calculateCursorPos(before, insertedStr, cleaned, isAtEnd);
+        setFindCursorPos(finalPos);
+        setFindSelectionEnd(finalPos);
+        return before + insertedStr + after;
+      });
+      return;
+    }
+
+    if (activeEditor === 'replace') {
+      setReplaceText(prev => {
+        const safePrev = prev || '';
+        const actualPos = replaceCursorPos === null ? safePrev.length : replaceCursorPos;
+        const endPos = replaceSelectionEnd === null ? actualPos : replaceSelectionEnd;
+        const start = Math.min(actualPos, endPos);
+        const end = Math.max(actualPos, endPos);
+        const before = safePrev.slice(0, start);
+        const after = safePrev.slice(end);
+        const insertedStr = text;
+        const cleaned = cleanString(before + insertedStr + after);
+          const isAtEnd = after.replace(/[\s,]/g, '').length === 0;
+          const finalPos = calculateCursorPos(before, insertedStr, cleaned, isAtEnd);
+        setReplaceCursorPos(finalPos);
+        setReplaceSelectionEnd(finalPos);
+        return before + insertedStr + after;
+      });
+      return;
+    }
+
     const isNegative = forceNegative !== undefined ? forceNegative : activeEditor === 'negative';
     
     if (isNegative) {
       setNegativeEditorText(prev => {
         const safePrev = prev || '';
         const actualPos = negativeCursorPos === null ? safePrev.length : negativeCursorPos;
-        const before = safePrev.slice(0, actualPos);
-        const after = safePrev.slice(actualPos);
-        const prefix = autoOptimize && before.length > 0 && !before.endsWith(', ') && !before.endsWith(',') && !before.endsWith(' ') && !before.endsWith('\n') ? ', ' : '';
-        const suffix = autoOptimize && after.length > 0 && !after.startsWith(',') && !after.startsWith(' ') && !after.startsWith('\n') ? ', ' : '';
+        const endPos = negativeSelectionEnd === null ? actualPos : negativeSelectionEnd;
+        const start = Math.min(actualPos, endPos);
+        const end = Math.max(actualPos, endPos);
+        const before = safePrev.slice(0, start);
+        const after = safePrev.slice(end);
+        const prefix = autoOptimize && before.length > 0 && !before.match(/,\s*$/) && !before.endsWith('\n') ? ', ' : '';
+        const suffix = autoOptimize && after.length > 0 && !after.match(/^\s*,/) && !after.startsWith('\n') ? ', ' : '';
         const insertedStr = prefix + text + suffix;
-        setNegativeCursorPos(actualPos + insertedStr.length);
-        return cleanString(before + insertedStr + after);
+        const cleaned = cleanString(before + insertedStr + after);
+          const isAtEnd = after.replace(/[\s,]/g, '').length === 0;
+          const finalPos = calculateCursorPos(before, insertedStr, cleaned, isAtEnd);
+        setNegativeCursorPos(finalPos);
+        setNegativeSelectionEnd(finalPos);
+        return cleaned;
       });
     } else {
       setEditorText(prev => {
         const safePrev = prev || '';
         const actualPos = positiveCursorPos === null ? safePrev.length : positiveCursorPos;
-        const before = safePrev.slice(0, actualPos);
-        const after = safePrev.slice(actualPos);
-        const prefix = autoOptimize && before.length > 0 && !before.endsWith(', ') && !before.endsWith(',') && !before.endsWith(' ') && !before.endsWith('\n') ? ', ' : '';
-        const suffix = autoOptimize && after.length > 0 && !after.startsWith(',') && !after.startsWith(' ') && !after.startsWith('\n') ? ', ' : '';
+        const endPos = positiveSelectionEnd === null ? actualPos : positiveSelectionEnd;
+        const start = Math.min(actualPos, endPos);
+        const end = Math.max(actualPos, endPos);
+        const before = safePrev.slice(0, start);
+        const after = safePrev.slice(end);
+        const prefix = autoOptimize && before.length > 0 && !before.match(/,\s*$/) && !before.endsWith('\n') ? ', ' : '';
+        const suffix = autoOptimize && after.length > 0 && !after.match(/^\s*,/) && !after.startsWith('\n') ? ', ' : '';
         const insertedStr = prefix + text + suffix;
-        setPositiveCursorPos(actualPos + insertedStr.length);
-        return cleanString(before + insertedStr + after);
+        const cleaned = cleanString(before + insertedStr + after);
+          const isAtEnd = after.replace(/[\s,]/g, '').length === 0;
+          const finalPos = calculateCursorPos(before, insertedStr, cleaned, isAtEnd);
+        setPositiveCursorPos(finalPos);
+        setPositiveSelectionEnd(finalPos);
+        return cleaned;
       });
     }
-  }, [autoOptimize, positiveCursorPos, negativeCursorPos, activeEditor, setEditorText, setNegativeEditorText]);
+  }, [autoOptimize, positiveCursorPos, positiveSelectionEnd, negativeCursorPos, negativeSelectionEnd, findCursorPos, findSelectionEnd, replaceCursorPos, replaceSelectionEnd, activeEditor, setEditorText, setNegativeEditorText, setFindText, setReplaceText]);
 
   const handleTogglePart = (id: string) => {
     setActivePartId(id);
@@ -1064,6 +1184,11 @@ export default function App() {
     if (selectedPartIds.has(id)) handleTogglePart(id);
   };
 
+  const handleDeleteBulkParts = (ids: string[]) => {
+    setData(prev => ({ ...prev, parts: prev.parts.filter(p => !ids.includes(p.id)) }));
+    if (activePartId && ids.includes(activePartId)) setActivePartId(null);
+  };
+
   const handleDeleteAllParts = () => {
     setData(prev => ({ ...prev, parts: [] }));
     setActivePartId(null);
@@ -1200,7 +1325,8 @@ export default function App() {
   };
 
 
-  const handleExport = async () => {
+
+  const handleExportOverall = async () => {
     const now = new Date();
     const pad = (n: number) => n.toString().padStart(2, '0');
     const formattedDate = `${now.getFullYear()}/${pad(now.getMonth() + 1)}/${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
@@ -1219,7 +1345,7 @@ export default function App() {
     const catsStr = localStorage.getItem('attribute_mixer_categories_v2') || localStorage.getItem('attribute_mixer_categories_v1') || localStorage.getItem('attribute_mixer_categories');
     
     const exportData = {
-      title: "Solid Square Prompt Mixer",
+      title: "Solid Square Prompt Mixer (Overall)",
       exportDate: formattedDate,
       ...cleanedData,
       attributeMixerPresets: presetsStr ? JSON.parse(presetsStr) : undefined,
@@ -1230,13 +1356,13 @@ export default function App() {
     };
 
     const jsonString = JSON.stringify(exportData, null, 2);
-
+    
     const fallbackDownload = () => {
       const blob = new Blob([jsonString], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Solid_Square_Prompt_Mixer_${dateStr}.json`;
+      a.download = `PM-全体バックアップ_${dateStr}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -1248,7 +1374,7 @@ export default function App() {
         let dirHandle = await getFileHandle('export_directory');
         let fileHandle = null;
         let hasDirPermission = false;
-
+        
         if (dirHandle) {
           const permission = await dirHandle.queryPermission({ mode: 'readwrite' });
           if (permission === 'granted') {
@@ -1260,44 +1386,130 @@ export default function App() {
             }
           }
         }
-
+        
         if (hasDirPermission && dirHandle) {
-           fileHandle = await dirHandle.getFileHandle(`Solid_Square_Prompt_Mixer_${dateStr}.json`, { create: true });
+           fileHandle = await dirHandle.getFileHandle(`PM-全体バックアップ_${dateStr}.json`, { create: true });
         } else {
-           // Fallback to showSaveFilePicker if no directory handle
            fileHandle = await (window as any).showSaveFilePicker({
              id: 'prompt_mixer_export',
-             suggestedName: `Solid_Square_Prompt_Mixer_${dateStr}.json`,
+             suggestedName: `PM-全体バックアップ_${dateStr}.json`,
              types: [{
                description: 'JSON Files',
                accept: { 'application/json': ['.json'] },
              }],
            });
         }
-
+        
         if (fileHandle) {
           const writable = await fileHandle.createWritable();
           await writable.write(jsonString);
           await writable.close();
-          setSaveSuccessMessage('セーブ完了！ (Save Completed!)');
+          setSaveSuccessMessage('全体エクスポート完了！');
           setTimeout(() => setSaveSuccessMessage(null), 3000);
         }
       } catch (err: any) {
         if (err.name !== 'AbortError') {
           console.error('File System API Error:', err);
           fallbackDownload();
-          setSaveSuccessMessage('セーブ完了！ (Downloaded)');
+          setSaveSuccessMessage('全体エクスポート完了！ (Downloaded)');
           setTimeout(() => setSaveSuccessMessage(null), 3000);
         }
       }
     } else {
       fallbackDownload();
-      setSaveSuccessMessage('セーブ完了！ (Downloaded)');
+      setSaveSuccessMessage('全体エクスポート完了！ (Downloaded)');
       setTimeout(() => setSaveSuccessMessage(null), 3000);
     }
   };
 
-  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleExportParts = async () => {
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const formattedDate = `${now.getFullYear()}/${pad(now.getMonth() + 1)}/${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    const dateStr = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+    
+    const presetsStr = localStorage.getItem('attribute_mixer_custom_presets_v7') || localStorage.getItem('attribute_mixer_custom_presets_v6') || localStorage.getItem('attribute_mixer_custom_presets_v5') || localStorage.getItem('attribute_mixer_custom_presets_v4') || localStorage.getItem('attribute_mixer_custom_presets_v3') || localStorage.getItem('attribute_mixer_custom_presets_v2') || localStorage.getItem('attribute_mixer_custom_presets_v1') || localStorage.getItem('attribute_mixer_custom_presets');
+    const combosStr = localStorage.getItem('attribute_mixer_combinations_v1') || localStorage.getItem('attribute_mixer_combinations');
+    const catsStr = localStorage.getItem('attribute_mixer_categories_v2') || localStorage.getItem('attribute_mixer_categories_v1') || localStorage.getItem('attribute_mixer_categories');
+    
+    const exportData = {
+      title: "Solid Square Prompt Mixer (Parts Only)",
+      exportDate: formattedDate,
+      parts: data.parts.map(p => ({ ...p, content: cleanString(p.content) })),
+      customCategories: data.customCategories,
+      attributeMixerPresets: presetsStr ? JSON.parse(presetsStr) : undefined,
+      attributeMixerCombos: combosStr ? JSON.parse(combosStr) : undefined,
+      attributeMixerCategories: catsStr ? JSON.parse(catsStr) : undefined
+    };
+
+    const jsonString = JSON.stringify(exportData, null, 2);
+    
+    const fallbackDownload = () => {
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `PM-パーツ_${dateStr}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    };
+
+    if ('showSaveFilePicker' in window && window.self === window.top) {
+      try {
+        let dirHandle = await getFileHandle('export_directory');
+        let fileHandle = null;
+        let hasDirPermission = false;
+        
+        if (dirHandle) {
+          const permission = await dirHandle.queryPermission({ mode: 'readwrite' });
+          if (permission === 'granted') {
+            hasDirPermission = true;
+          } else {
+            const request = await dirHandle.requestPermission({ mode: 'readwrite' });
+            if (request === 'granted') {
+              hasDirPermission = true;
+            }
+          }
+        }
+        
+        if (hasDirPermission && dirHandle) {
+           fileHandle = await dirHandle.getFileHandle(`PM-パーツ_${dateStr}.json`, { create: true });
+        } else {
+           fileHandle = await (window as any).showSaveFilePicker({
+             id: 'prompt_mixer_export_parts',
+             suggestedName: `PM-パーツ_${dateStr}.json`,
+             types: [{
+               description: 'JSON Files',
+               accept: { 'application/json': ['.json'] },
+             }],
+           });
+        }
+        
+        if (fileHandle) {
+          const writable = await fileHandle.createWritable();
+          await writable.write(jsonString);
+          await writable.close();
+          setSaveSuccessMessage('パーツエクスポート完了！');
+          setTimeout(() => setSaveSuccessMessage(null), 3000);
+        }
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          console.error('File System API Error:', err);
+          fallbackDownload();
+          setSaveSuccessMessage('パーツエクスポート完了！ (Downloaded)');
+          setTimeout(() => setSaveSuccessMessage(null), 3000);
+        }
+      }
+    } else {
+      fallbackDownload();
+      setSaveSuccessMessage('パーツエクスポート完了！ (Downloaded)');
+      setTimeout(() => setSaveSuccessMessage(null), 3000);
+    }
+  };
+
+  const handleImportOverall = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -1306,9 +1518,42 @@ export default function App() {
       try {
         const parsed = JSON.parse(event.target?.result as string);
         if (parsed.masters && parsed.parts) {
-          setImportPendingData(parsed);
+          setData(prev => {
+            const hasExistingParts = prev.parts && prev.parts.length > 0;
+            const hasExistingCategories = prev.customCategories && prev.customCategories.length > 0;
+            const hasExistingSectionNames = prev.customSectionNames && Object.keys(prev.customSectionNames).length > 0;
+            
+            return {
+              ...parsed,
+              // パーツデータが既に存在する場合は上書きせず保護する
+              parts: hasExistingParts ? prev.parts : parsed.parts,
+              customCategories: hasExistingCategories ? prev.customCategories : (parsed.customCategories || []),
+              customSectionNames: hasExistingSectionNames ? prev.customSectionNames : (parsed.customSectionNames || {}),
+            };
+          });
+          
+          // ミキサーのデータも、既存データがある場合は上書きせず保護する
+          const existingCategories = localStorage.getItem('attribute_mixer_categories_v2');
+          if ((!existingCategories || existingCategories === '[]') && parsed.attributeMixerCategories) {
+            localStorage.setItem('attribute_mixer_categories_v2', typeof parsed.attributeMixerCategories === 'string' ? parsed.attributeMixerCategories : JSON.stringify(parsed.attributeMixerCategories));
+          }
+          
+          const existingPresets = localStorage.getItem('attribute_mixer_custom_presets_v7');
+          if ((!existingPresets || existingPresets === '[]') && parsed.attributeMixerPresets) {
+            localStorage.setItem('attribute_mixer_custom_presets_v7', typeof parsed.attributeMixerPresets === 'string' ? parsed.attributeMixerPresets : JSON.stringify(parsed.attributeMixerPresets));
+          }
+          
+          const existingCombos = localStorage.getItem('attribute_mixer_combinations_v1');
+          if ((!existingCombos || existingCombos === '[]') && parsed.attributeMixerCombos) {
+            localStorage.setItem('attribute_mixer_combinations_v1', typeof parsed.attributeMixerCombos === 'string' ? parsed.attributeMixerCombos : JSON.stringify(parsed.attributeMixerCombos));
+          }
+          
+          window.dispatchEvent(new Event('attributeMixerDataImported'));
+          setSelectedMasterId(parsed.masters[0]?.id || null);
+          setSaveSuccessMessage(lang === 'en' ? 'Overall Import completed!' : '全体のインポートが完了しました！');
+          setTimeout(() => setSaveSuccessMessage(null), 3000);
         } else {
-          alert('Invalid JSON format.');
+          alert('Invalid JSON format for Overall Import.');
         }
       } catch (err) {
         alert('Failed to parse JSON file.');
@@ -1318,62 +1563,46 @@ export default function App() {
     e.target.value = '';
   };
 
-  const executeImport = (shouldMerge: boolean) => {
-    if (!importPendingData) return;
-    const parsed = importPendingData;
-    
-    if (shouldMerge) {
-      setData(prev => {
-        const mergeArray = (oldArr: any[], newArr: any[]) => {
-          const map = new Map();
-          oldArr.forEach(item => map.set(item.id, item));
-          newArr.forEach(item => {
-            if (!map.has(item.id)) {
-              map.set(item.id, item);
-            }
-          });
-          return Array.from(map.values());
-        };
+  const handleImportParts = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-        const mergeCategories = (oldCats: any[], newCats: any[]) => {
-          const map = new Set(oldCats.map(c => `${c.section}-${c.name}`));
-          const merged = [...oldCats];
-          newCats.forEach(c => {
-            if (!map.has(`${c.section}-${c.name}`)) {
-              merged.push(c);
-              map.add(`${c.section}-${c.name}`);
-            }
-          });
-          return merged;
-        };
-
-        return {
-          masters: mergeArray(prev.masters, parsed.masters),
-          parts: mergeArray(prev.parts, parsed.parts),
-          memos: mergeArray(prev.memos || [], parsed.memos || []),
-          negatives: mergeArray(prev.negatives || [], parsed.negatives || []),
-          customCategories: mergeCategories(prev.customCategories || [], parsed.customCategories || [])
-        };
-      });
-      mergeMixerData(parsed);
-    } else {
-      setData(parsed);
-      if (parsed.attributeMixerCategories) {
-        localStorage.setItem('attribute_mixer_categories_v2', typeof parsed.attributeMixerCategories === 'string' ? parsed.attributeMixerCategories : JSON.stringify(parsed.attributeMixerCategories));
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const parsed = JSON.parse(event.target?.result as string);
+        if (parsed.parts) {
+          // PartsとAttributeMixerのみ上書き
+          setData(prev => ({
+            ...prev,
+            parts: parsed.parts,
+            customCategories: parsed.customCategories || []
+          }));
+          
+          if (parsed.attributeMixerCategories) {
+            localStorage.setItem('attribute_mixer_categories_v2', typeof parsed.attributeMixerCategories === 'string' ? parsed.attributeMixerCategories : JSON.stringify(parsed.attributeMixerCategories));
+          }
+          if (parsed.attributeMixerPresets) {
+            localStorage.setItem('attribute_mixer_custom_presets_v7', typeof parsed.attributeMixerPresets === 'string' ? parsed.attributeMixerPresets : JSON.stringify(parsed.attributeMixerPresets));
+          }
+          if (parsed.attributeMixerCombos) {
+            localStorage.setItem('attribute_mixer_combinations_v1', typeof parsed.attributeMixerCombos === 'string' ? parsed.attributeMixerCombos : JSON.stringify(parsed.attributeMixerCombos));
+          }
+          
+          window.dispatchEvent(new Event('attributeMixerDataImported'));
+          setSaveSuccessMessage(lang === 'en' ? 'Parts Import completed!' : 'パーツのインポートが完了しました！');
+          setTimeout(() => setSaveSuccessMessage(null), 3000);
+        } else {
+          alert('Invalid JSON format for Parts Import.');
+        }
+      } catch (err) {
+        alert('Failed to parse JSON file.');
       }
-      if (parsed.attributeMixerPresets) {
-        localStorage.setItem('attribute_mixer_custom_presets_v7', typeof parsed.attributeMixerPresets === 'string' ? parsed.attributeMixerPresets : JSON.stringify(parsed.attributeMixerPresets));
-      }
-      if (parsed.attributeMixerCombos) {
-        localStorage.setItem('attribute_mixer_combinations_v1', typeof parsed.attributeMixerCombos === 'string' ? parsed.attributeMixerCombos : JSON.stringify(parsed.attributeMixerCombos));
-      }
-      window.dispatchEvent(new Event('attributeMixerDataImported'));
-    }
-    
-    setSelectedMasterId(parsed.masters[0]?.id || null);
-    setImportPendingData(null);
-    showSaveToast("インポート完了！");
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   };
+
 
   const handleSelectMasterId = (id: string | null, insert: boolean = true) => {
     if (id && insert) {
@@ -1383,36 +1612,57 @@ export default function App() {
           setEditorText(prev => {
             const safePrev = prev || '';
             const actualPos = positiveCursorPos === null ? safePrev.length : positiveCursorPos;
-            const before = safePrev.slice(0, actualPos);
-            const after = safePrev.slice(actualPos);
-            const prefix = autoOptimize && before.length > 0 && !before.endsWith(', ') && !before.endsWith(',') && !before.endsWith(' ') && !before.endsWith('\n') ? ', ' : '';
-            const suffix = autoOptimize && after.length > 0 && !after.startsWith(',') && !after.startsWith(' ') && !after.startsWith('\n') ? ', ' : '';
+            const endPos = positiveSelectionEnd === null ? actualPos : positiveSelectionEnd;
+            const start = Math.min(actualPos, endPos);
+            const end = Math.max(actualPos, endPos);
+            const before = safePrev.slice(0, start);
+            const after = safePrev.slice(end);
+            const prefix = autoOptimize && before.length > 0 && !before.match(/,\s*$/) && !before.endsWith('\n') ? ', ' : '';
+            const suffix = autoOptimize && after.length > 0 && !after.match(/^\s*,/) && !after.startsWith('\n') ? ', ' : '';
             const insertedStr = prefix + newMaster.content + suffix;
-            setPositiveCursorPos(actualPos + insertedStr.length);
-            return cleanString(before + insertedStr + after);
+            const cleaned = cleanString(before + insertedStr + after);
+          const isAtEnd = after.replace(/[\s,]/g, '').length === 0;
+          const finalPos = calculateCursorPos(before, insertedStr, cleaned, isAtEnd);
+            setPositiveCursorPos(finalPos);
+            setPositiveSelectionEnd(finalPos);
+            return cleaned;
           });
           setNegativeEditorText(prev => {
             const safePrev = prev || '';
             const actualPos = negativeCursorPos === null ? safePrev.length : negativeCursorPos;
-            const before = safePrev.slice(0, actualPos);
-            const after = safePrev.slice(actualPos);
-            const prefix = autoOptimize && before.length > 0 && !before.endsWith(', ') && !before.endsWith(',') && !before.endsWith(' ') && !before.endsWith('\n') ? ', ' : '';
-            const suffix = autoOptimize && after.length > 0 && !after.startsWith(',') && !after.startsWith(' ') && !after.startsWith('\n') ? ', ' : '';
+            const endPos = negativeSelectionEnd === null ? actualPos : negativeSelectionEnd;
+            const start = Math.min(actualPos, endPos);
+            const end = Math.max(actualPos, endPos);
+            const before = safePrev.slice(0, start);
+            const after = safePrev.slice(end);
+            const prefix = autoOptimize && before.length > 0 && !before.match(/,\s*$/) && !before.endsWith('\n') ? ', ' : '';
+            const suffix = autoOptimize && after.length > 0 && !after.match(/^\s*,/) && !after.startsWith('\n') ? ', ' : '';
             const insertedStr = prefix + newMaster.negativeContent! + suffix;
-            setNegativeCursorPos(actualPos + insertedStr.length);
-            return cleanString(before + insertedStr + after);
+            const cleaned = cleanString(before + insertedStr + after);
+          const isAtEnd = after.replace(/[\s,]/g, '').length === 0;
+          const finalPos = calculateCursorPos(before, insertedStr, cleaned, isAtEnd);
+            setNegativeCursorPos(finalPos);
+            setNegativeSelectionEnd(finalPos);
+            return cleaned;
           });
         } else {
           setEditorText(prev => {
             const safePrev = prev || '';
             const actualPos = positiveCursorPos === null ? safePrev.length : positiveCursorPos;
-            const before = safePrev.slice(0, actualPos);
-            const after = safePrev.slice(actualPos);
-            const prefix = autoOptimize && before.length > 0 && !before.endsWith(', ') && !before.endsWith(',') && !before.endsWith(' ') && !before.endsWith('\n') ? ', ' : '';
-            const suffix = autoOptimize && after.length > 0 && !after.startsWith(',') && !after.startsWith(' ') && !after.startsWith('\n') ? ', ' : '';
+            const endPos = positiveSelectionEnd === null ? actualPos : positiveSelectionEnd;
+            const start = Math.min(actualPos, endPos);
+            const end = Math.max(actualPos, endPos);
+            const before = safePrev.slice(0, start);
+            const after = safePrev.slice(end);
+            const prefix = autoOptimize && before.length > 0 && !before.match(/,\s*$/) && !before.endsWith('\n') ? ', ' : '';
+            const suffix = autoOptimize && after.length > 0 && !after.match(/^\s*,/) && !after.startsWith('\n') ? ', ' : '';
             const insertedStr = prefix + newMaster.content + suffix;
-            setPositiveCursorPos(actualPos + insertedStr.length);
-            return cleanString(before + insertedStr + after);
+            const cleaned = cleanString(before + insertedStr + after);
+          const isAtEnd = after.replace(/[\s,]/g, '').length === 0;
+          const finalPos = calculateCursorPos(before, insertedStr, cleaned, isAtEnd);
+            setPositiveCursorPos(finalPos);
+            setPositiveSelectionEnd(finalPos);
+            return cleaned;
           });
         }
       }
@@ -1428,13 +1678,20 @@ export default function App() {
         setNegativeEditorText(prev => {
           const safePrev = prev || '';
           const actualPos = negativeCursorPos === null ? safePrev.length : negativeCursorPos;
-          const before = safePrev.slice(0, actualPos);
-          const after = safePrev.slice(actualPos);
-          const prefix = autoOptimize && before.length > 0 && !before.endsWith(', ') && !before.endsWith(',') && !before.endsWith(' ') && !before.endsWith('\n') ? ', ' : '';
-          const suffix = autoOptimize && after.length > 0 && !after.startsWith(',') && !after.startsWith(' ') && !after.startsWith('\n') ? ', ' : '';
+          const endPos = negativeSelectionEnd === null ? actualPos : negativeSelectionEnd;
+          const start = Math.min(actualPos, endPos);
+          const end = Math.max(actualPos, endPos);
+          const before = safePrev.slice(0, start);
+          const after = safePrev.slice(end);
+          const prefix = autoOptimize && before.length > 0 && !before.match(/,\s*$/) && !before.endsWith('\n') ? ', ' : '';
+          const suffix = autoOptimize && after.length > 0 && !after.match(/^\s*,/) && !after.startsWith('\n') ? ', ' : '';
           const insertedStr = prefix + newNeg.content + suffix;
-          setNegativeCursorPos(actualPos + insertedStr.length);
-          return cleanString(before + insertedStr + after);
+          const cleaned = cleanString(before + insertedStr + after);
+          const isAtEnd = after.replace(/[\s,]/g, '').length === 0;
+          const finalPos = calculateCursorPos(before, insertedStr, cleaned, isAtEnd);
+          setNegativeCursorPos(finalPos);
+          setNegativeSelectionEnd(finalPos);
+          return cleaned;
         });
       }
     }
@@ -1450,12 +1707,20 @@ export default function App() {
         if (editorText && editorText.trim().length > 0) {
           const newId = `tab-${Date.now()}`;
           setTabs(prev => {
-            const newTabs = [...prev, { id: newId, name: '', pos: memo.content, neg: '' }];
-            return newTabs.map((t, i) => ({ ...t, name: `TAB ${String(i + 1).padStart(2, '0')}` }));
+            const newTabs = [...prev, { id: newId, name: `📝 ${memo.name}`, pos: memo.content, neg: '', isMemo: true }];
+            let normalCount = 0;
+            return newTabs.map((t) => {
+              if (t.isMemo) return t;
+              normalCount++;
+              return { ...t, name: `TAB ${String(normalCount).padStart(2, '0')}` };
+            });
           });
           setActiveTabId(newId);
         } else {
-          setEditorText(memo.content);
+          setTabs(prev => prev.map(t => {
+            if (t.id === activeTabId) return { ...t, name: `📝 ${memo.name}`, pos: memo.content, isMemo: true };
+            return t;
+          }));
         }
       }
     }
@@ -1516,8 +1781,10 @@ export default function App() {
     });
   };
 
+  const appMinWidth = (isSidebarOpen ? sidebarWidth : 0) + 600;
+
   return (
-    <div className={`h-screen w-full flex flex-col overflow-hidden bg-bg-base transition-colors duration-300`} style={{ zoom: 1 }}>
+    <div className={`h-screen flex flex-col overflow-hidden bg-bg-base transition-colors duration-300`} style={{ zoom: 1, minWidth: `${appMinWidth}px` }}>
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-2 border-b border-border-main bg-bg-panel h-14 shrink-0">
         <div className="flex items-center space-x-4">
@@ -1537,11 +1804,14 @@ export default function App() {
             {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
           </button>
           <button 
-            onClick={() => setSidebarSwapped(s => !s)}
-            className={`w-7 h-7 bg-bg-input border border-border-main rounded transition-colors flex items-center justify-center shrink-0 ${theme === 'mono' ? 'hover:bg-gray-500 hover:text-white text-text-main' : 'hover:bg-border-main text-text-main'}`}
-            title="Swap Sidebars"
+            onClick={() => setSidebarPosition(pos => pos === 'left' ? 'right' : 'left')}
+            className={`h-7 px-2.5 bg-bg-input border border-border-main rounded transition-colors flex items-center gap-1.5 text-[10px] font-mono shrink-0 ${theme === 'mono' ? 'hover:bg-gray-500 hover:text-white text-text-main' : 'hover:bg-border-main text-text-main'}`}
+            title={sidebarPosition === 'left' ? (lang === 'en' ? 'Move Sidebar to Right' : 'サイドバーを右側に配置') : (lang === 'en' ? 'Move Sidebar to Left' : 'サイドバーを左側に配置')}
           >
-            <ArrowLeftRight className="w-4 h-4" />
+            <ArrowLeftRight className="w-3.5 h-3.5" />
+            <span className="font-bold">
+              {sidebarPosition === 'left' ? (lang === 'en' ? 'Sidebar: Left' : 'サイドバー: 左') : (lang === 'en' ? 'Sidebar: Right' : 'サイドバー: 右')}
+            </span>
           </button>
           <button 
             onClick={() => setTheme(t => t === 'dark' ? 'black' : t === 'black' ? 'light' : t === 'light' ? 'mono' : t === 'mono' ? 'navy' : t === 'navy' ? 'dark' : 'light')}
@@ -1564,216 +1834,388 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main Layout (3 Columns: Master -> Editor <- Variations) */}
-      <main className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar */}
-        {isLeftOpen && (
-          <aside style={{ width: leftWidth }} className="border-r border-border-main bg-bg-panel flex flex-col shrink-0 relative">
-            {sidebarSwapped ? (
-            <VariationColumn
-              parts={data.parts}
-              customCategories={data.customCategories}
-              customSectionNames={data.customSectionNames}
-              onRenameSection={handleRenameSection}
-              onAddCategory={handleAddCategory}
-              onRenameCategory={handleRenameCategory}
-              onDeleteCategory={handleDeleteCategory}
-              onReorderCategory={handleReorderCategory}
-              selectedIds={selectedPartIds}
-              onTogglePart={handleTogglePart}
-              onTogglePin={handleTogglePin}
-              onTogglePartNegative={handleTogglePartNegative}
-              onAdd={handleAddPart}
-              onUpdate={handleUpdatePart}
-              onDuplicate={handleDuplicatePart}
-              onDelete={handleDeletePart}
-              onDeleteAll={handleDeleteAllParts}
-              onReorder={handleReorderParts}
-              onCopyToMaster={(part) => setSaveMasterFromPartData({ name: part.name, content: part.content })}
-              onCopyToMixer={(part) => setSaveMixerFromPartData({ items: [{name: part.name, content: part.content}] })}
-              onCopyBulkToMaster={(items) => setSaveMasterFromPartData({ items: items.map(i => ({name: i.name, content: i.content})) })}
-              onCopyBulkToMixer={(items) => setSaveMixerFromPartData({ items: items.map(i => ({name: i.name, content: i.content})) })}
-              onMixAttributes={handleMixAttributes}
-              onInsertText={handleInsertText}
-              onCopyToParts={handleCopyToParts}
-              lang={lang}
-              theme={theme}
-              activeTab={activeVariationTab}
-              setActiveTab={setActiveVariationTab}
+      {/* Main Layout (2 Columns: Sidebar ⇄ Editor) */}
+      <main className="flex-1 flex overflow-x-auto overflow-y-hidden">
+        {(() => {
+          const sidebarContent = (
+            <aside 
+              style={{ width: sidebarWidth }} 
+              className={`bg-bg-panel flex flex-col shrink-0 relative ${
+                sidebarPosition === 'left' ? 'border-r border-border-main' : 'border-l border-border-main'
+              }`}
             >
-              <MemoColumn
-                theme={theme}
-                masters={data.memos || []}
-                selectedId={selectedMemoId}
-                onSelect={handleSelectMemoId}
-                onAdd={handleAddMemo}
-                onUpdate={handleUpdateMemo}
-                onDuplicate={handleDuplicateMemo}
-                onDelete={handleDeleteMemo}
-                onDeleteBulk={handleDeleteBulkMemo}
-                onDeleteAll={handleDeleteAllMemo}
-                onMoveBulk={handleMoveBulkMemos}
-                onReorder={handleReorderMemos}
-                lang={lang}
+              {/* Resize handle */}
+              <div 
+                onMouseDown={startSidebarResize}
+                className={`absolute top-0 w-1.5 h-full cursor-col-resize hover:bg-accent-main active:bg-accent-main transition-colors z-20 ${
+                  sidebarPosition === 'left' ? 'right-0 -mr-[1px]' : 'left-0 -ml-[1px]'
+                }`}
               />
-            </VariationColumn>
-          ) : (
-            <MasterColumn
-              theme={theme}
-              masters={data.masters}
-              negatives={data.negatives}
-              selectedId={selectedMasterId}
-              selectedNegativeId={selectedNegativeId}
-              onSelect={handleSelectMasterId}
-              onSelectNegative={handleSelectNegativeId}
-              onAdd={handleAddMaster}
-              onAddNegative={handleAddNegative}
-              onUpdate={handleUpdateMaster}
-              onUpdateNegative={handleUpdateNegative}
-              onDuplicate={handleDuplicateMaster}
-              onDuplicateNegative={handleDuplicateNegative}
-              onDelete={handleDeleteMaster}
-              onDeleteNegative={handleDeleteNegative}
-              onDeleteBulk={handleDeleteBulkMaster}
-              onDeleteBulkNegative={handleDeleteBulkNegative}
-              onDeleteAll={handleDeleteAllMaster}
-              onDeleteAllNegative={handleDeleteAllNegative}
-              onMoveBulk={handleMoveBulkMasters}
-              onMoveBulkNegative={handleMoveBulkNegatives}
-              onReorder={handleReorderMasters}
-              onReorderNegative={handleReorderNegatives}
-              onCopyToPart={(master) => setSavePartFromMasterData({ name: master.name, content: master.content })}
-              onCopyBulkToPart={(masters) => setSavePartFromMasterData({ items: masters.map(m => ({ name: m.name, content: m.content })) })}
-              onCopyBulkToPartDirect={(masters, category, section) => {
-                masters.forEach(m => handleAddPart(category, section, m.name, m.content));
-              }}
-              uniqueCategories={uniqueCategories}
-              activeTab={activeMasterTab}
-              setActiveTab={setActiveMasterTab}
-              lang={lang}
-            />
-          )}
 
-          <div className="p-3 border-t border-border-main flex flex-col gap-2 shrink-0">
-            <div className="bg-bg-input border border-border-main rounded p-2 flex flex-col">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-[10px] font-mono text-text-main font-bold tracking-widest">{t('drive_destination', lang)}</span>
-                <div className="flex space-x-1">
-                  <button onClick={handleChangeExportDir} className="text-[10px] font-mono text-text-main font-bold hover:text-accent-main transition-colors">{t('change', lang)}</button>
-                  {exportDirectoryName && (
-                    <>
-                      <button onClick={handleResumeFromDir} className="text-[10px] font-mono text-text-main font-bold hover:text-accent-main transition-colors">(RESUME)</button>
-                      <button onClick={handleClearExportDir} className="text-[10px] font-mono text-text-main font-bold hover:text-accent-main transition-colors">(CLEAR)</button>
-                    </>
-                  )}
+              {/* Sidebar Header: Main Navigation Tabs */}
+              <div className="p-2 bg-bg-panel border-b border-border-main shrink-0 overflow-x-auto">
+                <div className="flex w-full bg-bg-base border border-border-main p-1 gap-1 text-[11px] font-mono uppercase tracking-wider rounded">
+                  <button 
+                    onClick={() => {
+                      setSidebarTab('parts');
+                      setActiveVariationTab('parts');
+                    }}
+                    className={`flex-1 py-1.5 px-2 border rounded font-bold transition-colors text-center flex items-center justify-center gap-1.5 ${
+                      sidebarTab === 'parts' 
+                        ? (theme === 'mono' ? 'bg-black text-white border-black' : 'bg-bg-surface text-text-main border-text-main shadow-sm') 
+                        : 'border-transparent text-text-dim hover:text-text-main'
+                    }`}
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    <span>{t('parts_settings', lang)}</span>
+                  </button>
+                  <button 
+                    onClick={() => setSidebarTab('master')}
+                    className={`flex-1 py-1.5 px-2 border rounded font-bold transition-colors text-center flex items-center justify-center gap-1.5 ${
+                      sidebarTab === 'master' 
+                        ? (theme === 'mono' ? 'bg-black text-white border-black' : 'bg-bg-surface text-text-main border-text-main shadow-sm') 
+                        : 'border-transparent text-text-dim hover:text-text-main'
+                    }`}
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>{t('prompt_settings', lang)}</span>
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setSidebarTab('memo');
+                    }}
+                    className={`flex-1 py-1.5 px-2 border rounded font-bold transition-colors text-center flex items-center justify-center gap-1.5 ${
+                      sidebarTab === 'memo' 
+                        ? (theme === 'mono' ? 'bg-black text-white border-black' : 'bg-bg-surface text-text-main border-text-main shadow-sm') 
+                        : 'border-transparent text-text-dim hover:text-text-main'
+                    }`}
+                  >
+                    <Bookmark className="w-3.5 h-3.5" />
+                    <span>{t('prompt_memo', lang)}</span>
+                  </button>
                 </div>
               </div>
-              <button 
-                onClick={handleChangeExportDir}
-                className={`w-full text-center px-2 py-1.5 bg-bg-panel border border-border-main rounded text-[10px] font-mono truncate transition-colors ${theme === 'mono' ? 'hover:bg-gray-500 hover:text-white text-text-main' : 'hover:bg-border-main text-text-main'}`}
-              >
-                {exportDirectoryName || t('not_set', lang)}
-              </button>
-              {loadSuccessMessage && (<div className="mt-1 text-center text-[10px] font-mono text-accent-main animate-pulse font-bold">{loadSuccessMessage}</div>)}
-            </div>
-            <div className="flex gap-2">
-              <label className={`flex-1 flex items-center justify-center px-2 py-1.5 bg-border-main hover:bg-border-hover text-[10px] font-mono border border-border-hover rounded transition-colors cursor-pointer ${theme === 'mono' ? 'text-white' : 'text-text-main'}`}>
-                {t('import_json', lang)}
-                <input type="file" accept=".json" className="hidden" onChange={handleImport} />
-              </label>
-              <button onClick={handleExport} className={`flex-1 flex items-center justify-center px-2 py-1.5 text-[10px] font-mono border rounded text-white transition-opacity cursor-pointer ${theme === 'mono' ? 'bg-gray-600 border-gray-500 hover:bg-gray-500' : 'bg-accent-main border-accent-dim hover:opacity-80'}`}>
-                {t('export_config', lang)}
-              </button>
-            </div>
-          </div>
 
-          <div 
-            onMouseDown={startLeftResize}
-            className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-accent-main active:bg-accent-main transition-colors z-10"
-          />
-        </aside>
-        )}
+              {/* Sidebar Body */}
+              <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                {sidebarTab === 'parts' && (
+                  <VariationColumn
+                    parts={data.parts}
+                    customCategories={data.customCategories}
+                    customSectionNames={data.customSectionNames}
+                    onRenameSection={handleRenameSection}
+                    onAddCategory={handleAddCategory}
+                    onRenameCategory={handleRenameCategory}
+                    onDeleteCategory={handleDeleteCategory}
+                    onReorderCategory={handleReorderCategory}
+                    selectedIds={selectedPartIds}
+                    onTogglePart={handleTogglePart}
+                    onTogglePin={handleTogglePin}
+                    onTogglePartNegative={handleTogglePartNegative}
+                    onAdd={handleAddPart}
+                    onUpdate={handleUpdatePart}
+                    onDuplicate={handleDuplicatePart}
+                    onDelete={handleDeletePart}
+                    onDeleteBulk={handleDeleteBulkParts}
+                    onDeleteAll={handleDeleteAllParts}
+                    onReorder={handleReorderParts}
+                    onCopyToMaster={(part) => setSaveMasterFromPartData({ name: part.name, content: part.content })}
+                    onCopyToMixer={(part) => setSaveMixerFromPartData({ items: [{name: part.name, content: part.content}] })}
+                    onCopyBulkToMaster={(items) => setSaveMasterFromPartData({ items: items.map(i => ({name: i.name, content: i.content})) })}
+                    onCopyBulkToMixer={(items) => setSaveMixerFromPartData({ items: items.map(i => ({name: i.name, content: i.content})) })}
+                    onMixAttributes={handleMixAttributes}
+                    onInsertText={handleInsertText}
+                    onCopyToParts={handleCopyToParts}
+                    lang={lang}
+                    theme={theme}
+                    activeTab={activeVariationTab}
+                    setActiveTab={setActiveVariationTab}
+                  />
+                )}
 
-        <button 
-          onClick={() => setIsLeftOpen(!isLeftOpen)}
-          className="self-center shrink-0 z-20 flex items-center justify-center w-5 h-24 bg-bg-panel hover:bg-bg-input text-text-main border border-border-main border-l-0 shadow-md rounded-r-md transition-colors"
-        >
-          {isLeftOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-        </button>
+                {sidebarTab === 'master' && (
+                  <MasterColumn
+                    theme={theme}
+                    masters={data.masters}
+                    negatives={data.negatives}
+                    selectedId={selectedMasterId}
+                    selectedNegativeId={selectedNegativeId}
+                    onSelect={handleSelectMasterId}
+                    onSelectNegative={handleSelectNegativeId}
+                    onAdd={handleAddMaster}
+                    onAddNegative={handleAddNegative}
+                    onUpdate={handleUpdateMaster}
+                    onUpdateNegative={handleUpdateNegative}
+                    onDuplicate={handleDuplicateMaster}
+                    onDuplicateNegative={handleDuplicateNegative}
+                    onDelete={handleDeleteMaster}
+                    onDeleteNegative={handleDeleteNegative}
+                    onDeleteBulk={handleDeleteBulkMaster}
+                    onDeleteBulkNegative={handleDeleteBulkNegative}
+                    onDeleteAll={handleDeleteAllMaster}
+                    onDeleteAllNegative={handleDeleteAllNegative}
+                    onMoveBulk={handleMoveBulkMasters}
+                    onMoveBulkNegative={handleMoveBulkNegatives}
+                    onReorder={handleReorderMasters}
+                    onReorderNegative={handleReorderNegatives}
+                    onCopyToPart={(master) => setSavePartFromMasterData({ name: master.name, content: master.content })}
+                    onCopyBulkToPart={(masters) => setSavePartFromMasterData({ items: masters.map(m => ({ name: m.name, content: m.content })) })}
+                    onCopyBulkToPartDirect={(masters, category, section) => {
+                      masters.forEach(m => handleAddPart(category, section, m.name, m.content));
+                    }}
+                    uniqueCategories={uniqueCategories}
+                    activeTab={activeMasterTab}
+                    setActiveTab={setActiveMasterTab}
+                    lang={lang}
+                  />
+                )}
 
-        {/* Center: Text Editor & Output */}
-        <section className="flex-1 flex flex-col bg-bg-base relative min-w-0">
-          <PreviewColumn
-          selectedMasterId={selectedMasterId}
-          selectedMasterName={selectedMasterId ? data.masters.find(m => m.id === selectedMasterId)?.name : undefined}
-          selectedNegativeId={selectedNegativeId}
-          selectedNegativeName={selectedNegativeId ? data.negatives?.find(m => m.id === selectedNegativeId)?.name : undefined}
-          selectedPartId={activePartId || undefined}
-          selectedPartName={activePartId ? data.parts.find(p => p.id === activePartId)?.name : undefined}
-          tabs={tabs}
-          activeTabId={activeTabId}
-          onTabChange={handleTabChange}
-          onTabAdd={handleTabAdd}
-          onTabClose={handleTabClose}
-          onTabsClear={handleTabsClear}
-            editorText={editorText}
-            setEditorText={setEditorText}
-            negativeEditorText={negativeEditorText}
-            setNegativeEditorText={setNegativeEditorText}
-            activeEditor={activeEditor}
-            setActiveEditor={setActiveEditor}
-            positiveCursorPos={positiveCursorPos}
-            negativeCursorPos={negativeCursorPos}
-            setPositiveCursorPos={setPositiveCursorPos}
-            setNegativeCursorPos={setNegativeCursorPos}
-            onSaveAsMaster={handleSaveAsMaster}
-            onSaveAsPart={(name, content, category, section, items, isUpdate) => {
-              if (items && items.length > 0) {
-                setData(prev => {
-                  const newParts: VariationPart[] = items.map((item, i) => ({
-                    id: `p_${Date.now()}_${i}_${Math.random().toString(36).substr(2, 9)}`,
-                    name: item.name,
-                    content: item.content,
-                    category,
-                    section: section as 1 | 2 | 3 | 4 | 5,
-                    isPinned: false
-                  }));
-                  return { ...prev, parts: [...newParts, ...prev.parts] };
-                });
-              } else {
-                const selectedPartId = selectedPartIds.size === 1 ? Array.from<string>(selectedPartIds)[0] : null;
-                if (isUpdate && selectedPartId) {
-                  handleUpdatePart(selectedPartId, { name, content, category, section: section as 1|2|3|4|5 });
-                } else {
-                  handleAddPart(category, section, name, content);
-                }
-              }
-            }}
-            onSaveAsMemo={(name, content, isUpdate) => {
-              if (isUpdate && selectedMemoId) {
-                handleUpdateMemo(selectedMemoId, { name, content });
-              } else {
-                const newMemo = { id: `memo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, name, content };
-                setData(prev => ({ ...prev, memos: [newMemo, ...(prev.memos || [])] }));
-                setSelectedMemoId(newMemo.id);
-              }
-            }}
-            selectedMemoId={selectedMemoId}
-            selectedMemoName={data.memos?.find(m => m.id === selectedMemoId)?.name || ''}
-            uniqueCategories={uniqueCategories}
-            activeMasterTab={activeMasterTab}
-            lang={lang}
-            paperMode={paperMode}
-            theme={theme}
-            undo={undo}
-            redo={redo}
-            canUndo={canUndo}
-            canRedo={canRedo}
-            autoOptimize={autoOptimize}
-            onToggleAutoOptimize={() => setAutoOptimize(!autoOptimize)}
-          />
-        </section>
+                {sidebarTab === 'memo' && (
+                  <MemoColumn
+                    theme={theme}
+                    masters={data.memos || []}
+                    selectedId={selectedMemoId}
+                    onSelect={handleSelectMemoId}
+                    onAdd={handleAddMemo}
+                    onUpdate={handleUpdateMemo}
+                    onDuplicate={handleDuplicateMemo}
+                    onDelete={handleDeleteMemo}
+                    onDeleteBulk={handleDeleteBulkMemo}
+                    onDeleteAll={handleDeleteAllMemo}
+                    onMoveBulk={handleMoveBulkMemos}
+                    onReorder={handleReorderMemos}
+                    lang={lang}
+                  />
+                )}
+              </div>
 
+              {/* Sidebar Footer: Data Management & Export Directory (Drawer slides upward above fixed bottom bar) */}
+              <div className="border-t border-border-main bg-bg-panel shrink-0 flex flex-col">
+                {isDataManagementOpen && (
+                  <div className="p-3 border-b border-border-main flex flex-col gap-2.5 bg-bg-panel max-h-[320px] overflow-y-auto animate-in fade-in slide-in-from-bottom-2 duration-150">
+                    <div className="bg-bg-input border border-border-main rounded p-2 flex flex-col">
+                      <div className="flex justify-between items-center mb-1.5">
+                        <span className="text-[10px] font-mono text-text-main font-bold tracking-widest">{t('drive_destination', lang)}</span>
+                        <div className="flex space-x-1">
+                          <button onClick={handleChangeExportDir} className="text-[10px] font-mono text-text-main font-bold hover:text-accent-main transition-colors">{t('change', lang)}</button>
+                          {exportDirectoryName && (
+                            <>
+                              <button onClick={handleResumeFromDir} className="text-[10px] font-mono text-text-main font-bold hover:text-accent-main transition-colors">(RESUME)</button>
+                              <button onClick={handleClearExportDir} className="text-[10px] font-mono text-text-main font-bold hover:text-accent-main transition-colors">(CLEAR)</button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <button 
+                        onClick={handleChangeExportDir}
+                        className={`w-full text-center px-2 py-1.5 bg-bg-panel border border-border-main rounded text-[10px] font-mono truncate transition-colors ${theme === 'mono' ? 'hover:bg-gray-500 hover:text-white text-text-main' : 'hover:bg-border-main text-text-main'}`}
+                      >
+                        {exportDirectoryName || t('not_set', lang)}
+                      </button>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <div className="text-[10px] font-mono text-text-dim text-center">▼ {lang === 'en' ? 'Overall (Master, Memos, Parts)' : '全体 (マスター・メモ・パーツ全て)'} ▼</div>
+                      <div className="flex gap-2">
+                        <label className={`flex-1 flex items-center justify-center px-2 py-1.5 text-[10px] font-mono border rounded transition-colors cursor-pointer ${
+                          theme === 'mono' 
+                            ? 'bg-neutral-800 hover:bg-neutral-700 text-white border-neutral-700' 
+                            : theme === 'light'
+                              ? 'bg-white hover:bg-gray-50 text-gray-800 border-gray-300 shadow-xs'
+                              : 'bg-border-main hover:bg-border-hover text-text-main border-border-hover'
+                        }`}>
+                          {lang === 'en' ? 'Import (Overall)' : 'インポート (全体上書き)'}
+                          <input type="file" accept=".json" className="hidden" onChange={handleImportOverall} />
+                        </label>
+                        <button 
+                          onClick={handleExportOverall} 
+                          className={`flex-1 flex items-center justify-center px-2 py-1.5 text-[10px] font-mono font-bold border rounded transition-all cursor-pointer ${
+                            theme === 'mono' 
+                              ? 'bg-neutral-600 hover:bg-neutral-500 text-white border-neutral-500' 
+                              : theme === 'light'
+                                ? 'bg-gray-600 hover:bg-gray-700 text-white border-gray-600 shadow-xs'
+                                : 'bg-accent-main border-accent-dim hover:opacity-80 text-white'
+                          }`}
+                        >
+                          {lang === 'en' ? 'Export (Overall)' : 'エクスポート (全体)'}
+                        </button>
+                      </div>
+
+                      <div className="text-[10px] font-mono text-text-dim text-center mt-1">▼ {lang === 'en' ? 'Parts & Mixer Only' : 'パーツ選択・ミキサーのみ'} ▼</div>
+                      <div className="flex gap-2">
+                        <label className={`flex-1 flex items-center justify-center px-2 py-1.5 text-[10px] font-mono border rounded transition-colors cursor-pointer ${
+                          theme === 'mono' 
+                            ? 'bg-neutral-800 hover:bg-neutral-700 text-white border-neutral-700' 
+                            : theme === 'light'
+                              ? 'bg-white hover:bg-gray-50 text-gray-800 border-gray-300 shadow-xs'
+                              : 'bg-border-main hover:bg-border-hover text-text-main border-border-hover'
+                        }`}>
+                          {lang === 'en' ? 'Import (Parts)' : 'インポート (パーツ)'}
+                          <input type="file" accept=".json" className="hidden" onChange={handleImportParts} />
+                        </label>
+                        <button 
+                          onClick={handleExportParts} 
+                          className={`flex-1 flex items-center justify-center px-2 py-1.5 text-[10px] font-mono font-bold border rounded transition-all cursor-pointer ${
+                            theme === 'mono' 
+                              ? 'bg-neutral-600 hover:bg-neutral-500 text-white border-neutral-500' 
+                              : theme === 'light'
+                                ? 'bg-gray-500 hover:bg-gray-600 text-white border-gray-500 shadow-xs'
+                                : (theme === 'black' ? 'bg-accent-main border-accent-dim hover:opacity-80 text-white' : 'bg-teal-600 border-teal-500 hover:opacity-80 text-white')
+                          }`}
+                        >
+                          {lang === 'en' ? 'Export (Parts)' : 'エクスポート (パーツ)'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Always-fixed bottom bar so the toggle button never moves position */}
+                <button 
+                  onClick={() => setIsDataManagementOpen(!isDataManagementOpen)}
+                  className="w-full px-3 py-2.5 flex items-center justify-between text-[11px] font-mono font-bold text-text-main hover:bg-border-main/50 transition-colors bg-bg-input/60 select-none cursor-pointer"
+                  title={isDataManagementOpen ? (lang === 'en' ? 'Collapse Data Management' : 'データ管理を閉じる') : (lang === 'en' ? 'Expand Data Management' : 'データ管理を開く')}
+                >
+                  <span className="flex items-center gap-2 tracking-wide">
+                    <HardDrive className="w-4 h-4 text-accent-main" />
+                    <span>{lang === 'en' ? 'Data Management & Drive' : 'データ管理・ドライブ設定'}</span>
+                  </span>
+                  <div className="flex items-center gap-1.5 text-[10px] font-mono text-text-dim">
+                    <span>{isDataManagementOpen ? (lang === 'en' ? '[CLOSE]' : '[閉じる]') : (lang === 'en' ? '[OPEN]' : '[開く]')}</span>
+                    {isDataManagementOpen ? <ChevronDown className="w-4 h-4 text-text-main" /> : <ChevronUp className="w-4 h-4 text-text-main" />}
+                  </div>
+                </button>
+              </div>
+            </aside>
+          );
+
+          const toggleButton = (
+            <button 
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className={`self-center shrink-0 z-20 flex items-center justify-center w-5 h-24 bg-bg-panel hover:bg-bg-input text-text-main border border-border-main shadow-md transition-colors ${
+                sidebarPosition === 'left' ? 'border-l-0 rounded-r-md' : 'border-r-0 rounded-l-md'
+              }`}
+              title={isSidebarOpen ? (lang === 'en' ? 'Collapse Sidebar' : 'サイドバーを閉じる') : (lang === 'en' ? 'Open Sidebar' : 'サイドバーを開く')}
+            >
+              {sidebarPosition === 'left' ? (
+                isSidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />
+              ) : (
+                isSidebarOpen ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />
+              )}
+            </button>
+          );
+
+          const editorSection = (
+            <section className="flex-1 flex flex-col bg-bg-base relative min-w-0" style={{ minWidth: '550px' }}>
+              <PreviewColumn
+                selectedMasterId={selectedMasterId}
+                selectedMasterName={selectedMasterId ? data.masters.find(m => m.id === selectedMasterId)?.name : undefined}
+                selectedNegativeId={selectedNegativeId}
+                selectedNegativeName={selectedNegativeId ? data.negatives?.find(m => m.id === selectedNegativeId)?.name : undefined}
+                selectedPartId={activePartId || undefined}
+                selectedPartName={activePartId ? data.parts.find(p => p.id === activePartId)?.name : undefined}
+                tabs={tabs}
+                activeTabId={activeTabId}
+                isMemoTab={activeTab.isMemo}
+                onTabChange={handleTabChange}
+                onTabAdd={handleTabAdd}
+                onTabClose={handleTabClose}
+                onTabsClear={handleTabsClear}
+                editorText={editorText}
+                setEditorText={setEditorText}
+                negativeEditorText={negativeEditorText}
+                setNegativeEditorText={setNegativeEditorText}
+                activeEditor={activeEditor}
+                setActiveEditor={setActiveEditor}
+                findText={findText}
+                setFindText={setFindText}
+                replaceText={replaceText}
+                setReplaceText={setReplaceText}
+                findCursorPos={findCursorPos}
+                setFindCursorPos={setFindCursorPos}
+                findSelectionEnd={findSelectionEnd}
+                setFindSelectionEnd={setFindSelectionEnd}
+                replaceCursorPos={replaceCursorPos}
+                setReplaceCursorPos={setReplaceCursorPos}
+                replaceSelectionEnd={replaceSelectionEnd}
+                setReplaceSelectionEnd={setReplaceSelectionEnd}
+                positiveCursorPos={positiveCursorPos}
+                negativeCursorPos={negativeCursorPos}
+                positiveSelectionEnd={positiveSelectionEnd}
+                negativeSelectionEnd={negativeSelectionEnd}
+                setPositiveCursorPos={setPositiveCursorPos}
+                setNegativeCursorPos={setNegativeCursorPos}
+                setPositiveSelectionEnd={setPositiveSelectionEnd}
+                setNegativeSelectionEnd={setNegativeSelectionEnd}
+                onSaveAsMaster={handleSaveAsMaster}
+                onSaveAsPart={(name, content, category, section, items, isUpdate) => {
+                  if (items && items.length > 0) {
+                    setData(prev => {
+                      const newParts: VariationPart[] = items.map((item, i) => ({
+                        id: `p_${Date.now()}_${i}_${Math.random().toString(36).substr(2, 9)}`,
+                        name: item.name,
+                        content: item.content,
+                        category,
+                        section: section as 1 | 2 | 3 | 4 | 5,
+                        isPinned: false
+                      }));
+                      return { ...prev, parts: [...newParts, ...prev.parts] };
+                    });
+                  } else {
+                    const selectedPartId = selectedPartIds.size === 1 ? Array.from<string>(selectedPartIds)[0] : null;
+                    if (isUpdate && selectedPartId) {
+                      handleUpdatePart(selectedPartId, { name, content, category, section: section as 1|2|3|4|5 });
+                    } else {
+                      handleAddPart(category, section, name, content);
+                    }
+                  }
+                }}
+                onSaveAsMemo={(name, content, isUpdate) => {
+                  if (isUpdate && selectedMemoId) {
+                    handleUpdateMemo(selectedMemoId, { name, content });
+                  } else {
+                    const newMemo = { id: `memo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, name, content };
+                    setData(prev => ({ ...prev, memos: [newMemo, ...(prev.memos || [])] }));
+                    setSelectedMemoId(newMemo.id);
+                  }
+                }}
+                selectedMemoId={selectedMemoId}
+                selectedMemoName={data.memos?.find(m => m.id === selectedMemoId)?.name || ''}
+                uniqueCategories={uniqueCategories}
+                activeMasterTab={activeMasterTab}
+                lang={lang}
+                paperMode={paperMode}
+                theme={theme}
+                undo={undo}
+                redo={redo}
+                canUndo={canUndo}
+                canRedo={canRedo}
+                autoOptimize={autoOptimize}
+                onToggleAutoOptimize={() => setAutoOptimize(prev => !prev)}
+              />
+            </section>
+          );
+
+          return (
+            <>
+              {sidebarPosition === 'left' ? (
+                <>
+                  {isSidebarOpen && sidebarContent}
+                  {toggleButton}
+                  {editorSection}
+                </>
+              ) : (
+                <>
+                  {editorSection}
+                  {toggleButton}
+                  {isSidebarOpen && sidebarContent}
+                </>
+              )}
+            </>
+          );
+        })()}
+
+        {/* Modals */}
         <SavePartModal
           isOpen={savePartFromMasterData !== null}
           content={savePartFromMasterData?.content || ''}
@@ -1812,7 +2254,8 @@ export default function App() {
           }}
           onCancel={() => setSaveMasterFromPartData(null)}
           lang={lang}
-          />
+        />
+
         <SaveMixerModal
           isOpen={saveMixerFromPartData !== null}
           items={saveMixerFromPartData?.items}
@@ -1824,107 +2267,6 @@ export default function App() {
           lang={lang}
           mixerCategories={mixerCategories}
         />
-
-        <button 
-          onClick={() => setIsRightOpen(!isRightOpen)}
-          className="self-center shrink-0 z-20 flex items-center justify-center w-5 h-24 bg-bg-panel hover:bg-bg-input text-text-main border border-border-main border-r-0 shadow-md rounded-l-md transition-colors"
-        >
-          {isRightOpen ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-        </button>
-
-        {/* Right Sidebar */}
-        {isRightOpen && (
-          <aside style={{ width: rightWidth }} className="border-l border-border-main bg-bg-panel flex flex-col shrink-0 relative">
-            <div 
-              onMouseDown={startRightResize}
-              className="absolute top-0 left-0 w-1 h-full cursor-col-resize hover:bg-accent-main active:bg-accent-main transition-colors z-10 -ml-[0.5px]"
-            />
-          {sidebarSwapped ? (
-            <MasterColumn
-              theme={theme}
-              masters={data.masters}
-              negatives={data.negatives}
-              selectedId={selectedMasterId}
-              selectedNegativeId={selectedNegativeId}
-              onSelect={handleSelectMasterId}
-              onSelectNegative={handleSelectNegativeId}
-              onAdd={handleAddMaster}
-              onAddNegative={handleAddNegative}
-              onUpdate={handleUpdateMaster}
-              onUpdateNegative={handleUpdateNegative}
-              onDuplicate={handleDuplicateMaster}
-              onDuplicateNegative={handleDuplicateNegative}
-              onDelete={handleDeleteMaster}
-              onDeleteNegative={handleDeleteNegative}
-              onDeleteBulk={handleDeleteBulkMaster}
-              onDeleteBulkNegative={handleDeleteBulkNegative}
-              onDeleteAll={handleDeleteAllMaster}
-              onDeleteAllNegative={handleDeleteAllNegative}
-              onMoveBulk={handleMoveBulkMasters}
-              onMoveBulkNegative={handleMoveBulkNegatives}
-              onReorder={handleReorderMasters}
-              onReorderNegative={handleReorderNegatives}
-              onCopyToPart={(master) => setSavePartFromMasterData({ name: master.name, content: master.content })}
-              onCopyBulkToPart={(masters) => setSavePartFromMasterData({ items: masters.map(m => ({ name: m.name, content: m.content })) })}
-              onCopyBulkToPartDirect={(masters, category, section) => {
-                masters.forEach(m => handleAddPart(category, section, m.name, m.content));
-              }}
-              uniqueCategories={uniqueCategories}
-              activeTab={activeMasterTab}
-              setActiveTab={setActiveMasterTab}
-              lang={lang}
-            />
-          ) : (
-            <VariationColumn
-              parts={data.parts}
-              customCategories={data.customCategories}
-              customSectionNames={data.customSectionNames}
-              onRenameSection={handleRenameSection}
-              onAddCategory={handleAddCategory}
-              onRenameCategory={handleRenameCategory}
-              onDeleteCategory={handleDeleteCategory}
-              onReorderCategory={handleReorderCategory}
-              selectedIds={selectedPartIds}
-              onTogglePart={handleTogglePart}
-              onTogglePin={handleTogglePin}
-              onTogglePartNegative={handleTogglePartNegative}
-              onAdd={handleAddPart}
-              onUpdate={handleUpdatePart}
-              onDuplicate={handleDuplicatePart}
-              onDelete={handleDeletePart}
-              onDeleteAll={handleDeleteAllParts}
-              onReorder={handleReorderParts}
-              onCopyToMaster={(part) => setSaveMasterFromPartData({ name: part.name, content: part.content })}
-              onCopyToMixer={(part) => setSaveMixerFromPartData({ items: [{name: part.name, content: part.content}] })}
-              onCopyBulkToMaster={(items) => setSaveMasterFromPartData({ items: items.map(i => ({name: i.name, content: i.content})) })}
-              onCopyBulkToMixer={(items) => setSaveMixerFromPartData({ items: items.map(i => ({name: i.name, content: i.content})) })}
-              onMixAttributes={handleMixAttributes}
-              onInsertText={handleInsertText}
-              onCopyToParts={handleCopyToParts}
-              lang={lang}
-              theme={theme}
-              activeTab={activeVariationTab}
-              setActiveTab={setActiveVariationTab}
-            >
-              <MemoColumn
-                theme={theme}
-                masters={data.memos || []}
-                selectedId={selectedMemoId}
-                onSelect={handleSelectMemoId}
-                onAdd={handleAddMemo}
-                onUpdate={handleUpdateMemo}
-                onDuplicate={handleDuplicateMemo}
-                onDelete={handleDeleteMemo}
-                onDeleteBulk={handleDeleteBulkMemo}
-                onDeleteAll={handleDeleteAllMemo}
-                onMoveBulk={handleMoveBulkMemos}
-                onReorder={handleReorderMemos}
-                lang={lang}
-              />
-            </VariationColumn>
-          )}
-          </aside>
-        )}
       </main>
 
       {/* Footer Status Bar */}
@@ -1967,13 +2309,7 @@ export default function App() {
         </div>
       )}
       
-        <ImportModal
-          isOpen={importPendingData !== null}
-          onMerge={() => { executeImport(true); setImportPendingData(null); }}
-          onOverwrite={() => { executeImport(false); setImportPendingData(null); }}
-          onCancel={() => setImportPendingData(null)}
-          lang={lang}
-        />
+        
         
         <Toast 
           message={toastMessage?.msg || ''} 

@@ -825,41 +825,74 @@ select {
   gap: 16px;
 }
 
-.tab-strip {
-  display: flex;
-  gap: 4px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  flex-shrink: 0;
-}
-.tab-strip::-webkit-scrollbar {
-  display: none;
-}
-.tab-item {
+/* タブバー全体ヘッダー（スクロールタブ領域 ＋ 右端ピン留め操作ボタン） */
+.tab-bar-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  min-height: 28px;
+  max-height: 28px;
+  flex-shrink: 0;
+}
+
+.tab-strip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 28px;
+  flex: 1;
+  min-width: 0;
+  scrollbar-width: none; /* Firefox: スクロールバーで高さが膨らむのを完全防止 */
+  -ms-overflow-style: none; /* Edge/IE */
+  padding: 0;
+}
+
+.tab-strip::-webkit-scrollbar {
+  display: none; /* Chrome/Safari: スクロールバーを非表示にし、タブが上にカクッと上がるのを防止 */
+  width: 0;
+  height: 0;
+}
+
+.tab-item {
+  display: inline-flex;
+  align-items: center;
   height: 24px;
-  padding: 0 8px;
+  padding: 0 4px 0 8px;
   font-family: var(--title-font);
   font-size: 10px;
   letter-spacing: 0.05em;
   border: 1px solid var(--border-strong);
   background: var(--surface);
   color: var(--muted);
-  cursor: grab;
+  cursor: pointer;
   user-select: none;
   box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.02);
   white-space: nowrap;
   position: relative;
   transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+  max-width: 140px;
+  min-width: 50px;
+  flex-shrink: 0;
 }
-.tab-item:active {
-  cursor: grabbing;
+
+.tab-item-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
 }
+
 .tab-item.is-dragging {
   opacity: 0.35;
   border-style: dashed;
 }
+
 .tab-item.drop-before::before {
   content: "";
   position: absolute;
@@ -871,6 +904,7 @@ select {
   z-index: 5;
   box-shadow: 0 0 6px var(--control-accent);
 }
+
 .tab-item.drop-after::after {
   content: "";
   position: absolute;
@@ -882,10 +916,12 @@ select {
   z-index: 5;
   box-shadow: 0 0 6px var(--control-accent);
 }
+
 .tab-item:hover {
   color: var(--text);
   background: var(--surface-2);
 }
+
 .tab-item[aria-selected="true"] {
   color: var(--text);
   border-color: var(--control-accent);
@@ -893,33 +929,91 @@ select {
   font-weight: 700;
   box-shadow: inset 0 1px 0 var(--control-accent);
 }
+
+/* タブ閉じるボタン（×）：手のひらマークではなくシャープなポインター＆確実なヒットエリア */
 .tab-close {
-  margin-left: 6px;
-  font-size: 12px;
-  opacity: 0.5;
-  padding: 0 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 0;
+  transition: background 0.12s, color 0.12s;
+  flex-shrink: 0;
 }
+
 .tab-close:hover {
-  opacity: 1;
+  background: rgba(255, 107, 107, 0.2);
   color: #ff6b6b;
 }
-.tab-add {
-  display: flex;
+
+/* 右端固定タブアクション群（タブが増えても画面外に隠れず常にアクセス可能） */
+.tab-actions-pinned {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  height: 28px;
+  padding-left: 6px;
+  border-left: 1px solid var(--border);
+}
+
+.tab-action-btn {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   height: 24px;
-  width: 24px;
+  padding: 0 7px;
   font-family: var(--title-font);
-  font-size: 14px;
-  border: 1px dashed var(--border-strong);
-  background: transparent;
-  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
   cursor: pointer;
-  flex-shrink: 0;
+  white-space: nowrap;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
 }
-.tab-add:hover {
+
+.tab-action-btn:hover {
   border-color: var(--control-accent);
+  background: var(--surface-2);
+}
+
+.tab-action-btn.tab-add-btn {
+  width: 24px;
+  padding: 0;
+  font-size: 14px;
+  border-style: dashed;
+}
+
+.tab-action-btn.tab-add-btn:hover {
   color: var(--control-accent);
+}
+
+.tab-action-btn.delete-all-tabs {
+  color: var(--muted);
+}
+
+.tab-action-btn.delete-all-tabs:hover {
+  color: #ff6b6b;
+  border-color: #ff6b6b;
+}
+
+.tab-count-badge {
+  font-family: var(--title-font);
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  padding: 0 4px;
+  white-space: nowrap;
 }
 
 textarea {
@@ -1561,6 +1655,56 @@ body.minimum-mode textarea {
   flex-shrink: 0;
 }
 
+/* カード文字サイズ切り替えコントローラー */
+.saved-tabs-size-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  padding: 1px 3px;
+  height: 26px;
+}
+
+.saved-tabs-size-label {
+  font-family: var(--title-font);
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-right: 2px;
+  letter-spacing: 0.04em;
+}
+
+.size-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 20px;
+  font-family: var(--title-font);
+  font-size: 9px;
+  font-weight: 700;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: all 0.12s;
+}
+
+.size-toggle-btn:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.size-toggle-btn.active {
+  background: var(--control-accent);
+  color: #000000;
+  font-weight: 800;
+  border-color: var(--control-accent);
+}
+
 .saved-tabs-io-bar {
   display: flex;
   align-items: center;
@@ -1663,20 +1807,79 @@ body.minimum-mode textarea {
 
 .saved-tab-preview-text {
   font-family: var(--ui-font);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   background: var(--panel);
   border: 1px solid var(--border);
-  padding: 4px 6px;
-  max-height: 42px;
+  padding: 5px 8px;
+  max-height: 48px;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-  line-height: 1.4;
+  line-height: 1.45;
   white-space: pre-wrap;
   word-break: break-all;
+  transition: all 0.15s ease;
+}
+
+/* --- カード文字サイズバリエーション (S / M / L) --- */
+/* S: 省スペース・一覧重視 */
+.saved-tabs-full-list.size-s .saved-tab-title {
+  font-size: 11px;
+}
+.saved-tabs-full-list.size-s .saved-tab-preview-text {
+  font-size: 10px;
+  -webkit-line-clamp: 2;
+  max-height: 40px;
+  line-height: 1.4;
+}
+.saved-tabs-full-list.size-s .saved-tab-meta {
+  font-size: 9px;
+}
+.saved-tabs-full-list.size-s .saved-tab-btn {
+  font-size: 9px;
+  height: 20px;
+  padding: 0 6px;
+}
+
+/* M: 標準・バランス型（初期値） */
+.saved-tabs-full-list.size-m .saved-tab-title {
+  font-size: 13px;
+}
+.saved-tabs-full-list.size-m .saved-tab-preview-text {
+  font-size: 12px;
+  -webkit-line-clamp: 3;
+  max-height: 62px;
+  line-height: 1.5;
+}
+.saved-tabs-full-list.size-m .saved-tab-meta {
+  font-size: 10px;
+}
+.saved-tabs-full-list.size-m .saved-tab-btn {
+  font-size: 10px;
+  height: 22px;
+  padding: 0 8px;
+}
+
+/* L: 大きめ・視認性抜群（しっかり読める） */
+.saved-tabs-full-list.size-l .saved-tab-title {
+  font-size: 15px;
+}
+.saved-tabs-full-list.size-l .saved-tab-preview-text {
+  font-size: 14px;
+  -webkit-line-clamp: 4;
+  max-height: 94px;
+  line-height: 1.55;
+}
+.saved-tabs-full-list.size-l .saved-tab-meta {
+  font-size: 11px;
+}
+.saved-tabs-full-list.size-l .saved-tab-btn {
+  font-size: 11px;
+  height: 25px;
+  padding: 0 10px;
 }
 
 .saved-tab-actions {

@@ -1,21 +1,33 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import AddStockForm from './components/AddStockForm';
 import StockList from './components/StockList';
 import Header from './components/Header';
 import CompactView from './components/CompactView';
-import { Category, Stock, MarketLink } from './types';
+import MarketDataView from './components/MarketDataView';
+import { Category, Stock, MarketLink, FolderColor } from './types';
 import { Language, i18n } from './i18n';
 import { initialGroups } from './data';
 import { initialData } from './importData';
+import { enrichedPreset } from './data/enrichedPreset';
+import { getAllDescendantCategoryIds } from './lib/categoryUtils';
+import { safeFetch } from './lib/apiUtils';
 
-export type Theme = 'light' | 'dark' | 'black';
+export type Theme = 'light' | 'dark' | 'black' | 'red';
 export type FontType = 'mono' | 'gothic' | 'meiryo' | 'maru';
 
 export default function App() {
   const [theme, setTheme] = useState<Theme>(
-    () => (localStorage.getItem('knav_theme') as Theme) || 'black'
+    () => {
+      const saved = localStorage.getItem('knav_theme') as Theme;
+      return (saved === 'light' || saved === 'dark' || saved === 'black' || saved === 'red') ? saved : 'black';
+    }
   );
+
+  useEffect(() => {
+    localStorage.setItem('knav_theme', theme);
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
 
   const [fontType, setFontType] = useState<FontType>(
     () => (localStorage.getItem('knav_font_type') as FontType) || 'gothic'
@@ -37,8 +49,12 @@ export default function App() {
     () => (localStorage.getItem('knav_sidebar_pos') as any) || 'left'
   );
 
-  const [fontSize, setFontSize] = useState<number>(
-    () => parseInt(localStorage.getItem('knav_font_size') || '16')
+  const [listFontSize, setListFontSize] = useState<number>(
+    () => parseInt(localStorage.getItem('knav_list_font_size') || localStorage.getItem('knav_font_size') || '13')
+  );
+
+  const [stockFontSize, setStockFontSize] = useState<number>(
+    () => parseInt(localStorage.getItem('knav_stock_font_size') || '16')
   );
 
   const [priceFontSize, setPriceFontSize] = useState<number>(
@@ -52,13 +68,29 @@ export default function App() {
     }
   );
 
+  const [folderColor, setFolderColor] = useState<FolderColor>(
+    () => {
+      const saved = localStorage.getItem('knav_folder_color') as FolderColor;
+      const validColors: FolderColor[] = ['amber', 'blue', 'white', 'black', 'gray', 'theme'];
+      return validColors.includes(saved) ? saved : 'theme';
+    }
+  );
+
+  useEffect(() => {
+    localStorage.setItem('knav_folder_color', folderColor);
+  }, [folderColor]);
+
   useEffect(() => {
     localStorage.setItem('knav_sidebar_pos', sidebarPos);
   }, [sidebarPos]);
 
   useEffect(() => {
-    localStorage.setItem('knav_font_size', fontSize.toString());
-  }, [fontSize]);
+    localStorage.setItem('knav_list_font_size', listFontSize.toString());
+  }, [listFontSize]);
+
+  useEffect(() => {
+    localStorage.setItem('knav_stock_font_size', stockFontSize.toString());
+  }, [stockFontSize]);
 
   useEffect(() => {
     localStorage.setItem('knav_price_font_size', priceFontSize.toString());
@@ -127,8 +159,27 @@ export default function App() {
   });
   
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
+
+  // Safeguard: if activeCategoryId is set but no longer exists in categories, fallback to null (ALL DATA)
+  useEffect(() => {
+    if (activeCategoryId && activeCategoryId !== 'MARKET_DATA' && activeCategoryId !== 'MARKET_LINKS' && activeCategoryId !== 'UNASSIGNED') {
+      const exists = categories.some(c => c.id === activeCategoryId);
+      if (!exists) {
+        setActiveCategoryId(null);
+      }
+    }
+  }, [categories, activeCategoryId]);
+
   const [isFetchingAll, setIsFetchingAll] = useState(false);
   const [fetchProgress, setFetchProgress] = useState({ current: 0, total: 0 });
+  const cancelFetchRef = useRef(false);
+  const [refreshingCode, setRefreshingCode] = useState<string | null>(null);
+
+  const handleStopFetch = () => {
+    if (isFetchingAll) {
+      cancelFetchRef.current = true;
+    }
+  };
   const [isDraggingSidebar, setIsDraggingSidebar] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(370);
 
@@ -184,9 +235,99 @@ export default function App() {
     };
   }, [isDraggingSidebar, sidebarPos]);
 
+  const getPriceFetchUrl = (code: string) => {
+    const customUrl = localStorage.getItem('KNAV_CUSTOM_API_URL')?.trim();
+    if (customUrl) {
+      return customUrl.includes('?') 
+        ? `${customUrl}&code=${encodeURIComponent(code)}`
+        : `${customUrl}?code=${encodeURIComponent(code)}`;
+    }
+    return `/api/fetch-price?code=${encodeURIComponent(code)}`;
+  };
+
+  const fetchSinglePrice = async (code: string) => {
+    if (refreshingCode) return;
+
+    const isGitHubPages = typeof window !== 'undefined' && window.location.hostname.includes('github.io');
+    const customUrl = localStorage.getItem('KNAV_CUSTOM_API_URL')?.trim();
+
+    if (isGitHubPages && !customUrl) {
+      alert(
+        `【GitHub Pages環境での株価取得について】\n` +
+        `GitHub Pagesは静的サイトのため、バックエンドサーバー（/api/fetch-price）が存在しません。\n\n` +
+        `以下のいずれかの方法をご利用ください：\n\n` +
+        `①【最も簡単・推奨】\nAI Studioのプレビュー画面で株価を一括取得（FETCH ALL）し、「JSONエクスポート」したファイルを、このPWAで「JSONインポート」する。\n\n` +
+        `②【直接取得したい場合】\nサイドバーの「外部株価API設定 (GitHub Pages用)」から、無料のGoogle Apps Script (GAS) 等のプロキシURLを設定する。`
+      );
+      return;
+    }
+
+    setRefreshingCode(code);
+    try {
+      const url = getPriceFetchUrl(code);
+      const res = await safeFetch(url, {
+        headers: { 'Accept': 'application/json' }
+      }, 10000);
+      
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        const text = await res.text();
+        if (text.includes('__cookie_check') || text.includes('302 Found')) {
+          alert(`【セッション確認】銘柄(${code})の株価取得に失敗しました。\nセッションを更新するため、画面を一度再読み込み（リロード）してください。`);
+          return;
+        }
+        throw new Error(`Invalid content-type: ${contentType}`);
+      }
+
+      if (res.ok) {
+        const data = await res.json();
+        const price = data?.price || data?.PRICE || (data?.data && (data.data.price || data.data.PRICE));
+        if (price && price !== '?') {
+          localStorage.setItem('KNAV_SX_CLOSE_' + code, JSON.stringify({
+            price: price,
+            date: new Date().toLocaleDateString('ja-JP')
+          }));
+          setStocks(prev => prev.map(s => s.code === code ? { 
+            ...s, 
+            price: price, 
+            priceUpdatedAt: Date.now() 
+          } : s));
+        } else {
+          alert(`銘柄(${code})の現在値が見つかりませんでした。`);
+        }
+      } else {
+        alert(`銘柄(${code})の株価取得に失敗しました (ステータス: ${res.status})。`);
+      }
+    } catch (error) {
+      console.error(`Error fetching single price for ${code}:`, error);
+      alert(`銘柄(${code})の通信エラーが発生しました。接続状況またはAPI設定をご確認ください。`);
+    } finally {
+      setRefreshingCode(null);
+    }
+  };
+
   const fetchAllPrices = async (categoryId?: string) => {
     if (isFetchingAll) return;
+
+    const isGitHubPages = typeof window !== 'undefined' && window.location.hostname.includes('github.io');
+    const customUrl = localStorage.getItem('KNAV_CUSTOM_API_URL')?.trim();
+
+    if (isGitHubPages && !customUrl) {
+      alert(
+        `【GitHub Pages環境での株価取得について】\n` +
+        `GitHub Pagesは静的ホスティング（静的サイト）のため、Node.jsバックエンドサーバー（/api/fetch-price）が稼働していません。\n\n` +
+        `そのため、GitHub Pages単体では直接株価を取得できません。\n\n` +
+        `【解決策】\n` +
+        `①【推奨・最も確実】\n` +
+        `AI Studioのプレビュー画面で「ALL」を押して最新株価を一括取得し、サイドバーの「JSONエクスポート」で保存したファイルを、GitHub Pages側で「JSONインポート」してください（設定不要・数秒で完了）。\n\n` +
+        `②【GitHub Pagesから直接一括取得したい場合】\n` +
+        `サイドバーの「外部株価API設定 (GitHub Pages用)」から、無料のGoogle Apps Script (GAS) などのプロキシURLを設定してください。`
+      );
+      return;
+    }
+
     setIsFetchingAll(true);
+    cancelFetchRef.current = false;
     
     const allStocks = categoryId 
         ? (categoryId === 'UNASSIGNED' ? stocks.filter(s => !s.categoryId) : stocks.filter(s => s.categoryId === categoryId))
@@ -194,35 +335,98 @@ export default function App() {
         
     setFetchProgress({ current: 0, total: allStocks.length });
     
-    for (let i = 0; i < allStocks.length; i++) {
-        const st = allStocks[i];
+    let successCount = 0;
+    let failCount = 0;
+    let authRequired = false;
+    let isCancelled = false;
+
+    // Concurrency pool:
+    // If using custom GAS URL, use gentle settings (2 parallel, 400ms sleep) to prevent Google rate-limits.
+    // If using standard local server (AI Studio), restore high-speed parallel fetching (6 parallel, 50ms sleep) for ultra-fast updates.
+    const isCustom = Boolean(customUrl);
+    const BATCH_SIZE = isCustom ? 2 : 6;
+
+    for (let i = 0; i < allStocks.length; i += BATCH_SIZE) {
+      if (cancelFetchRef.current) {
+        isCancelled = true;
+        break;
+      }
+      const batch = allStocks.slice(i, i + BATCH_SIZE);
+      await Promise.all(batch.map(async (st) => {
         try {
-            const res = await fetch(`/api/fetch-price?code=${encodeURIComponent(st.code)}`);
-            if (res.ok) {
-                const data = await res.json();
-                const price = data.price;
-                if (price && price !== '?') {
-                    // Update Local Storage for Tampermonkey compatibility
-                    localStorage.setItem('KNAV_SX_CLOSE_' + st.code, JSON.stringify({
-                        price: price,
-                        date: new Date().toLocaleDateString('ja-JP')
-                    }));
-                }
-                setStocks(prev => prev.map(s => s.id === st.id ? { 
-                    ...s, 
-                    price: price, 
-                    priceUpdatedAt: Date.now() 
-                } : s));
+          const url = getPriceFetchUrl(st.code);
+          const res = await safeFetch(url, {
+            headers: { 'Accept': 'application/json' }
+          }, isCustom ? 7000 : 5000);
+
+          const contentType = res.headers.get('content-type') || '';
+          if (!contentType.includes('application/json')) {
+            const text = await res.text();
+            if (text.includes('__cookie_check') || text.includes('302 Found')) {
+              authRequired = true;
             }
+            failCount++;
+            return;
+          }
+
+          if (res.ok) {
+            const data = await res.json();
+            const price = data?.price || data?.PRICE || (data?.data && (data.data.price || data.data.PRICE));
+            if (price && price !== '?') {
+              localStorage.setItem('KNAV_SX_CLOSE_' + st.code, JSON.stringify({
+                price: price,
+                date: new Date().toLocaleDateString('ja-JP')
+              }));
+              setStocks(prev => prev.map(s => s.id === st.id ? { 
+                ...s, 
+                price: price, 
+                priceUpdatedAt: Date.now() 
+              } : s));
+              successCount++;
+            } else {
+              failCount++;
+            }
+          } else {
+            failCount++;
+          }
         } catch (error) {
-            console.error(error);
+          console.error(`Error fetching price for ${st.code}:`, error);
+          failCount++;
         }
-        setFetchProgress((prev) => ({ ...prev, current: i + 1 }));
-        await new Promise(r => setTimeout(r, 800)); // sleep to prevent server overload
+      }));
+      
+      setFetchProgress({ current: Math.min(i + batch.length, allStocks.length), total: allStocks.length });
+      if (cancelFetchRef.current) {
+        isCancelled = true;
+        break;
+      }
+      // Sleep between batches: 400ms for GAS to respect quota, 60ms for local AI Studio to maximize speed
+      await new Promise(r => setTimeout(r, isCustom ? 400 : 60));
     }
     
     setIsFetchingAll(false);
     setTimeout(() => setFetchProgress({ current: 0, total: 0 }), 3000);
+
+    // Provide clear, helpful outcome notification
+    if (isCancelled) {
+      alert(`株価取得を停止しました。（更新完了: ${successCount}件）`);
+      return;
+    }
+
+    // Provide clear, helpful outcome notification
+    if (allStocks.length > 0) {
+      if (authRequired || successCount === 0) {
+        if (isGitHubPages) {
+          alert(`【GitHub Pages環境でのご案内】\n株価が取得できませんでした（成功: ${successCount}件 / 失敗: ${failCount}件）。\n\nAI Studioで株価取得してエクスポート＆インポートするか、外部API設定のURLをご確認ください。`);
+        } else {
+          alert(`【株価取得のご案内】\n株価の取得ができませんでした（成功: ${successCount}件 / 失敗: ${failCount}件）。\n\nセッション確認が必要な可能性があります。画面を一度再読み込み（リロード）して再試行してください。`);
+        }
+      } else if (failCount > 0) {
+        alert(`株価の更新が完了しました。\n成功: ${successCount}件 / 取得不可: ${failCount}件`);
+      } else {
+        alert(`全${successCount}件の最新株価を正常に取得・更新しました。`);
+      }
+    }
   };
 
   useEffect(() => {
@@ -246,9 +450,13 @@ export default function App() {
     localStorage.setItem('knav_stocks_v2', JSON.stringify(stocks));
   }, [stocks]);
 
-  const addCategory = (name: string) => {
-    const newCategory = { id: Date.now().toString(), name };
-    setCategories([...categories, newCategory]);
+  const addCategory = (name: string, parentId?: string | null) => {
+    const newCategory: Category = { 
+      id: Date.now().toString(), 
+      name, 
+      parentId: parentId || null 
+    };
+    setCategories(prev => [...prev, newCategory]);
   };
 
   const updateCategory = (id: string, name: string) => {
@@ -256,7 +464,10 @@ export default function App() {
   };
 
   const deleteCategory = (id: string) => {
-    setCategories(categories.filter(c => c.id !== id));
+    setCategories(prev => prev
+      .filter(c => c.id !== id)
+      .map(c => c.parentId === id ? { ...c, parentId: null } : c)
+    );
     setStocks(stocks.map(st => st.categoryId === id ? { ...st, categoryId: '' } : st));
     if (activeCategoryId === id) {
       setActiveCategoryId(null);
@@ -345,6 +556,43 @@ export default function App() {
     });
   };
 
+  const reorderStocks = (sourceIds: string[], targetId: string, position: 'before' | 'after' = 'before') => {
+    if (!sourceIds.length || sourceIds.includes(targetId)) return;
+    setStocks(prev => {
+      const itemsToMove = prev.filter(s => sourceIds.includes(s.id));
+      if (itemsToMove.length === 0) return prev;
+      const remaining = prev.filter(s => !sourceIds.includes(s.id));
+      
+      let targetIdx = remaining.findIndex(s => s.id === targetId);
+      if (targetIdx < 0) {
+        return [...remaining, ...itemsToMove];
+      }
+      if (position === 'after') {
+        targetIdx += 1;
+      }
+      remaining.splice(targetIdx, 0, ...itemsToMove);
+      return remaining;
+    });
+  };
+
+  const reorderCategory = (sourceId: string, targetId: string, position: 'before' | 'after' = 'before') => {
+    if (sourceId === targetId) return;
+    setCategories(prev => {
+      const newCats = [...prev];
+      const sourceIdx = newCats.findIndex(c => c.id === sourceId);
+      if (sourceIdx < 0) return prev;
+      const [moved] = newCats.splice(sourceIdx, 1);
+      
+      let targetIdx = newCats.findIndex(c => c.id === targetId);
+      if (targetIdx < 0) return prev;
+      if (position === 'after') {
+        targetIdx += 1;
+      }
+      newCats.splice(targetIdx, 0, moved);
+      return newCats;
+    });
+  };
+
   const handleExportJson = () => {
     const bbHistory: Record<string, any> = {};
     const closeCache: Record<string, any> = {};
@@ -361,7 +609,7 @@ export default function App() {
     const groups = categories.map(c => ({
       id: c.id,
       name: c.name,
-      stocks: stocks.filter(st => st.categoryId === c.id).map(st => ({ code: st.code, name: st.name })),
+      stocks: stocks.filter(st => st.categoryId === c.id).map(st => ({ code: st.code, name: st.name, description: st.description })),
       collapsed: false
     }));
 
@@ -387,6 +635,18 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
+  const handleDownloadEnrichedJson = () => {
+    const blob = new Blob([JSON.stringify(enrichedPreset, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'k-navigator-enriched.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const handleImportJson = (content: string) => {
     try {
       const data = JSON.parse(content);
@@ -399,38 +659,62 @@ export default function App() {
       if (data.manualBwp) Object.keys(data.manualBwp).forEach(c => localStorage.setItem('KNAV_SX_BWP_' + c, JSON.stringify(data.manualBwp[c])));
       if (data.marketLinks) setMarketLinks(data.marketLinks);
 
-      if (data.categories && data.stocks && !Array.isArray(data.groups)) {
-        setCategories(data.categories);
-        setStocks(data.stocks);
+      let loadedCategories: Category[] = [];
+      let loadedStocks: Stock[] = [];
+
+      if (Array.isArray(data.categories) && Array.isArray(data.stocks) && data.categories.length > 0) {
+        loadedCategories = data.categories;
+        loadedStocks = data.stocks.map((s: any) => ({
+          ...s,
+          description: s.description || s.memo || undefined,
+          price: s.price || (data.closeCache && data.closeCache[s.code] ? data.closeCache[s.code]?.price : undefined)
+        }));
       } else if (data.groups && Array.isArray(data.groups)) {
-        const newCategories: Category[] = [];
-        const newStocks: Stock[] = [];
         data.groups.forEach((g: any) => {
-          newCategories.push({ id: g.id, name: g.name });
+          loadedCategories.push({ id: g.id, name: g.name, parentId: g.parentId || undefined });
           if (Array.isArray(g.stocks)) {
             g.stocks.forEach((s: any, index: number) => {
               let priceStr = undefined;
               if (data.closeCache && data.closeCache[s.code]) {
-                  priceStr = data.closeCache[s.code]?.price;
+                priceStr = data.closeCache[s.code]?.price;
               }
-              newStocks.push({
-                id: `${g.id}_${s.code}`,
+              loadedStocks.push({
+                id: s.id || `${g.id}_${s.code}`,
                 code: s.code,
                 name: s.name,
                 categoryId: g.id,
-                price: priceStr,
-                createdAt: Date.now() + index
+                price: s.price || priceStr,
+                description: s.description || s.memo || undefined,
+                createdAt: s.createdAt || (Date.now() + index)
               });
             });
           }
         });
-        setCategories(newCategories);
-        setStocks(newStocks);
+      }
+
+      if (loadedCategories.length > 0 || loadedStocks.length > 0) {
+        setCategories(loadedCategories);
+        setStocks(loadedStocks);
+        setActiveCategoryId(null);
+        alert(`${loadedCategories.length}個のフォルダー、${loadedStocks.length}件の銘柄データを正常に読み込みました。`);
       } else {
-        console.error("Unsupported JSON format");
+        alert('読み込み可能な銘柄データが見つかりませんでした。JSONの形式をご確認ください。');
       }
     } catch (e) {
-      console.error("Failed to parse JSON");
+      console.error("Failed to parse JSON", e);
+      alert('JSONファイルの解析に失敗しました。ファイルが破損していないか確認してください。');
+    }
+  };
+
+  const handleLoadEnrichedPreset = () => {
+    try {
+      setCategories(enrichedPreset.categories);
+      setStocks(enrichedPreset.stocks);
+      setActiveCategoryId(null);
+      alert(`初期プリセット（228銘柄・概要付き、${enrichedPreset.categories.length}フォルダー）を正常に復元しました。`);
+    } catch (e) {
+      console.error("Failed to restore preset", e);
+      alert('228銘柄概要付きデータの復元に失敗しました');
     }
   };
 
@@ -450,14 +734,16 @@ export default function App() {
         });
       });
       setStocks(initialStocks);
+      setActiveCategoryId(null);
     }
   };
 
-  const filteredStocks = activeCategoryId === 'UNASSIGNED'
-    ? stocks.filter(st => !st.categoryId)
-    : activeCategoryId 
-      ? stocks.filter(st => st.categoryId === activeCategoryId)
-      : stocks;
+  const filteredStocks = useMemo(() => {
+    if (!activeCategoryId || activeCategoryId === 'MARKET_DATA' || activeCategoryId === 'MARKET_LINKS') return stocks;
+    if (activeCategoryId === 'UNASSIGNED') return stocks.filter(st => !st.categoryId);
+    const targetIds = new Set([activeCategoryId, ...getAllDescendantCategoryIds(activeCategoryId, categories)]);
+    return stocks.filter(st => st.categoryId && targetIds.has(st.categoryId));
+  }, [stocks, activeCategoryId, categories]);
 
   if (isCompactMode) {
     return (
@@ -474,7 +760,7 @@ export default function App() {
           priceFontSize={priceFontSize}
           priceColor={priceColor}
           theme={theme}
-          fontSize={fontSize}
+          fontSize={listFontSize}
         />
       </div>
     );
@@ -486,6 +772,7 @@ export default function App() {
         <Sidebar 
           categories={categories} 
           stocksLength={stocks.length}
+          stocks={stocks}
           onAddCategory={addCategory} 
           onUpdateCategory={updateCategory}
           onDeleteCategory={deleteCategory}
@@ -500,9 +787,15 @@ export default function App() {
           onResetData={handleResetData}
           isFetchingAll={isFetchingAll}
           fetchProgress={fetchProgress}
-          fontSize={fontSize}
+          onStopFetch={handleStopFetch}
+          listFontSize={listFontSize}
           marketLinks={marketLinks}
           onMarketLinksChange={setMarketLinks}
+          onLoadEnrichedData={handleLoadEnrichedPreset}
+          onDownloadEnrichedData={handleDownloadEnrichedJson}
+          folderColor={folderColor}
+          onReorderCategory={reorderCategory}
+          onMoveStocksToCategory={moveStocksToCategory}
         />
         <div 
            className={`absolute top-0 ${sidebarPos === 'right' ? 'left-0 -ml-1' : 'right-0'} w-2 h-full cursor-col-resize hover:bg-border-light/30 active:bg-border-light/50 transition-colors z-20`}
@@ -517,6 +810,7 @@ export default function App() {
         <Sidebar 
           categories={categories} 
           stocksLength={stocks.length}
+          stocks={stocks}
           onAddCategory={addCategory} 
           onUpdateCategory={updateCategory}
           onDeleteCategory={deleteCategory}
@@ -531,44 +825,76 @@ export default function App() {
           onResetData={handleResetData}
           isFetchingAll={isFetchingAll}
           fetchProgress={fetchProgress}
-          fontSize={fontSize}
+          onStopFetch={handleStopFetch}
+          listFontSize={listFontSize}
           marketLinks={marketLinks}
           onMarketLinksChange={setMarketLinks}
+          onLoadEnrichedData={handleLoadEnrichedPreset}
+          onDownloadEnrichedData={handleDownloadEnrichedJson}
+          folderColor={folderColor}
+          onReorderCategory={reorderCategory}
+          onMoveStocksToCategory={moveStocksToCategory}
         />
       </div>
 
-      <main className="flex-1 p-4 md:p-6 flex flex-col gap-6 max-h-screen overflow-hidden">
+      <main className="flex-1 p-3 md:p-4 flex flex-col gap-3 md:gap-4 max-h-screen overflow-hidden">
         <Header 
           theme={theme} 
           onThemeChange={setTheme}
           fontType={fontType}
           onFontTypeChange={setFontType}
+          folderColor={folderColor}
+          onFolderColorChange={setFolderColor}
           language={language} 
           onLanguageChange={setLanguage} 
           sidebarPos={sidebarPos}
           onSidebarPosChange={setSidebarPos}
-          fontSize={fontSize}
-          onFontSizeChange={setFontSize}
+          listFontSize={listFontSize}
+          onListFontSizeChange={setListFontSize}
+          stockFontSize={stockFontSize}
+          onStockFontSizeChange={setStockFontSize}
           priceFontSize={priceFontSize}
           onPriceFontSizeChange={setPriceFontSize}
           priceColor={priceColor}
           onPriceColorChange={setPriceColor}
           onToggleCompactMode={() => setIsCompactMode(true)}
         />
-        <AddStockForm categories={categories} onAdd={addStocks} language={language} />
-        <StockList 
-          stocks={filteredStocks} 
-          categories={categories} 
-          onDelete={deleteStocks} 
-          onUpdate={updateStock}
-          onMoveStock={moveStock}
-          onMoveStocksToCategory={moveStocksToCategory}
-          language={language} 
-          fontSize={fontSize}
-          priceFontSize={priceFontSize}
-          priceColor={priceColor}
-          theme={theme}
-        />
+        {activeCategoryId === 'MARKET_DATA' ? (
+          <MarketDataView
+            links={marketLinks}
+            onUpdateLinks={setMarketLinks}
+            onBackToStocks={() => setActiveCategoryId(null)}
+            language={language}
+            theme={theme}
+            fontSize={listFontSize}
+            folderColor={folderColor}
+          />
+        ) : (
+          <>
+            <AddStockForm categories={categories} onAdd={addStocks} language={language} />
+            <StockList 
+              stocks={filteredStocks} 
+              categories={categories} 
+              activeCategory={activeCategoryId}
+              onSelectCategory={setActiveCategoryId}
+              onDelete={deleteStocks} 
+              onUpdate={updateStock}
+              onMoveStock={moveStock}
+              onReorderStocks={reorderStocks}
+              onMoveStocksToCategory={moveStocksToCategory}
+              onAddCategory={addCategory}
+              onRefreshPrice={fetchSinglePrice}
+              refreshingCode={refreshingCode}
+              language={language} 
+              listFontSize={listFontSize}
+              stockFontSize={stockFontSize}
+              priceFontSize={priceFontSize}
+              priceColor={priceColor}
+              theme={theme}
+              folderColor={folderColor}
+            />
+          </>
+        )}
       </main>
     </div>
   );

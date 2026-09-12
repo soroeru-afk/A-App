@@ -6,6 +6,8 @@ import { AddModal } from './AddModal';
 import { User, Pencil, Trash2, Check, X, Plus, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown, ArrowLeftToLine, ArrowRightToLine, Copy } from 'lucide-react';
 import { Language, t } from '../i18n';
 import { AttributeMixer } from './AttributeMixer';
+import { DuplicateSearchModal } from './DuplicateSearchModal';
+import { Search, Combine, MoreHorizontal } from 'lucide-react';
 
 interface VariationColumnProps {
   parts: VariationPart[];
@@ -20,6 +22,7 @@ interface VariationColumnProps {
   onUpdate: (id: string, updates: Partial<VariationPart>) => void;
   onDuplicate?: (id: string) => void;
   onDelete: (id: string) => void;
+  onDeleteBulk?: (ids: string[]) => void;
   onDeleteAll?: () => void;
   onAddCategory?: (section: number, name: string) => void;
   onRenameCategory?: (section: number, oldName: string, newName: string) => void;
@@ -35,15 +38,16 @@ interface VariationColumnProps {
   onCopyToParts?: (parts: VariationPart[], categories: { name: string, section: number }[]) => { added: number, skipped: number };
   lang: Language;
   theme: string;
-  activeTab?: 'parts' | 'mixer' | 'memo';
-  setActiveTab?: (tab: 'parts' | 'mixer' | 'memo') => void;
+  activeTab?: 'parts' | 'mixer';
+  setActiveTab?: (tab: 'parts' | 'mixer') => void;
   children?: React.ReactNode;
 }
 
 export const VariationColumn: React.FC<VariationColumnProps> = ({ 
-  parts, customCategories = [], customSectionNames = {}, onRenameSection, selectedIds, onTogglePart, onTogglePin, onTogglePartNegative, onAdd, onUpdate, onDuplicate, onDelete, onDeleteAll, onAddCategory, onRenameCategory, onDeleteCategory, onReorderCategory, onReorder, onCopyToMaster, onCopyToMixer, onCopyBulkToMaster, onCopyBulkToMixer, onMixAttributes, onInsertText, onCopyToParts, lang, theme, activeTab = 'parts', setActiveTab, children
+  parts, customCategories = [], customSectionNames = {}, onRenameSection, selectedIds, onTogglePart, onTogglePin, onTogglePartNegative, onAdd, onUpdate, onDuplicate, onDelete, onDeleteBulk, onDeleteAll, onAddCategory, onRenameCategory, onDeleteCategory, onReorderCategory, onReorder, onCopyToMaster, onCopyToMixer, onCopyBulkToMaster, onCopyBulkToMixer, onMixAttributes, onInsertText, onCopyToParts, lang, theme, activeTab = 'parts', setActiveTab, children
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [editingSectionId, setEditingSectionId] = useState<number | null>(null);
@@ -52,16 +56,20 @@ export const VariationColumn: React.FC<VariationColumnProps> = ({
   const [editContent, setEditContent] = useState('');
   const [editCategory, setEditCategory] = useState('');
   const [draggedPart, setDraggedPart] = useState<{ id: string, category: string } | null>(null);
+  const [copiedPartId, setCopiedPartId] = useState<string | null>(null);
   const [draggedCategory, setDraggedCategory] = useState<{ name: string, section: number } | null>(null);
   const [draggedSection, setDraggedSection] = useState<number | null>(null);
   const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(new Set());
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmQuickDeleteId, setConfirmQuickDeleteId] = useState<string | null>(null);
+  const [expandedActionId, setExpandedActionId] = useState<string | null>(null);
   const [confirmAddData, setConfirmAddData] = useState<{ category: string, section: number } | null>(null);
   const [confirmAddCategoryData, setConfirmAddCategoryData] = useState<number | null>(null);
   const [confirmDeleteCategoryData, setConfirmDeleteCategoryData] = useState<{ section: number, name: string } | null>(null);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [confirmDeleteAllState, setConfirmDeleteAllState] = useState(false);
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{message: string, action: () => void} | null>(null);
 
   const uniqueCategories = useMemo(() => {
     const cats = new Map<string, number>(); // category -> section
@@ -357,14 +365,6 @@ export const VariationColumn: React.FC<VariationColumnProps> = ({
               <User size={12} /> {t('prompt_mixer', lang)}
             </button>
           )}
-          {setActiveTab && (
-            <button 
-              onClick={() => setActiveTab('memo')}
-              className={`flex-1 flex justify-center items-center gap-1 py-1.5 px-2 border whitespace-nowrap transition-colors ${activeTab === 'memo' ? (theme === 'mono' ? 'bg-black text-white border-black' : 'bg-bg-surface text-text-main border-text-main') : 'border-transparent text-text-dim hover:text-text-main'}`}
-            >
-              {t('prompt_memo', lang)}
-            </button>
-          )}
         </div>
       </div>
 
@@ -418,7 +418,15 @@ export const VariationColumn: React.FC<VariationColumnProps> = ({
               <span className="absolute left-2.5 top-2.5 opacity-30 font-mono text-[10px] text-text-main">/</span>
             </div>
           </div>
-          <div className="flex justify-end">
+          <div className="flex justify-between items-center">
+            
+            <button 
+              onClick={() => setIsDuplicateModalOpen(true)}
+              className="px-2 py-1 text-[10px] border border-border-hover bg-bg-input hover:bg-border-main rounded transition-colors text-text-dim flex items-center justify-center gap-1 shrink-0"
+            >
+              <Search size={12} />
+              {lang === 'en' ? 'Find Duplicates' : '重複サーチ'}
+            </button>
             <button 
               onClick={() => {
                 if (isAllExpanded) {
@@ -581,6 +589,28 @@ export const VariationColumn: React.FC<VariationColumnProps> = ({
                                       <Trash2 className="w-3 h-3" />
                                     </button>
                                     <div className="flex gap-2">
+                                      <button 
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          navigator.clipboard.writeText(editContent);
+                                          setCopiedPartId('edit_' + part.id);
+                                          setTimeout(() => setCopiedPartId(null), 2000);
+                                        }}
+                                        className={`px-3 py-1.5 flex items-center justify-center gap-1.5 bg-transparent hover:bg-bg-input border text-[10px] font-mono transition-colors rounded ${
+                                          copiedPartId === 'edit_' + part.id ? 'border-green-500/50 text-green-500 bg-green-500/10' : 'border-border-main text-text-dim hover:text-green-400'
+                                        }`}
+                                        title={lang === 'en' ? "Copy Prompt Text" : "プロンプトをコピー"}
+                                      >
+                                        {copiedPartId === 'edit_' + part.id ? (
+                                          <Check className="w-3 h-3" />
+                                        ) : (
+                                          <div className="relative w-3 h-3 flex items-center justify-center">
+                                            <div className="border border-current rounded-[2px] w-full h-full flex items-center justify-center font-mono text-[9px] font-bold leading-none">P</div>
+                                          </div>
+                                        )}
+                                        COPY
+                                      </button>
                                       <button onClick={() => setEditingId(null)} className="px-3 py-1.5 bg-transparent hover:bg-bg-input border border-transparent hover:border-border-main text-text-dim hover:text-text-main rounded text-[10px] font-mono transition-colors">
                                         CANCEL
                                       </button>
@@ -620,68 +650,114 @@ export const VariationColumn: React.FC<VariationColumnProps> = ({
                                   <span className="text-[11px] font-mono truncate mt-0.5 text-text-main opacity-70">{part.content || <span className="opacity-40">----- (No Content) -----</span>}</span>
                                 </div>
                                 <div className="absolute right-2 flex items-center gap-1">
-                                  <div className="opacity-0 group-hover:opacity-100 flex items-center transition-opacity bg-bg-panel rounded shadow-sm border border-border-main overflow-hidden">
-                                    <button 
-                                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (onReorder && index > 0) onReorder(part.id, catParts[0].id); }}
-                                      className="p-1 text-text-dim hover:text-text-main hover:bg-bg-input transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
-                                      disabled={index === 0}
-                                      title="Move to Top"
-                                    ><ChevronsUp className="w-3 h-3" /></button>
-                                    <button 
-                                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (onReorder && index < catParts.length - 1) onReorder(part.id, catParts[catParts.length - 1].id); }}
-                                      className="p-1 text-text-dim hover:text-text-main hover:bg-bg-input transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
-                                      disabled={index === catParts.length - 1}
-                                      title="Move to Bottom"
-                                    ><ChevronsDown className="w-3 h-3" /></button>
-                                  </div>
-                                  <button 
-                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (onDuplicate) onDuplicate(part.id); }}
-                                    className="opacity-0 group-hover:opacity-100 text-text-dim hover:text-blue-400 transition-opacity p-1 bg-bg-panel rounded shadow-sm border border-border-main"
-                                    title="Duplicate"
-                                  >
-                                    <Copy className="w-3 h-3" />
-                                  </button>
-                                  <button 
-                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (onCopyToMaster) onCopyToMaster(part); }}
-                                    className="opacity-0 group-hover:opacity-100 text-text-dim hover:text-green-400 transition-opacity p-1 bg-bg-panel rounded shadow-sm border border-border-main"
-                                    title="Copy to Master Prompts"
-                                  >
-                                    <ArrowLeftToLine className="w-3 h-3" />
-                                  </button>
-                                  <button 
-                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (onCopyToMixer) onCopyToMixer(part); }}
-                                    className="opacity-0 group-hover:opacity-100 text-text-dim hover:text-blue-400 transition-opacity p-1 bg-bg-panel rounded shadow-sm border border-border-main"
-                                    title="Copy to Prompt Mixer"
-                                  >
-                                    <ArrowLeftToLine className="w-3 h-3" style={{ transform: 'rotate(180deg)' }} />
-                                  </button>
-                                  <button 
-                                    onClick={(e) => { 
-                                      e.preventDefault(); 
-                                      e.stopPropagation(); 
-                                      if (confirmQuickDeleteId === part.id) {
-                                        onDelete(part.id);
-                                        setConfirmQuickDeleteId(null);
-                                      } else {
-                                        setConfirmQuickDeleteId(part.id);
-                                        setTimeout(() => setConfirmQuickDeleteId(null), 3000);
-                                      }
-                                    }}
-                                    className={`transition-opacity p-1 bg-bg-panel rounded shadow-sm border border-border-main ${
-                                      confirmQuickDeleteId === part.id 
-                                        ? 'opacity-100 text-red-500 hover:text-red-400 bg-red-500/10 hover:bg-red-500/20' 
-                                        : 'opacity-0 group-hover:opacity-100 text-text-dim hover:text-red-400 hover:bg-bg-input'
-                                    }`}
-                                    title={confirmQuickDeleteId === part.id ? "Confirm delete" : "Delete"}
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </button>
-                                  <button 
-                                    onClick={(e) => startEdit(part, e)}
-                                    className="opacity-0 group-hover:opacity-100 text-text-dim hover:text-blue-400 transition-opacity p-1 bg-bg-panel rounded shadow-sm border border-border-main"
-                                  >
-                                    <Pencil className="w-3 h-3" />
-                                  </button>
+                                  {expandedActionId !== part.id && (
+                                    <>
+                                      <button 
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          navigator.clipboard.writeText(part.content);
+                                          setCopiedPartId(part.id);
+                                          setTimeout(() => setCopiedPartId(null), 2000);
+                                        }}
+                                        className={`opacity-0 group-hover:opacity-100 p-1 bg-bg-panel rounded shadow-sm border border-border-main transition-all ${
+                                          copiedPartId === part.id 
+                                            ? 'text-green-500 bg-green-500/10 opacity-100'
+                                            : 'text-text-dim hover:text-green-400'
+                                        }`}
+                                        title={lang === 'en' ? 'Copy Prompt Text' : 'プロンプトをコピー'}
+                                      >
+                                        {copiedPartId === part.id ? (
+                                          <Check className="w-3 h-3" />
+                                        ) : (
+                                          <div className="relative w-3 h-3 flex items-center justify-center">
+                                            <div className="border border-current rounded-[2px] w-full h-full flex items-center justify-center font-mono text-[9px] font-bold leading-none">P</div>
+                                          </div>
+                                        )}
+                                      </button>
+                                      <button 
+                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpandedActionId(part.id); }}
+                                        className="opacity-0 group-hover:opacity-100 text-text-dim hover:text-text-main transition-opacity p-1 bg-bg-panel rounded shadow-sm border border-border-main"
+                                        title={lang === 'en' ? 'More actions' : 'メニュー'}
+                                      >
+                                        <MoreHorizontal className="w-3 h-3" />
+                                      </button>
+                                    </>
+                                  )}
+                                  
+                                  {(expandedActionId === part.id || confirmQuickDeleteId === part.id) && (
+                                    <>
+                                      <div className="flex items-center bg-bg-panel rounded shadow-sm border border-border-main overflow-hidden">
+                                        <button 
+                                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (onReorder && index > 0) onReorder(part.id, catParts[0].id); }}
+                                          className="p-1 text-text-dim hover:text-text-main hover:bg-bg-input transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+                                          disabled={index === 0}
+                                          title="Move to Top"
+                                        ><ChevronsUp className="w-3 h-3" /></button>
+                                        <button 
+                                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (onReorder && index < catParts.length - 1) onReorder(part.id, catParts[catParts.length - 1].id); }}
+                                          className="p-1 text-text-dim hover:text-text-main hover:bg-bg-input transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+                                          disabled={index === catParts.length - 1}
+                                          title="Move to Bottom"
+                                        ><ChevronsDown className="w-3 h-3" /></button>
+                                      </div>
+                                      <button 
+                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (onDuplicate) onDuplicate(part.id); }}
+                                        className="text-text-dim hover:text-blue-400 p-1 bg-bg-panel rounded shadow-sm border border-border-main"
+                                        title="Duplicate"
+                                      >
+                                        <Copy className="w-3 h-3" />
+                                      </button>
+                                      <button 
+                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (onCopyToMaster) onCopyToMaster(part); }}
+                                        className="text-text-dim hover:text-green-400 p-1 bg-bg-panel rounded shadow-sm border border-border-main"
+                                        title="Copy to Master Prompts"
+                                      >
+                                        <ArrowLeftToLine className="w-3 h-3" />
+                                      </button>
+                                      <button 
+                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (onCopyToMixer) onCopyToMixer(part); }}
+                                        className="text-text-dim hover:text-blue-400 p-1 bg-bg-panel rounded shadow-sm border border-border-main"
+                                        title="Copy to Prompt Mixer"
+                                      >
+                                        <ArrowLeftToLine className="w-3 h-3" style={{ transform: 'rotate(180deg)' }} />
+                                      </button>
+                                      <button 
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          if (confirmQuickDeleteId === part.id) {
+                                            onDelete(part.id);
+                                            setConfirmQuickDeleteId(null);
+                                          } else {
+                                            setConfirmQuickDeleteId(part.id);
+                                            setTimeout(() => setConfirmQuickDeleteId(null), 3000);
+                                          }
+                                        }}
+                                        className={`p-1 bg-bg-panel rounded shadow-sm border border-border-main ${
+                                          confirmQuickDeleteId === part.id 
+                                            ? 'text-red-500 hover:text-red-400 bg-red-500/10 hover:bg-red-500/20' 
+                                            : 'text-text-dim hover:text-red-400 hover:bg-bg-input'
+                                        }`}
+                                        title={confirmQuickDeleteId === part.id ? "Confirm delete" : "Delete"}
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </button>
+                                      <button 
+                                        onClick={(e) => startEdit(part, e)}
+                                        className="text-text-dim hover:text-blue-400 p-1 bg-bg-panel rounded shadow-sm border border-border-main"
+                                      >
+                                        <Pencil className="w-3 h-3" />
+                                      </button>
+                                      <button 
+                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpandedActionId(null); }}
+                                        className="text-text-dim hover:text-red-500 hover:bg-red-500/10 transition-colors p-1 bg-bg-panel rounded shadow-sm border border-border-main"
+                                        title="Close"
+                                      >
+                                        <X className="w-3 h-3" />
+                                      </button>
+                                    </>
+                                  )}
                                   <div className="flex flex-col items-center justify-center -my-1 ml-1">
                                     {part.isNegative ? (
                                       <button 
@@ -832,6 +908,20 @@ export const VariationColumn: React.FC<VariationColumnProps> = ({
         }}
         onCancel={() => setConfirmDeleteAllState(false)}
         lang={lang}
+      />
+<DuplicateSearchModal 
+        isOpen={isDuplicateModalOpen}
+        onClose={() => setIsDuplicateModalOpen(false)}
+        parts={parts}
+        onDeleteBulk={(ids) => {
+          if (onDeleteBulk) { onDeleteBulk(ids); } else { ids.forEach(id => onDelete(id)); }
+        }}
+        onMerge={(idsToMerge, mergedName, mergedContent, section, category) => {
+          onAdd(category, section, mergedName, mergedContent);
+          if (onDeleteBulk) { onDeleteBulk(idsToMerge); } else { idsToMerge.forEach(id => onDelete(id)); }
+        }}
+        lang={lang}
+        theme={theme}
       />
     </>
   );

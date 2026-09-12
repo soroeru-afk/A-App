@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Check, Settings2, Pencil, Plus, Trash2, Save, ChevronDown, ChevronUp, ChevronsUp, ChevronsDown, Edit2, RotateCcw, GripVertical, ArrowLeftToLine, Copy } from 'lucide-react';
 import { ConfirmModal } from './ConfirmModal';
 import { Language, t } from '../i18n';
@@ -28,7 +28,7 @@ export const getDefaultSectionForCategory = (catId: string): number => {
 type Combination = {
   id: string;
   name: string;
-  selections: Record<string, number>;
+  selections: Record<string, number | number[]>;
   negativePrompt: string;
 };
 
@@ -286,6 +286,7 @@ export const AttributeMixer: React.FC<AttributeMixerProps> = ({ onApply, onInser
   useEffect(() => {
     localStorage.setItem('attribute_mixer_categories_v2', JSON.stringify(categories));
     localStorage.setItem('attribute_mixer_categories_updated_at', String(Date.now()));
+    window.dispatchEvent(new Event('mixer_categories_updated'));
   }, [categories]);
 
   const [presets, setPresets] = useState<Presets>(() => {
@@ -327,7 +328,7 @@ export const AttributeMixer: React.FC<AttributeMixerProps> = ({ onApply, onInser
     localStorage.setItem('attribute_mixer_combos_updated_at', String(Date.now()));
   }, [combinations]);
 
-  const [selections, setSelections] = useState<Record<string, number>>(() => {
+  const [selections, setSelections] = useState<Record<string, number | number[]>>(() => {
     const saved = localStorage.getItem('attribute_mixer_selections_v1');
     if (saved) {
       try {
@@ -456,6 +457,9 @@ export const AttributeMixer: React.FC<AttributeMixerProps> = ({ onApply, onInser
     window.addEventListener('restore_mixer_from_prompt', handleRestore);
     return () => window.removeEventListener('restore_mixer_from_prompt', handleRestore);
   }, [categories, presets, selections, negativePrompt, lang]);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { const handleClickOutside = (e: MouseEvent) => { if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) { setActiveDropdown(null); } }; document.addEventListener("mousedown", handleClickOutside); return () => document.removeEventListener("mousedown", handleClickOutside); }, []);
   const [confirmDeleteCatId, setConfirmDeleteCatId] = useState<string | null>(null);
   const [confirmDeleteItem, setConfirmDeleteItem] = useState<string | null>(null);
   const [confirmDeleteCombId, setConfirmDeleteCombId] = useState<string | null>(null);
@@ -521,14 +525,16 @@ export const AttributeMixer: React.FC<AttributeMixerProps> = ({ onApply, onInser
       setCheckedItems(new Set());
     } else {
       categories.forEach(cat => {
-        const selectedIdx = selections[cat.id] ?? 0;
-        if (selectedIdx === 0) return;
+        const selection = selections[cat.id];
+        const currentIndices = Array.isArray(selection) ? selection : (selection !== undefined ? [selection as number] : [0]);
+        currentIndices.forEach(idx => {
+          if (idx === 0) return;
 
-        const items = presets[cat.id] || DEFAULT_PRESETS[cat.id] || [];
-        const selectedItem = items[selectedIdx];
-        if (!selectedItem || selectedItem.value.trim() === '') return;
+          const items = presets[cat.id] || DEFAULT_PRESETS[cat.id] || [];
+          const selectedItem = items[idx];
+          if (!selectedItem || selectedItem.value.trim() === '') return;
 
-        newParts.push({
+          newParts.push({
           id: `p_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           section: targetSectionId,
           category: targetCategoryName,
@@ -536,6 +542,7 @@ export const AttributeMixer: React.FC<AttributeMixerProps> = ({ onApply, onInser
           content: selectedItem.value,
           isPinned: false,
           isNegative: cat.isNegative
+          });
         });
       });
     }
@@ -597,19 +604,30 @@ export const AttributeMixer: React.FC<AttributeMixerProps> = ({ onApply, onInser
     const negParts: string[] = [];
     
     categories.forEach(cat => {
-      const val = (presets[cat.id] || DEFAULT_PRESETS[cat.id] || [])[selections[cat.id] || 0]?.value || '';
-      if (val) {
-        if (cat.isNegative) {
-          negParts.push(val);
-        } else {
-          posParts.push(val);
+      const selection = selections[cat.id];
+      const currentIndices = Array.isArray(selection) ? selection : (selection !== undefined ? [selection as number] : [0]);
+      currentIndices.forEach(idx => {
+        const val = (presets[cat.id] || DEFAULT_PRESETS[cat.id] || [])[idx]?.value || '';
+        if (val) {
+          if (cat.isNegative) {
+            negParts.push(val);
+          } else {
+            posParts.push(val);
+          }
         }
-      }
+      });
     });
 
-    const pos = posParts.join('');
-    const neg = negParts.join('');
-    onApply(pos, negativePrompt + (negativePrompt && neg ? ', ' : '') + neg, '');
+    const cleanAndJoinList = (parts: string[]) => {
+      const combined = parts.join('');
+      if (!combined.trim()) return '';
+      const items = combined.split(/[\n,]+/).map(s => s.trim()).filter(s => s.length > 0);
+      return items.join(',\n') + (items.length > 0 ? ',' : '');
+    };
+
+    const pos = cleanAndJoinList(posParts);
+    const neg = cleanAndJoinList([negativePrompt, ...negParts]);
+    onApply(pos, neg, '');
   };
 
   const handleReset = () => {
@@ -889,7 +907,9 @@ const deleteCheckedItems = () => {
   const renderCategory = (cat: CategoryDef, index: number) => {
     const key = cat.id;
     const items = Array.isArray(presets[key]) ? presets[key] : (DEFAULT_PRESETS[key] || [{ label: '指定なし / None', value: '' }]);
-    const currentIdx = selections[key] ?? 0;
+    const currentSelection = selections[key];
+    const currentIndices = Array.isArray(currentSelection) ? currentSelection : (currentSelection !== undefined ? [currentSelection as number] : [0]);
+    const isSelected = currentIndices.length > 0 && !(currentIndices.length === 1 && currentIndices[0] === 0);
     const isEditing = editModes[key] || false;
     const isRenaming = editingCatName === key;
 
@@ -941,12 +961,17 @@ const deleteCheckedItems = () => {
               />
             ) : (
               <label 
-                className={`text-[13px] font-mono cursor-pointer hover:text-blue-500 truncate flex items-center gap-1.5 ${currentIdx !== 0 ? 'text-blue-500 font-bold' : 'text-text-main'}`}
+                className={`text-[13px] font-mono cursor-pointer hover:opacity-70 truncate flex items-center gap-1.5 ${isSelected ? 'text-text-main font-bold' : 'text-text-main'}`}
                 title={lang === 'en' ? "Click to expand/collapse" : "クリックして開閉"}
               >
                 {cat.isNegative && "⛔ "}
-                {currentIdx !== 0 && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block shrink-0 shadow-[0_0_5px_rgba(59,130,246,0.5)]"></span>}
+                {isSelected && (
+                  <div className={`flex items-center justify-center min-w-[16px] h-4 px-1 rounded-[3px] shrink-0 text-[10px] font-bold shadow-sm ${theme === 'mono' ? 'bg-black text-white' : (theme === 'navy' ? 'bg-blue-600 text-white' : 'bg-gray-500 text-white')}`} title="選択数">
+                    {currentIndices.filter(idx => idx !== 0).length}
+                  </div>
+                )}
                 {cat.label}
+                
               </label>
             )}
           </div>
@@ -983,7 +1008,7 @@ const deleteCheckedItems = () => {
         </div>
         
         {isEditing ? (
-          <div className="flex flex-col gap-2 p-2 border border-blue-500/30 rounded bg-blue-500/5">
+          <div className={`flex flex-col gap-2 p-2 border rounded ${theme === 'mono' ? 'border-black/30 bg-black/5' : 'border-blue-500/30 bg-blue-500/5'}`}>
             <div className="flex justify-end mb-1">
               <button 
                 onClick={() => { setSaveSuccessMessage(lang === 'en' ? 'Saved' : '保存しました'); setTimeout(() => setSaveSuccessMessage(null), 2000); }}
@@ -1056,7 +1081,7 @@ const deleteCheckedItems = () => {
                   {onInsertText && idx !== 0 && (
                     <button 
                       onClick={() => onInsertText(item.value, cat.isNegative)}
-                      className="p-1.5 text-blue-500 hover:bg-blue-500/10 rounded"
+                      className={`p-1.5 rounded ${theme === 'mono' ? 'text-black hover:bg-black/10' : 'text-blue-500 hover:bg-blue-500/10'}`}
                       title={lang === 'en' ? "Insert to editor" : "エディタに挿入"}
                     >
                       <ArrowLeftToLine className="w-3.5 h-3.5" />
@@ -1085,25 +1110,63 @@ const deleteCheckedItems = () => {
             ))}
             <button 
               onClick={() => addPresetItem(key)}
-              className="flex items-center justify-center gap-1 w-full py-1.5 mt-1 border border-dashed border-blue-500/50 text-blue-500 hover:bg-blue-500/10 rounded text-[11px] transition-colors"
+              className={`flex items-center justify-center gap-1 w-full py-1.5 mt-1 border border-dashed rounded text-[11px] transition-colors ${theme === 'mono' ? 'border-black/50 text-black hover:bg-black/10' : 'border-blue-500/50 text-blue-500 hover:bg-blue-500/10'}`}
             >
               <Plus className="w-3 h-3" /> 新規項目を追加
             </button>
           </div>
         ) : (
           <div className="flex gap-2 items-center pl-4 w-full min-w-0 relative">
-            {currentIdx !== 0 && (
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 text-blue-500 pointer-events-none" title="選択中">
-                <Check className="w-3.5 h-3.5" />
+            
+            <div className="relative flex-1 min-w-0" ref={activeDropdown === key ? dropdownRef : undefined}>
+              <div 
+                className={`flex-1 min-w-0 bg-bg-input border ${isSelected ? (theme === 'mono' ? 'border-black shadow-[0_0_8px_rgba(0,0,0,0.1)]' : 'border-blue-500/50 shadow-[0_0_8px_rgba(59,130,246,0.1)]') : 'border-border-main'} rounded px-2 py-1.5 text-[13px] text-text-main truncate transition-colors cursor-pointer flex justify-between items-center`}
+                onClick={(e) => { e.stopPropagation(); setActiveDropdown(activeDropdown === key ? null : key); }}
+              >
+                <span className="truncate">
+                  {currentIndices.length === 0 || (currentIndices.length === 1 && currentIndices[0] === 0) 
+                    ? items[0]?.label || '指定なし / None'
+                    : currentIndices.filter(idx => idx !== 0).map(idx => items[idx]?.label).filter(Boolean).join(', ')}
+                </span>
+                <ChevronDown className="w-4 h-4 ml-2 shrink-0 text-text-dim" />
               </div>
-            )}
-            <select 
-              value={currentIdx} 
-              onChange={e => setSelections(prev => ({ ...prev, [key]: Number(e.target.value) }))} 
-              className={`flex-1 min-w-0 bg-bg-input border ${currentIdx !== 0 ? 'border-blue-500/50 shadow-[0_0_8px_rgba(59,130,246,0.1)]' : 'border-border-main'} rounded px-2 py-1.5 text-[13px] text-text-main truncate transition-colors`}
-            >
-              {items.map((o, idx) => <option key={idx} value={idx}>{o.label}</option>)}
-            </select>
+              
+              {activeDropdown === key && (
+                <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-bg-panel border border-border-main rounded shadow-lg max-h-60 overflow-y-auto">
+                  {items.map((o, idx) => {
+                    const checked = currentIndices.includes(idx);
+                    return (
+                      <label key={idx} className="flex items-center gap-2 px-3 py-2 hover:bg-bg-input cursor-pointer">
+                        <input 
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            setSelections(prev => {
+                              let newSel = Array.isArray(prev[key]) ? [...(prev[key] as number[])] : (prev[key] !== undefined ? [prev[key] as number] : [0]);
+                              if (idx === 0) {
+                                 return { ...prev, [key]: [0] };
+                              } else {
+                                 newSel = newSel.filter(i => i !== 0);
+                                 if (checked) {
+                                   newSel = newSel.filter(i => i !== idx);
+                                   if (newSel.length === 0) newSel = [0];
+                                 } else {
+                                   newSel = [...newSel, idx];
+                                 }
+                                 return { ...prev, [key]: newSel };
+                              }
+                            });
+                          }}
+                          className={`rounded bg-bg-surface border-border-main cursor-pointer w-4 h-4 ${theme === 'mono' ? 'text-black focus:ring-black' : 'text-blue-500 focus:ring-blue-500/50'}`}
+                        />
+                        <span className="text-[13px] text-text-main truncate">{o.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -1181,7 +1244,7 @@ const deleteCheckedItems = () => {
         )}
                 <div className="flex gap-2 items-center">
           <label className="text-[13px] font-bold text-text-main font-mono flex items-center gap-1.5 flex-1">
-            <Save className="w-4 h-4 text-blue-500" />
+            <Save className={`w-4 h-4 ${theme === 'mono' ? 'text-black' : 'text-blue-500'}`} />
             {t('save_and_load_settings', lang)}
           </label>
           <button
@@ -1192,7 +1255,7 @@ const deleteCheckedItems = () => {
           </button>
           <button
             onClick={() => setShowCopyConfirm(true)}
-            className="px-2 py-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 border border-blue-500/30 rounded text-[11px] font-bold transition-colors flex items-center gap-1 shrink-0"
+            className={`px-2 py-1 rounded text-[11px] font-bold transition-colors flex items-center gap-1 shrink-0 ${theme === 'mono' ? 'bg-black/10 hover:bg-black/20 text-black border border-black/30' : 'bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 border border-blue-500/30'}`}
             title={checkedItems.size > 0 
               ? (lang === 'en' ? "Copy checked items to Parts" : "選択した項目をパーツへコピー")
               : (lang === 'en' ? "Copy current prompt selections to Parts" : "現在ドロップダウンで選択中のプロンプトをパーツへコピー")}
@@ -1248,7 +1311,7 @@ const deleteCheckedItems = () => {
           {activeCombinationId && (
             <button 
               onClick={updateCombination}
-              className="flex-1 py-1.5 bg-blue-600 hover:bg-blue-500 text-white border border-blue-600 rounded text-[11px] font-bold transition-colors"
+              className={`flex-1 py-1.5 ${theme === 'mono' ? 'bg-black hover:bg-gray-800 border-black' : 'bg-blue-600 hover:bg-blue-500 border-blue-600'} text-white border rounded text-[11px] font-bold transition-colors`}
             >{t('overwrite_save', lang)}</button>
           )}
         </div>
@@ -1275,10 +1338,10 @@ const deleteCheckedItems = () => {
                             value={editingCombName}
                             onChange={(e) => setEditingCombName(e.target.value)}
                             onKeyDown={(e) => { if (e.key === 'Enter') saveEditedCombination(c.id); }}
-                            className="flex-1 bg-bg-surface border border-blue-500/50 rounded px-1.5 py-0.5 text-[12px] text-text-main font-mono"
+                            className={`flex-1 bg-bg-surface border rounded px-1.5 py-0.5 text-[12px] text-text-main font-mono ${theme === 'mono' ? 'border-black/50' : 'border-blue-500/50'}`}
                             autoFocus
                           />
-                          <button onClick={() => saveEditedCombination(c.id)} className="text-blue-500 p-1 hover:bg-blue-500/10 rounded">
+                          <button onClick={() => saveEditedCombination(c.id)} className={`p-1 rounded ${theme === 'mono' ? 'text-black hover:bg-black/10' : 'text-blue-500 hover:bg-blue-500/10'}`}>
                             <Check className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -1318,7 +1381,7 @@ const deleteCheckedItems = () => {
                     
                     <button 
                       onClick={() => loadCombination(c.id)}
-                      className="w-full text-center py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-500 rounded text-[11px] font-bold transition-colors"
+                      className={`w-full text-center py-1.5 rounded text-[11px] font-bold transition-colors ${theme === 'mono' ? 'bg-black/10 hover:bg-black/20 text-black' : 'bg-blue-600/10 hover:bg-blue-600/20 text-blue-500'}`}
                     >
                       この設定を呼び出す
                     </button>
@@ -1335,7 +1398,7 @@ const deleteCheckedItems = () => {
       {checkedItems.size > 0 && (
         <div className="bg-bg-panel/90 py-2 mt-3 -mx-4 px-4 flex flex-wrap gap-2 justify-between items-center border-t border-border-main">
           <div className="flex items-center gap-3">
-            <span className="text-[10px] font-mono font-bold text-blue-500 whitespace-nowrap bg-blue-500/10 px-2 py-0.5 rounded">{checkedItems.size} selected</span>
+            <span className={`text-[10px] font-mono font-bold whitespace-nowrap px-2 py-0.5 rounded ${theme === 'mono' ? 'text-black bg-black/10' : 'text-blue-500 bg-blue-500/10'}`}>{checkedItems.size} selected</span>
           </div>
           <div className="flex gap-2 items-center flex-1 min-w-0 justify-end">
             <select
@@ -1370,7 +1433,21 @@ const deleteCheckedItems = () => {
       )}
       </div>
 
-      <div className="flex justify-end px-4 pt-2 shrink-0">
+      <div className="flex justify-between items-center px-4 py-2 shrink-0 border-y border-border-main mt-2 mb-2">
+        <div className="flex gap-2">
+          <button 
+            onClick={handleReset}
+            className="px-3 py-1 bg-gray-500 hover:bg-gray-400 text-white rounded text-[11px] font-mono font-bold transition-colors shadow-sm"
+          >
+            {lang === 'en' ? 'Reset' : 'リセット'}
+          </button>
+          <button 
+            onClick={handleApply}
+            className={`px-3 py-1 ${theme === 'mono' ? 'bg-black hover:bg-gray-800' : 'bg-blue-600 hover:bg-blue-500'} text-white rounded text-[11px] font-mono font-bold transition-colors flex items-center gap-1 shadow-sm`}
+          >
+            <Check className="w-3.5 h-3.5" /> {lang === 'en' ? 'Apply' : '適用する'}
+          </button>
+        </div>
         <button
           onClick={() => {
             const isAllExpanded = categories.length > 0 && categories.every(c => editModes[c.id]);
@@ -1431,20 +1508,7 @@ const deleteCheckedItems = () => {
         </button>
       </div>
 
-      <div className="flex gap-2 pt-2 mt-2 border-t border-border-main">
-        <button 
-          onClick={handleReset}
-          className="flex-1 px-3 py-2 bg-gray-500 hover:bg-gray-400 text-white rounded text-[13px] font-mono font-bold transition-colors"
-        >
-          リセット
-        </button>
-        <button 
-          onClick={handleApply}
-          className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded text-[13px] font-mono font-bold transition-colors flex items-center justify-center gap-1"
-        >
-          <Check className="w-4 h-4" /> 適用する
-        </button>
-      </div>
+      
     </div>
     </div>
   );

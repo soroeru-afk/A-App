@@ -1,46 +1,70 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAppContext } from '../AppContext';
-import { THEMES, FONT_MAP, applyThemeStyle } from '../theme';
+import { THEMES, FONT_MAP, applyThemeStyle, getFolderColorForTheme, setFolderColorForTheme, getPaperSettingsForTheme } from '../theme';
 import { applySettingsToDOM } from '../settingsSync';
 
 export const SettingsPanel = () => {
-  const { settingsOpen, t, lang, speakerModeEnabled, setSpeakerMode, ttsSettings, updateTtsSettings, voices } = useAppContext();
+  const { settingsOpen, toggleSettings, t, lang, speakerModeEnabled, setSpeakerMode, ttsSettings, updateTtsSettings, voices, paperMode, setPaperMode, paperColor, setPaperColor, loadPaperForTheme } = useAppContext();
   const [tab, setTab] = useState<'text' | 'layout' | 'theme' | 'audio'>('text');
   const panelRef = useRef<HTMLDivElement>(null);
 
   const [vals, setVals] = useState({
     fontSize: '15', fontWeight: '400', lineHeight: '1.8', letterSpacing: '0',
     sbTitleSize: '13', sbCatSize: '10', headingSize: '48', sbWidth: '280', contentWidth: '900', vertCardHeight: '600',
-    cardPadding: '24', cardRadius: '16', msgGap: '16', pagePad: '56',
+    cardPadding: '24', cardRadius: '0', msgGap: '16', pagePad: '56',
+    cardDigestSize: '13',
     theme: 'mono', font: 'meiryo', folderColor: '#FBBF24'
   });
 
   useEffect(() => {
-    setVals({
-      fontSize: localStorage.getItem('lv_fontSize') || '15',
-      fontWeight: localStorage.getItem('lv_fontWeight') || '400',
-      lineHeight: localStorage.getItem('lv_lineHeight') || '1.8',
-      letterSpacing: localStorage.getItem('lv_letterSpacing') || '0',
-      sbTitleSize: localStorage.getItem('lv_sbTitleSize') || '13',
-      sbCatSize: localStorage.getItem('lv_sbCatSize') || '10',
-      headingSize: localStorage.getItem('lv_headingSize') || '48',
-      sbWidth: localStorage.getItem('lv_sbWidth') || '280',
-      contentWidth: localStorage.getItem('lv_contentWidth') || '900',
-      vertCardHeight: localStorage.getItem('lv_vertCardHeight') || '600',
-      cardPadding: localStorage.getItem('lv_cardPadding') || '24',
-      cardRadius: localStorage.getItem('lv_cardRadius') || '16',
-      msgGap: localStorage.getItem('lv_msgGap') || '16',
-      pagePad: localStorage.getItem('lv_pagePad') || '56',
-      theme: (localStorage.getItem('lv_theme') === 'ocean' ? 'dark' : localStorage.getItem('lv_theme')) || 'mono',
-      font: localStorage.getItem('lv_font') || 'meiryo',
-      folderColor: localStorage.getItem('lv_folderColor') || '#FBBF24'
-    });
+    const loadSettings = () => {
+      setVals({
+        fontSize: localStorage.getItem('lv_fontSize') || '15',
+        fontWeight: localStorage.getItem('lv_fontWeight') || '400',
+        lineHeight: localStorage.getItem('lv_lineHeight') || '1.8',
+        letterSpacing: localStorage.getItem('lv_letterSpacing') || '0',
+        sbTitleSize: localStorage.getItem('lv_sbTitleSize') || '13',
+        sbCatSize: localStorage.getItem('lv_sbCatSize') || '10',
+        headingSize: localStorage.getItem('lv_headingSize') || '48',
+        sbWidth: localStorage.getItem('lv_sbWidth') || '280',
+        contentWidth: localStorage.getItem('lv_contentWidth') || '900',
+        vertCardHeight: localStorage.getItem('lv_vertCardHeight') || '600',
+        cardPadding: localStorage.getItem('lv_cardPadding') || '24',
+        cardRadius: localStorage.getItem('lv_cardRadius') ?? '0',
+        msgGap: localStorage.getItem('lv_msgGap') || '16',
+        pagePad: localStorage.getItem('lv_pagePad') || '56',
+        cardDigestSize: localStorage.getItem('lv_cardDigestSize') || '13',
+        theme: (localStorage.getItem('lv_theme') === 'ocean' ? 'dark' : localStorage.getItem('lv_theme')) || 'mono',
+        font: localStorage.getItem('lv_font') || 'meiryo',
+        folderColor: getFolderColorForTheme((localStorage.getItem('lv_theme') === 'ocean' ? 'dark' : localStorage.getItem('lv_theme')) || 'mono')
+      });
+    };
+    loadSettings();
+    window.addEventListener('settingsChanged', loadSettings);
+    return () => window.removeEventListener('settingsChanged', loadSettings);
   }, [settingsOpen]);
 
   const updateSetting = (key: string, val: string) => {
+    if (key === 'theme') {
+      localStorage.setItem('lv_theme', val);
+      const themeColor = getFolderColorForTheme(val);
+      setVals(prev => ({ ...prev, theme: val, folderColor: themeColor }));
+      applySettingsToDOM();
+      loadPaperForTheme(val);
+      window.dispatchEvent(new Event('settingsChanged'));
+      return;
+    }
+    if (key === 'folderColor') {
+      setFolderColorForTheme(vals.theme, val);
+      setVals(prev => ({ ...prev, folderColor: val }));
+      applySettingsToDOM();
+      window.dispatchEvent(new Event('settingsChanged'));
+      return;
+    }
     localStorage.setItem(`lv_${key}`, val);
     setVals(prev => ({ ...prev, [key]: val }));
     applySettingsToDOM();
+    window.dispatchEvent(new Event('settingsChanged'));
   };
 
   if (!settingsOpen) return null;
@@ -52,6 +76,14 @@ export const SettingsPanel = () => {
         <button className={`panel-tab ${tab === 'layout' ? 'active' : ''}`} onClick={() => setTab('layout')}>{t.settings.layoutOpen}</button>
         <button className={`panel-tab ${tab === 'theme' ? 'active' : ''}`} onClick={() => setTab('theme')}>{t.settings.themeOpen}</button>
         <button className={`panel-tab ${tab === 'audio' ? 'active' : ''}`} onClick={() => setTab('audio')}>{t.settings.audioOpen}</button>
+        <button
+          className="panel-close-btn"
+          onClick={toggleSettings}
+          title={lang === 'en' ? 'Close Settings' : '設定を閉じる'}
+          aria-label={lang === 'en' ? 'Close' : '閉じる'}
+        >
+          ✕
+        </button>
       </div>
       <div className="panel-body">
         
@@ -111,6 +143,21 @@ export const SettingsPanel = () => {
               <div className="setting-label">{t.settings.headingSize} <span id="heading-size-val">{vals.headingSize}px</span></div>
               <input className="setting-slider" type="range" min="36" max="72" step="2" value={vals.headingSize} onChange={e => updateSetting('headingSize', e.target.value)} />
             </div>
+            <div className="setting-row">
+              <div className="setting-label">
+                {lang === 'en' ? 'Card / List Text Size' : 'カード・リスト文字サイズ'}{' '}
+                <span id="card-digest-size-val">{vals.cardDigestSize}px</span>
+              </div>
+              <input 
+                className="setting-slider" 
+                type="range" 
+                min="10" 
+                max="18" 
+                step="1" 
+                value={vals.cardDigestSize} 
+                onChange={e => updateSetting('cardDigestSize', e.target.value)} 
+              />
+            </div>
           </div>
         )}
 
@@ -123,7 +170,7 @@ export const SettingsPanel = () => {
               <div
                 style={{
                   display: 'inline-flex',
-                  borderRadius: '7px',
+                  borderRadius: '0px',
                   overflow: 'hidden',
                   border: '1px solid var(--panel-item-border)',
                   background: 'var(--panel-item-bg)',
@@ -167,7 +214,7 @@ export const SettingsPanel = () => {
             </div>
             <div className="setting-row">
               <div className="setting-label">{t.settings.sbWidth} <span id="sb-width-val">{vals.sbWidth}px</span></div>
-              <input className="setting-slider" type="range" min="180" max="540" step="10" value={vals.sbWidth} onChange={e => updateSetting('sbWidth', e.target.value)} />
+              <input className="setting-slider" type="range" min="180" max="800" step="10" value={vals.sbWidth} onChange={e => updateSetting('sbWidth', e.target.value)} />
             </div>
             <div className="setting-row">
               <div className="setting-label">{t.settings.contentWidth} <span id="content-width-val">{vals.contentWidth}px</span></div>
@@ -182,12 +229,54 @@ export const SettingsPanel = () => {
               <input className="setting-slider" type="range" min="10" max="48" step="2" value={vals.cardPadding} onChange={e => updateSetting('cardPadding', e.target.value)} />
             </div>
             <div className="setting-row">
-              <div className="setting-label">{t.settings.cardRadius} <span id="card-radius-val">{vals.cardRadius}px</span></div>
+              <div className="setting-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>{t.settings.cardRadius} <span id="card-radius-val">{vals.cardRadius}px</span></span>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button
+                    type="button"
+                    onClick={() => updateSetting('cardRadius', '0')}
+                    style={{
+                      padding: '2px 8px',
+                      fontSize: '10px',
+                      fontWeight: 'bold',
+                      border: '1px solid var(--panel-item-border)',
+                      background: vals.cardRadius === '0' ? 'var(--sb-accent)' : 'var(--panel-item-bg)',
+                      color: vals.cardRadius === '0' ? '#ffffff' : 'var(--panel-text)',
+                      cursor: 'pointer',
+                      borderRadius: '0px',
+                    }}
+                  >
+                    ■ {lang === 'en' ? 'Square (0px)' : 'スクエア (0px)'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateSetting('cardRadius', '12')}
+                    style={{
+                      padding: '2px 8px',
+                      fontSize: '10px',
+                      fontWeight: 'bold',
+                      border: '1px solid var(--panel-item-border)',
+                      background: vals.cardRadius !== '0' ? 'var(--sb-accent)' : 'var(--panel-item-bg)',
+                      color: vals.cardRadius !== '0' ? '#ffffff' : 'var(--panel-text)',
+                      cursor: 'pointer',
+                      borderRadius: '0px',
+                    }}
+                  >
+                    {lang === 'en' ? 'Rounded' : '角丸'}
+                  </button>
+                </div>
+              </div>
               <input className="setting-slider" type="range" min="0" max="32" step="2" value={vals.cardRadius} onChange={e => updateSetting('cardRadius', e.target.value)} />
+              <div style={{ fontSize: '10px', opacity: 0.65, marginTop: '3px' }}>
+                {lang === 'en' ? 'Applies to text reader card background only (other list cards stay square)' : 'テキスト本文の背景枠のみに適用されます（他の一覧カード等は角のまま保持）'}
+              </div>
             </div>
             <div className="setting-row">
               <div className="setting-label">{t.settings.msgGap} <span id="msg-gap-val">{vals.msgGap}px</span></div>
               <input className="setting-slider" type="range" min="4" max="40" step="2" value={vals.msgGap} onChange={e => updateSetting('msgGap', e.target.value)} />
+              <div style={{ fontSize: '10px', opacity: 0.65, marginTop: '3px' }}>
+                {lang === 'en' ? 'Adjusts spacing between paragraphs, message blocks, and file list rows' : '段落の空行・メッセージ・ファイル一覧行の間隔を調整'}
+              </div>
             </div>
             <div className="setting-row">
               <div className="setting-label">{t.settings.pagePad} <span id="page-pad-val">{vals.pagePad}px</span></div>
@@ -220,7 +309,7 @@ export const SettingsPanel = () => {
                     key={col} 
                     onClick={() => updateSetting('folderColor', col)}
                     style={{
-                      width: '24px', height: '24px', borderRadius: '50%', background: col,
+                      width: '24px', height: '24px', borderRadius: '0px', background: col,
                       border: vals.folderColor === col ? '2px solid var(--panel-text)' : '2px solid transparent',
                       cursor: 'pointer'
                     }}
@@ -231,8 +320,112 @@ export const SettingsPanel = () => {
                   type="color" 
                   value={vals.folderColor || '#FBBF24'} 
                   onChange={e => updateSetting('folderColor', e.target.value)} 
-                  style={{ width: '28px', height: '28px', padding: 0, border: '1px solid var(--panel-border)', cursor: 'pointer', background: 'transparent', borderRadius: '4px' }}
+                  style={{ width: '28px', height: '28px', padding: 0, border: '1px solid var(--panel-border)', cursor: 'pointer', background: 'transparent', borderRadius: '0px' }}
                 />
+              </div>
+            </div>
+
+            <div className="setting-row" style={{marginTop: '20px', paddingBottom: '4px'}}>
+              <div className="setting-label" style={{marginBottom: '8px', fontSize: '11px', display: 'block'}}>
+                {lang === 'en' ? 'Paper Mode' : 'ペーパーモード（用紙調ビュー）'}
+              </div>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    borderRadius: '0px',
+                    overflow: 'hidden',
+                    border: '1px solid var(--panel-item-border)',
+                    background: 'var(--panel-item-bg)',
+                    flexShrink: 0,
+                    fontFamily: 'var(--font-body)',
+                  }}
+                >
+                  <button
+                    onClick={() => setPaperMode(true)}
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      letterSpacing: '0.5px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                      background: paperMode ? 'var(--panel-tab-active)' : 'transparent',
+                      color: paperMode ? 'var(--panel-bg)' : 'var(--panel-muted)',
+                    }}
+                  >
+                    ON
+                  </button>
+                  <button
+                    onClick={() => setPaperMode(false)}
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      letterSpacing: '0.5px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                      background: !paperMode ? 'var(--panel-tab-active)' : 'transparent',
+                      color: !paperMode ? 'var(--panel-bg)' : 'var(--panel-muted)',
+                    }}
+                  >
+                    OFF
+                  </button>
+                </div>
+
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    borderRadius: '0px',
+                    overflow: 'hidden',
+                    border: '1px solid var(--panel-item-border)',
+                    background: 'var(--panel-item-bg)',
+                    flexShrink: 0,
+                    fontFamily: 'var(--font-body)',
+                  }}
+                >
+                  <button
+                    onClick={() => setPaperColor('beige')}
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      letterSpacing: '0.5px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                      background: paperColor === 'beige' ? 'var(--panel-tab-active)' : 'transparent',
+                      color: paperColor === 'beige' ? 'var(--panel-bg)' : 'var(--panel-muted)',
+                    }}
+                    title="淡いベージュ紙調"
+                  >
+                    BEIGE
+                  </button>
+                  <button
+                    onClick={() => setPaperColor('white')}
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      letterSpacing: '0.5px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                      background: paperColor === 'white' ? 'var(--panel-tab-active)' : 'transparent',
+                      color: paperColor === 'white' ? 'var(--panel-bg)' : 'var(--panel-muted)',
+                    }}
+                    title="ホワイト紙調（白地＆テーブル明瞭調）"
+                  >
+                    WHITE
+                  </button>
+                </div>
+              </div>
+              <div style={{ fontSize: '10px', opacity: 0.65, marginTop: '5px' }}>
+                {lang === 'en'
+                  ? 'Paper mode (ON/OFF and color) is saved and remembered individually for each theme.'
+                  : '各テーマごとにペーパーのON/OFFおよび用紙色が自動記憶・維持されます。'}
               </div>
             </div>
           </div>
@@ -281,12 +474,14 @@ export const SettingsPanel = () => {
             <div className="setting-row">
               <div className="setting-label">ボイス (VOICE)</div>
               <select
-                style={{ width: '100%', background: vals.theme === 'midnight' || vals.theme === 'obsidian' || vals.theme === 'rose' || vals.theme === 'dark' ? 'rgba(0,0,0,0.2)' : 'var(--panel-item-bg)', color: vals.theme === 'midnight' || vals.theme === 'obsidian' ? '#FFF' : 'var(--panel-text)', border: '1px solid var(--panel-item-border)', borderRadius: '8px', padding: '8px', fontSize: '11px', outline: 'none' }}
+                style={{ width: '100%', background: vals.theme === 'midnight' || vals.theme === 'obsidian' || vals.theme === 'rose' || vals.theme === 'dark' ? 'rgba(0,0,0,0.2)' : 'var(--panel-item-bg)', color: vals.theme === 'midnight' || vals.theme === 'obsidian' ? '#FFF' : 'var(--panel-text)', border: '1px solid var(--panel-item-border)', borderRadius: '0px', padding: '8px', fontSize: '11px', outline: 'none' }}
                 value={ttsSettings.voiceURI}
                 onChange={e => updateTtsSettings({ voiceURI: e.target.value })}
               >
-                {voices.map(v => (
-                  <option key={v.voiceURI} value={v.voiceURI} style={{ background: vals.theme === 'midnight' ? '#0f172a' : vals.theme === 'obsidian' ? '#0A0A0A' : '#FFF', color: vals.theme === 'midnight' || vals.theme === 'obsidian' ? '#FFF' : '#000' }}>{v.name} ({v.lang})</option>
+                {voices
+                  .filter(v => !v.name.toLowerCase().includes('google'))
+                  .map(v => (
+                    <option key={v.voiceURI} value={v.voiceURI} style={{ background: vals.theme === 'midnight' ? '#0f172a' : vals.theme === 'obsidian' ? '#0A0A0A' : '#FFF', color: vals.theme === 'midnight' || vals.theme === 'obsidian' ? '#FFF' : '#000' }}>{v.name} ({v.lang})</option>
                 ))}
               </select>
             </div>

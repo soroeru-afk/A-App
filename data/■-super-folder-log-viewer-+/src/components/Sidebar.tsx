@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAppContext } from '../AppContext';
 import { SearchIcon, FolderIcon, RefreshIcon, HighlightIcon, SettingsIcon, ExternalLinkIcon } from './Icons';
 import { FileObj } from '../types';
@@ -13,11 +13,66 @@ export const Sidebar = () => {
     selectedFiles, currentFileObj, selectFile, toggleFileSelection,
     categoryOpenState, setCategoryOpen,
     movePanelState, closeMovePanels, openMovePanel, bulkDeleteFiles, execBulkMove,
+    createNewFolder, createNewFile,
     lang, setLang, t,
-    sortMode, sortDirection, setSortMode, setSortDirection
+    sortMode, sortDirection, setSortMode, setSortDirection,
+    fileMarks, setBulkFileMarks, isResuming, pendingResumeHandle, resumeSavedFolder,
+    openExplorer, viewMode, setViewMode,
+    canGoBack, canGoForward, goBack, goForward
   } = useAppContext();
 
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [isAddMode, setIsAddMode] = useState(false);
+  const [bulkMarkOpen, setBulkMarkOpen] = useState(false);
+  const bulkMarkRef = useRef<HTMLDivElement>(null);
+
+  const isAnyGroupOpen = () => {
+    const keys = Object.keys(categoryOpenState);
+    if (keys.length > 0) {
+      return keys.some(k => categoryOpenState[k] === true);
+    }
+    return (allCategories.length > 0 || allFiles.length > 0);
+  };
+
+  const handleToggleAllGroups = () => {
+    if (isAnyGroupOpen()) {
+      collapseAllGroups();
+    } else {
+      expandAllGroups();
+    }
+  };
+
+  const renderMarkBadge = (mark: string) => {
+    if (!mark) return null;
+    let markClass = 'file-mark-badge';
+    let markStyle: React.CSSProperties = {};
+    if (mark === '★') {
+      markClass += ' mark-star';
+      markStyle = { color: '#F59E0B' };
+    } else if (mark === '✓') {
+      markClass += ' mark-check';
+      markStyle = { color: '#10B981', fontWeight: 900 };
+    }
+    return (
+      <span className={markClass} style={markStyle} title={`マーク: ${mark}`}>
+        {mark}
+      </span>
+    );
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (bulkMarkRef.current && !bulkMarkRef.current.contains(e.target as Node)) {
+        setBulkMarkOpen(false);
+      }
+    };
+    if (bulkMarkOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [bulkMarkOpen]);
 
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect='move'; };
   const handleDrop = (e: React.DragEvent) => {
@@ -104,7 +159,10 @@ export const Sidebar = () => {
           </div>
         )}
         {f.date && <div className="file-date">{f.dateSource==='os'?<span style={{opacity:0.5,fontSize:'9px'}}>📅 </span>:null}{f.date.replace(/-/g,'.')} {f.time}</div>}
-        <div className="file-title" dangerouslySetInnerHTML={{__html: titleHtml}} />
+        <div className="file-title">
+          {fileMarks[f.filename] && renderMarkBadge(fileMarks[f.filename])}
+          <span dangerouslySetInnerHTML={{__html: titleHtml}} />
+        </div>
         {previewHtml && <div dangerouslySetInnerHTML={{__html: previewHtml}} />}
         <div className="file-fname" dangerouslySetInnerHTML={{__html: highlightText(f.filename, searchQueries)}} />
       </button>
@@ -115,31 +173,58 @@ export const Sidebar = () => {
     let isOpen = categoryOpenState[groupKey] ?? isDefaultOpen;
     if (searchQueries.length > 0) isOpen = true;
 
+    const isCategory = groupKey.startsWith('cat:');
+    let targetHandle: any = null;
+    if (isCategory) {
+      const targetCatName = groupKey.slice(4);
+      const cat = physicalFolders.find(c => c.name === targetCatName);
+      if (cat) targetHandle = cat.handle;
+    }
+
     return (
       <div className="category-group" data-group-key={groupKey} key={groupKey}>
         <button 
           className={`category-header ${isOpen ? 'open' : ''}`}
           style={{ paddingLeft: `${10 + depth * 14}px` }}
-          onClick={() => setCategoryOpen(groupKey, !isOpen)}
+          onClick={() => {
+            setCategoryOpen(groupKey, !isOpen);
+            if (isCategory) {
+              const targetCatName = groupKey.slice(4);
+              openExplorer(targetCatName);
+            }
+          }}
           onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect='move'; e.currentTarget.classList.add('drag-over'); }}
           onDragLeave={e => e.currentTarget.classList.remove('drag-over')}
           onDrop={async e => {
             e.preventDefault(); e.currentTarget.classList.remove('drag-over');
             if (!window.__draggedFiles) return;
             if (groupKey.startsWith('month:') || groupKey.startsWith('date:')) return; 
-            let targetCatName: string|null = null, targetHandle: any = null;
+            let targetCatName: string|null = null, dropHandle: any = null;
             if (groupKey.startsWith('cat:')) {
               targetCatName = groupKey.slice(4);
               const cat = physicalFolders.find(c=>c.name===targetCatName);
-              if(cat) targetHandle=cat.handle;
+              if(cat) dropHandle=cat.handle;
             }
-            await execBulkMove(window.__draggedFiles, targetHandle, targetCatName);
+            await execBulkMove(window.__draggedFiles, dropHandle, targetCatName);
           }}
         >
           {icon && <span className="category-icon" style={{ opacity: depth > 0 ? 0.7 : 1 }}>{icon}</span>}
           <span className="category-name">{label}</span>
           {badge && <span className="today-badge">{badge}</span>}
-          <span className="category-count">{totalCount !== undefined ? totalCount : files.length}</span>
+          {targetHandle && isAddMode && (
+            <span 
+              className="new-file-btn"
+              title={t.main.newFilePrompt}
+              onClick={(e) => { e.stopPropagation(); createNewFile(targetHandle); }}
+              style={{
+                marginLeft: 'auto', background: 'var(--sb-accent)', color: '#fff',
+                width: '18px', height: '18px', borderRadius: '0px', display: 'flex',
+                alignItems: 'center', justifyContent: 'center', fontSize: '12px',
+                marginRight: '6px'
+              }}
+            >＋</span>
+          )}
+          <span className="category-count" style={{ marginLeft: targetHandle ? '0' : 'auto' }}>{totalCount !== undefined ? totalCount : files.length}</span>
           <span className="category-arrow">▶</span>
         </button>
         <div className={`category-files ${isOpen ? 'open' : ''}`}>
@@ -200,6 +285,56 @@ export const Sidebar = () => {
     };
     treeTop.forEach(node => computeTotalCount(node));
 
+    // フォルダ並び順のソート連動対応 (日付順・名前順)
+    // 対象限定制御: 親フォルダが過去ログアーカイブ/AIエージェント関連、またはYYYY-MM等の年月名を持つフォルダ群に限定
+    const isYearMonthName = (name: string) => /^\d{4}[-_./]\d{2}$/.test(name.trim());
+    const isArchiveOrAiFolder = (name: string) => /過去ログ|アーカイブ|archive|agent|エージェント|ai/i.test(name);
+
+    const sortCategoryNodes = (nodes: CategoryNode[], parentName: string = '') => {
+      const isTarget = isArchiveOrAiFolder(parentName) || nodes.some(n => {
+        const short = n.name.split('/').pop() || n.name;
+        return isYearMonthName(short);
+      });
+
+      if (isTarget) {
+        nodes.sort((a, b) => {
+          const shortA = a.name.split('/').pop() || a.name;
+          const shortB = b.name.split('/').pop() || b.name;
+          const isDateA = isYearMonthName(shortA);
+          const isDateB = isYearMonthName(shortB);
+
+          if (sortMode === 'date') {
+            // 日付順: 降順(desc)なら最新月が上 (例: 2026-08 -> 2026-07 -> 2026-06)
+            if (isDateA && isDateB) {
+              return sortDirection === 'desc'
+                ? shortB.localeCompare(shortA, undefined, { numeric: true })
+                : shortA.localeCompare(shortB, undefined, { numeric: true });
+            }
+            if (isDateA && !isDateB) return sortDirection === 'desc' ? -1 : 1;
+            if (!isDateA && isDateB) return sortDirection === 'desc' ? 1 : -1;
+
+            return sortDirection === 'desc'
+              ? shortB.localeCompare(shortA, 'ja', { numeric: true })
+              : shortA.localeCompare(shortB, 'ja', { numeric: true });
+          } else {
+            // 名前順: 昇順(asc)なら a->b、降順(desc)なら b->a
+            return sortDirection === 'asc'
+              ? shortA.localeCompare(shortB, 'ja', { numeric: true })
+              : shortB.localeCompare(shortA, 'ja', { numeric: true });
+          }
+        });
+      }
+
+      // 再帰的に子階層も処理
+      nodes.forEach(n => {
+        if (n.children && n.children.length > 0) {
+          sortCategoryNodes(n.children, n.name);
+        }
+      });
+    };
+
+    sortCategoryNodes(treeTop);
+
     const buildCategoryTree = (node: CategoryNode, depth: number): React.ReactNode => {
       const shortName = node.name.split('/').pop() || node.name;
       const childNodes = node.children.map(child => buildCategoryTree(child, depth + 1));
@@ -221,7 +356,13 @@ export const Sidebar = () => {
       });
       if (byMonth['__nodate__']) byMonth['__nodate__']['__nodate__'].forEach(f => elements.push(renderFileBtn(f)));
       
-      Object.keys(byMonth).filter(k=>k!=='__nodate__').sort((a,b)=>b.localeCompare(a)).forEach(mKey => {
+      Object.keys(byMonth).filter(k=>k!=='__nodate__').sort((a,b) => {
+        if (sortMode === 'date') {
+          return sortDirection === 'desc' ? b.localeCompare(a) : a.localeCompare(b);
+        } else {
+          return sortDirection === 'asc' ? a.localeCompare(b) : b.localeCompare(a);
+        }
+      }).forEach(mKey => {
         const isThisMonth = mKey === today.slice(0,7); const [my,mm] = mKey.split('-');
         let mOpen = categoryOpenState['month:'+mKey] ?? isThisMonth;
         if(searchQueries.length>0) mOpen=true;
@@ -236,7 +377,13 @@ export const Sidebar = () => {
               <span className="category-arrow">▶</span>
             </button>
             <div className={`category-files ${mOpen?'open':''}`}>
-              {Object.keys(byMonth[mKey]).sort((a,b)=>b.localeCompare(a)).map(dKey => {
+              {Object.keys(byMonth[mKey]).sort((a,b) => {
+                if (sortMode === 'date') {
+                  return sortDirection === 'desc' ? b.localeCompare(a) : a.localeCompare(b);
+                } else {
+                  return sortDirection === 'asc' ? a.localeCompare(b) : b.localeCompare(a);
+                }
+              }).map(dKey => {
                 const isToday = dKey === today; const [,,dd] = dKey.split('-');
                 return renderCategoryGroup(isToday?`${t.sidebar.today}(${parseInt(mm)}/${parseInt(dd)})`:`${parseInt(mm)}/${parseInt(dd)}`, '', byMonth[mKey][dKey], 'date:'+dKey, isToday?'TODAY':null, isToday);
               })}
@@ -266,7 +413,7 @@ export const Sidebar = () => {
             <button 
               title={t.app.fallbackReopen}
               onClick={(e) => { e.stopPropagation(); window.open(window.location.href, '_blank'); }}
-              style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid var(--sb-border)', color: 'var(--sb-accent)', borderRadius: '6px', padding: '5px 8px', fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 'bold' }}
+              style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid var(--sb-border)', color: 'var(--sb-accent)', borderRadius: '0px', padding: '5px 8px', fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 'bold' }}
             >
               <ExternalLinkIcon />
               {t.app.fallbackReopen}
@@ -275,26 +422,45 @@ export const Sidebar = () => {
         </div>
         <div style={{display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center'}}>
           <div id="app-version">React Edition v3.1.2</div>
-          <div onClick={(e) => { e.stopPropagation(); setLang(lang === 'ja' ? 'en' : 'ja'); }} style={{ display: 'flex', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '4px', overflow: 'hidden', cursor: 'pointer', fontSize: '9px', fontWeight: 'bold' }}>
-            <div style={{ padding: '2px 5px', background: lang === 'en' ? '#94A3B8' : 'transparent', color: lang === 'en' ? '#0F172A' : '#94A3B8' }}>EN</div>
-            <div style={{ padding: '2px 5px', background: lang === 'ja' ? '#94A3B8' : 'transparent', color: lang === 'ja' ? '#0F172A' : '#94A3B8' }}>JP</div>
+          <div 
+            className="lang-toggle-container"
+            onClick={(e) => { e.stopPropagation(); setLang(lang === 'ja' ? 'en' : 'ja'); }} 
+            title={lang === 'ja' ? 'Switch to English' : '日本語に切り替え'}
+          >
+            <div className={`lang-toggle-btn ${lang === 'en' ? 'active' : 'inactive'}`}>EN</div>
+            <div className={`lang-toggle-btn ${lang === 'ja' ? 'active' : 'inactive'}`}>JP</div>
           </div>
         </div>
       </div>
       <div id="sidebar-header" onDragOver={handleDragOver} onDragLeave={(e) => {}} onDrop={handleDrop}>
         <div className="sidebar-label">Log Archive</div>
 
-        <button id="open-btn" onClick={openFolder}>
-          <FolderIcon />
-          <span id="open-btn-label">{dirHandle ? dirHandle.name : t.app.openFolder}</span>
+        <button id="open-btn" onClick={openFolder} disabled={isResuming || loading}>
+          {isResuming || loading ? (
+            <>
+              <span className="dice-spinner-mini">🎲</span>
+              <span id="open-btn-label">{t.main.loadingFolder}</span>
+            </>
+          ) : (
+            <>
+              <FolderIcon />
+              <span id="open-btn-label">{dirHandle ? dirHandle.name : t.app.openFolder}</span>
+            </>
+          )}
         </button>
 
         <div id="folder-name">{dirHandle?.name}</div>
 
         {!dirHandle && (
-          <button id="reopen-btn" onClick={reopenFolder}>
+          <button 
+            id="reopen-btn" 
+            onClick={pendingResumeHandle ? resumeSavedFolder : reopenFolder}
+            className={pendingResumeHandle ? "pending-resume-pulse" : ""}
+          >
             <FolderIcon />
-            <span id="reopen-btn-label">{t.app.reopenFolder}</span>
+            <span id="reopen-btn-label">
+              {pendingResumeHandle ? `${pendingResumeHandle.name} ${t.app.reopenFolder}` : t.app.reopenFolder}
+            </span>
           </button>
         )}
 
@@ -311,17 +477,72 @@ export const Sidebar = () => {
         {renderBreadcrumbs()}
       </div>
 
-      <div id="file-list-header" style={{display: dirHandle ? 'flex' : 'none'}}>
-        <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
-          <span id="file-count" style={{textTransform:'uppercase'}}>{allFiles.length} files</span>
-          <div style={{display:'flex', gap:'4px'}}>
+      <div id="file-list-header" style={{display: dirHandle ? 'flex' : 'none', flexDirection: 'column', gap: '8px', padding: '8px 12px'}}>
+        {/* 上段: ファイル件数 と 閲覧状態の戻る・進む（Back / Next） */}
+        <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '8px'}}>
+          <span id="file-count" style={{textTransform:'uppercase', fontSize: '11px', fontWeight: 'bold', opacity: 0.85, letterSpacing: '0.5px'}}>
+            {allFiles.length} FILES
+          </span>
+          <div style={{display: 'inline-flex', borderRadius: '0px', overflow: 'hidden', border: '1px solid var(--sb-border)', background: 'var(--sb-item-hover)'}}>
+            <button 
+              className="nav-history-btn"
+              disabled={!canGoBack}
+              onClick={goBack}
+              title={lang === 'en' ? 'Back (previous state) [Alt+←]' : '戻る（直前の状態へ） [Alt+←]'}
+              style={{
+                background: 'transparent',
+                color: canGoBack ? 'var(--sb-text)' : 'var(--sb-muted)',
+                opacity: canGoBack ? 1 : 0.4,
+                border: 'none',
+                borderRight: '1px solid var(--sb-border)',
+                padding: '4px 9px',
+                fontSize: '11px',
+                cursor: canGoBack ? 'pointer' : 'not-allowed',
+                fontWeight: '600',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                transition: 'all 0.15s'
+              }}
+            >
+              ◀ {lang === 'en' ? 'Back' : '戻る'}
+            </button>
+            <button 
+              className="nav-history-btn"
+              disabled={!canGoForward}
+              onClick={goForward}
+              title={lang === 'en' ? 'Next (forward state) [Alt+→]' : '進む（次の状態へ） [Alt+→]'}
+              style={{
+                background: 'transparent',
+                color: canGoForward ? 'var(--sb-text)' : 'var(--sb-muted)',
+                opacity: canGoForward ? 1 : 0.4,
+                border: 'none',
+                padding: '4px 9px',
+                fontSize: '11px',
+                cursor: canGoForward ? 'pointer' : 'not-allowed',
+                fontWeight: '600',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                transition: 'all 0.15s'
+              }}
+            >
+              {lang === 'en' ? 'Next' : '進む'} ▶
+            </button>
+          </div>
+        </div>
+
+        {/* 下段: ソート切り替え と ツールアクションボタン群 */}
+        <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '6px', flexWrap: 'wrap'}}>
+          <div style={{display:'flex', gap:'4px', alignItems:'center'}}>
             <button 
               className={`sort-btn ${sortMode === 'date' ? 'active' : ''}`}
               style={{
-                background: sortMode === 'date' ? 'rgba(255,255,255,0.1)' : 'transparent', 
-                border: '1px solid var(--panel-item-border)', 
-                color: sortMode === 'date' ? 'var(--sb-accent)' : 'var(--sb-text-sec)', 
-                padding: '2px 6px', fontSize: '10px', borderRadius: '4px', cursor: 'pointer',
+                background: sortMode === 'date' ? 'var(--sb-item-active)' : 'transparent', 
+                border: '1px solid var(--sb-border)', 
+                color: sortMode === 'date' ? 'var(--sb-accent)' : 'var(--sb-text)', 
+                padding: '3px 7px', fontSize: '10px', borderRadius: '0px', cursor: 'pointer',
+                fontWeight: sortMode === 'date' ? 'bold' : '600',
                 display: 'flex', alignItems: 'center', gap: '2px'
               }}
               onClick={() => {
@@ -334,10 +555,11 @@ export const Sidebar = () => {
             <button 
               className={`sort-btn ${sortMode === 'name' ? 'active' : ''}`}
               style={{
-                background: sortMode === 'name' ? 'rgba(255,255,255,0.1)' : 'transparent', 
-                border: '1px solid var(--panel-item-border)', 
-                color: sortMode === 'name' ? 'var(--sb-accent)' : 'var(--sb-text-sec)', 
-                padding: '2px 6px', fontSize: '10px', borderRadius: '4px', cursor: 'pointer',
+                background: sortMode === 'name' ? 'var(--sb-item-active)' : 'transparent', 
+                border: '1px solid var(--sb-border)', 
+                color: sortMode === 'name' ? 'var(--sb-accent)' : 'var(--sb-text)', 
+                padding: '3px 7px', fontSize: '10px', borderRadius: '0px', cursor: 'pointer',
+                fontWeight: sortMode === 'name' ? 'bold' : '600',
                 display: 'flex', alignItems: 'center', gap: '2px'
               }}
               onClick={() => {
@@ -348,17 +570,55 @@ export const Sidebar = () => {
               {t.sidebar.sortName} {sortMode === 'name' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
             </button>
           </div>
-        </div>
-        <div style={{display:'flex', gap:'4px', alignItems:'center'}}>
-          <button id="select-mode-btn" className={isSelectMode ? 'active' : ''} onClick={toggleSelectMode} title={t.sidebar.selectMode}>{isSelectMode ? 'Done' : t.sidebar.selectMode}</button>
-          <button id="highlight-toggle-btn" className={isHighlightOff ? 'off' : ''} onClick={toggleHighlight} title={t.app.highlight}>
-            <HighlightIcon /> HL
-          </button>
-          <button onClick={expandAllGroups} title="全て展開" className="header-icon-btn">＋</button>
-          <button onClick={collapseAllGroups} title="全て折りたたむ" className="header-icon-btn">－</button>
-          <button id="refresh-btn" onClick={refreshFolder} title="更新">
-            <RefreshIcon className={refreshing ? 'spin' : ''} />
-          </button>
+
+          <div style={{display:'flex', gap:'4px', alignItems:'center'}}>
+            <button 
+              onClick={() => setIsAddMode(!isAddMode)}
+              className={isAddMode ? 'active' : ''}
+              style={{
+                background: isAddMode ? 'var(--sb-item-active)' : 'transparent',
+                border: '1px solid var(--sb-border)', 
+                color: 'var(--sb-text)', opacity: 1, fontSize: '10px', fontWeight: 'bold', 
+                letterSpacing: '1px', padding: '3px 6px', borderRadius: '0px', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap'
+              }}
+              title={t.main.newFolderPrompt}
+            >
+              ＋ <FolderIcon />
+            </button>
+            <button id="select-mode-btn" className={isSelectMode ? 'active' : ''} onClick={toggleSelectMode} title={t.sidebar.selectMode}>{isSelectMode ? 'Done' : t.sidebar.selectMode}</button>
+            <button 
+              id="highlight-toggle-btn" 
+              className={isHighlightOff ? 'off' : ''} 
+              onClick={toggleHighlight} 
+              title={lang === 'en' ? 'Toggle Keyword Highlight (ON/OFF)' : '本文ハイライト表示切替（ON/OFF）'}
+            >
+              <HighlightIcon /> HL
+            </button>
+            <button 
+              onClick={handleToggleAllGroups} 
+              title={isAnyGroupOpen() ? (lang === 'en' ? 'Collapse all folders' : '全て折りたたむ') : (lang === 'en' ? 'Expand all folders' : '全て展開')} 
+              className="header-icon-btn"
+              style={{
+                fontSize: '13px',
+                fontWeight: 'bold',
+                minWidth: '22px',
+                height: '22px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '1px solid var(--sb-border)',
+                borderRadius: '0px',
+                color: 'var(--sb-text)',
+                opacity: 0.85
+              }}
+            >
+              {isAnyGroupOpen() ? '－' : '＋'}
+            </button>
+            <button id="refresh-btn" onClick={refreshFolder} title={lang === 'en' ? 'Refresh' : '更新'}>
+              <RefreshIcon className={refreshing ? 'spin' : ''} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -366,11 +626,85 @@ export const Sidebar = () => {
         <div id="bulk-bar" className="visible">
           <div id="bulk-bar-inner">
             <span id="bulk-count">{lang === 'en' ? `${selectedFiles.size}${t.sidebar.selectedCount}` : `${selectedFiles.size}${t.sidebar.selectedCount}`}</span>
-            <button id="bulk-cancel-btn" onClick={toggleSelectMode}>{t.sidebar.cancelSelect}</button>
+            
+            <div className="bulk-mark-dropdown-container" ref={bulkMarkRef}>
+              <button 
+                id="bulk-mark-btn"
+                onClick={() => setBulkMarkOpen(!bulkMarkOpen)}
+                title={lang === 'en' ? 'Set mark for selected files' : '選択した項目にマークを付ける'}
+              >
+                <span style={{ color: '#F59E0B' }}>★</span>
+                <span>{lang === 'en' ? 'Mark' : 'マーク'}</span>
+                <span style={{ fontSize: '9px', opacity: 0.8 }}>▼</span>
+              </button>
+
+              {bulkMarkOpen && (
+                <div className="bulk-mark-palette-popup">
+                  <div className="bulk-mark-palette-title">
+                    {lang === 'en' ? 'Mark selected' : 'マークを選択'}
+                  </div>
+                  <div className="bulk-mark-palette-items">
+                    {[
+                      { mark: '★', label: lang === 'en' ? 'Star (★)' : '星（★）', style: { color: '#F59E0B' } },
+                      { mark: '✓', label: lang === 'en' ? 'Check (✓)' : 'チェック（✓）', style: { color: '#10B981', fontWeight: 'bold' } },
+                      { mark: '💡', label: lang === 'en' ? 'Idea (💡)' : '電球（💡）' },
+                      { mark: '📌', label: lang === 'en' ? 'Pin (📌)' : 'ピン（📌）' },
+                      { mark: '⚠️', label: lang === 'en' ? 'Warn (⚠️)' : '注意（⚠️）' },
+                    ].map(item => (
+                      <button
+                        key={item.mark}
+                        className="bulk-mark-item-btn"
+                        onClick={() => {
+                          const fileNames = Array.from(selectedFiles).map((k: unknown) => {
+                            const str = String(k);
+                            const parts = str.split('::');
+                            return parts.length > 1 ? parts[1] : str;
+                          });
+                          setBulkFileMarks(fileNames, item.mark);
+                          setBulkMarkOpen(false);
+                        }}
+                      >
+                        <span className="mark-symbol" style={item.style}>{item.mark}</span>
+                        <span className="mark-label">{item.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="bulk-mark-palette-divider" />
+                  <button
+                    className="bulk-mark-clear-btn"
+                    onClick={() => {
+                      const fileNames = Array.from(selectedFiles).map((k: unknown) => {
+                        const str = String(k);
+                        const parts = str.split('::');
+                        return parts.length > 1 ? parts[1] : str;
+                      });
+                      setBulkFileMarks(fileNames, '');
+                      setBulkMarkOpen(false);
+                    }}
+                  >
+                    ✕ {lang === 'en' ? 'Remove Marks' : 'マークを解除'}
+                  </button>
+                </div>
+              )}
+            </div>
+
             <button id="bulk-delete-btn" onClick={bulkDeleteFiles}>{t.sidebar.bulkDelete}</button>
             <button id="bulk-move-btn" onClick={e => openMovePanel(e, 'bulk')}>{t.sidebar.bulkMove}</button>
           </div>
         </div>
+      )}
+
+      {dirHandle && isAddMode && (
+        <button 
+          onClick={createNewFolder}
+          style={{
+            margin: '0 10px 10px', padding: '10px', background: 'rgba(59,130,246,0.1)', 
+            border: '1px dashed rgba(59,130,246,0.4)', borderRadius: '0px', 
+            color: '#60A5FA', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer',
+            display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px'
+          }}>
+          {t.main.newRootFolder || "+ 一番上（ルート）に新規フォルダー作成"}
+        </button>
       )}
 
       <div id="file-list">

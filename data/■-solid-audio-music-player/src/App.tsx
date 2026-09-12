@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   Play, Pause, SkipForward, SkipBack, Shuffle, Repeat, Volume2, VolumeX,
   FolderOpen, ListMusic, Plus, Search, ChevronUp, ChevronDown, 
@@ -48,18 +48,18 @@ const THEMES = [
     accentMuted: '#1d2738'
   },
   { 
-    id: 'GRAY', 
-    bg: '#111111', 
-    surface: '#181818',
-    surfaceLighter: '#222222',
-    border: '#333333', 
-    borderActive: '#555555',
-    textMain: '#e0e0e0',
-    textMuted: '#888888',
-    textDim: '#555555',
-    accent: '#aaaaaa',
-    accentDark: '#666666',
-    accentMuted: '#2a2a2a'
+    id: 'BLACK', 
+    bg: '#0B0C0D', 
+    surface: '#14161A',
+    surfaceLighter: '#1C2026',
+    border: '#252932', 
+    borderActive: '#3B4352',
+    textMain: '#E1E4EA',
+    textMuted: '#7B8494',
+    textDim: '#4A5260',
+    accent: '#8EA1BD',
+    accentDark: '#5D6B80',
+    accentMuted: '#161C26'
   },
   { 
     id: 'LIGHT', 
@@ -139,6 +139,14 @@ const parseFilename = (filename: string): { title: string, artist: string } => {
   return { title: nameWithoutExt, artist: 'Unknown Artist' };
 };
 
+const COL_LABELS: Record<string, string> = {
+  fileName: '名前',
+  trackNumber: '#No',
+  title: 'タイトル',
+  artist: '参加アーティスト',
+  album: 'アルバム'
+};
+
 const PanelBlock = ({ title, children, className = "", styleVars }: { title: string, children: React.ReactNode, className?: string, styleVars?: React.CSSProperties }) => (
   <div className={`border flex flex-col relative ${className}`} style={{ backgroundColor: 'var(--theme-surface)', borderColor: 'var(--theme-border)', ...styleVars }}>
     {title && (
@@ -177,6 +185,19 @@ export default function App() {
   ]);
   const [activePlaylistId, setActivePlaylistId] = useState<string>('all-tracks');
   const [playingPlaylistId, setPlayingPlaylistId] = useState<string>('all-tracks');
+  
+  // Player state
+  const [playbackQueue, setPlaybackQueue] = useState<Track[]>([]);
+  const [currentTrackIndex, setCurrentTrackIndex] = useState<number>(-1);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(1);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isShuffle, setIsShuffle] = useState(false);
+  const [repeatMode, setRepeatMode] = useState<0|1|2>(0); // 0: off, 1: all, 2: one
+  const [selectedTrackIds, setSelectedTrackIds] = useState<Set<string>>(new Set());
+
   const [searchQuery, setSearchQuery] = useState('');
   const [themeIndex, setThemeIndex] = useState(0);
   const [listFontSize, setListFontSize] = useState<number>(11);
@@ -201,7 +222,23 @@ export default function App() {
   const [colOrder, setColOrder] = useState<string[]>([
     'fileName', 'trackNumber', 'title', 'artist', 'album'
   ]);
-  const colResizing = useRef<{ key: string, startX: number, startWidth: number } | null>(null);
+  const columnsContainerRef = useRef<HTMLDivElement>(null);
+  const colResizing = useRef<{
+    type: 'index' | 'pair';
+    key?: string;
+    leftKey?: string;
+    rightKey?: string;
+    startX: number;
+    startWidth?: number;
+    startLeft?: number;
+    startRight?: number;
+    containerWidth?: number;
+    totalWeight?: number;
+  } | null>(null);
+
+  const visibleCols = useMemo(() => {
+    return colOrder.filter(col => colVisibility[col as keyof typeof colVisibility]);
+  }, [colOrder, colVisibility]);
   
   type SortKey = 'title' | 'artist' | 'album' | 'fileName' | 'trackNumber' | 'none';
   type SortConfigType = { key: SortKey, direction: 'asc' | 'desc' };
@@ -243,11 +280,15 @@ export default function App() {
   const [editTitle, setEditTitle] = useState('');
   const [editArtist, setEditArtist] = useState('');
   
-  // Playlist Rename State
+  // Playlist Rename & Delete State
   const [renamingPlaylistId, setRenamingPlaylistId] = useState<string | null>(null);
   const [renamingPlaylistName, setRenamingPlaylistName] = useState('');
   const [draggedPlaylistId, setDraggedPlaylistId] = useState<string | null>(null);
   const [dragOverPlaylistId, setDragOverPlaylistId] = useState<string | null>(null);
+  const [confirmDeletePlaylistId, setConfirmDeletePlaylistId] = useState<string | null>(null);
+  const [selectedPlaylistIds, setSelectedPlaylistIds] = useState<Set<string>>(new Set());
+  const lastSelectedPlaylistIdRef = useRef<string | null>(null);
+  const [confirmDeleteSelectedPlaylists, setConfirmDeleteSelectedPlaylists] = useState(false);
 
   // Duplicates & Mini Mode State
   const [duplicateGroups, setDuplicateGroups] = useState<Track[][]>([]);
@@ -340,6 +381,10 @@ export default function App() {
         const savedSidebarWidth = await get('v2_solidSidebarWidth');
         const savedColWidths = await get('v2_solidColWidths');
         const savedThemeIndex = await get('v2_solidThemeIndex');
+        const savedActivePlaylistId = await get('v2_solidActivePlaylistId');
+        const savedPlayingPlaylistId = await get('v2_solidPlayingPlaylistId');
+        const savedPlaybackQueueIds = await get('v2_solidPlaybackQueueIds');
+        const savedCurrentTrackIndex = await get('v2_solidCurrentTrackIndex');
         const savedListFontSize = await get('v2_solidListFontSize');
         const savedColVisibility = await get('v2_solidColVisibility');
         const savedColOrder = await get('v2_solidColOrder');
@@ -361,6 +406,7 @@ export default function App() {
           setColOrder(['fileName', 'trackNumber', 'title', 'artist', 'album']);
         }
         if (savedListFontSize !== undefined) setListFontSize(savedListFontSize);
+        if (savedActivePlaylistId) setActivePlaylistId(savedActivePlaylistId);
         if (savedThemeIndex !== undefined) setThemeIndex(savedThemeIndex);
         
         if (savedLibrary && savedPlaylists) {
@@ -384,12 +430,23 @@ export default function App() {
           
           setLibrary(newLibrary);
 
+
           // Restore playlists
           const validPlaylists = savedPlaylists.map((p: any) => ({
             ...p,
             tracks: p.tracks.map((pt: Track) => libraryMap.get(pt.id)).filter(Boolean) as Track[]
           }));
           setPlaylists(validPlaylists);
+
+          if (savedPlayingPlaylistId) setPlayingPlaylistId(savedPlayingPlaylistId);
+          if (savedPlaybackQueueIds && Array.isArray(savedPlaybackQueueIds)) {
+            const restoredQueue = savedPlaybackQueueIds.map(id => libraryMap.get(id)).filter(Boolean) as Track[];
+            setPlaybackQueue(restoredQueue);
+            if (savedCurrentTrackIndex !== undefined && savedCurrentTrackIndex >= 0 && savedCurrentTrackIndex < restoredQueue.length) {
+              setCurrentTrackIndex(savedCurrentTrackIndex);
+            }
+          }
+
         }
       } catch (err) {
         console.error("Failed to load state", err);
@@ -413,24 +470,18 @@ export default function App() {
         set('v2_solidColOrder', colOrder).catch(console.error);
         set('v2_solidThemeIndex', themeIndex).catch(console.error);
         set('v2_solidListFontSize', listFontSize).catch(console.error);
+        set('v2_solidActivePlaylistId', activePlaylistId).catch(console.error);
+        set('v2_solidPlayingPlaylistId', playingPlaylistId).catch(console.error);
+        set('v2_solidPlaybackQueueIds', playbackQueue.map(t => t.id)).catch(console.error);
+        set('v2_solidCurrentTrackIndex', currentTrackIndex).catch(console.error);
+
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [library, playlists, sidebarWidth, colWidths, colVisibility, colOrder, themeIndex, listFontSize, isInitialized]);
+  }, [library, playlists, sidebarWidth, colWidths, colVisibility, colOrder, themeIndex, listFontSize, activePlaylistId, playingPlaylistId, playbackQueue, currentTrackIndex, isInitialized]);
 
 
-  // Player state
-  const [playbackQueue, setPlaybackQueue] = useState<Track[]>([]);
-  const [currentTrackIndex, setCurrentTrackIndex] = useState<number>(-1);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(1);
-  const [isMuted, setIsMuted] = useState(false);
-  const [isShuffle, setIsShuffle] = useState(false);
-  const [repeatMode, setRepeatMode] = useState<0|1|2>(0); // 0: off, 1: all, 2: one
-  const [selectedTrackIds, setSelectedTrackIds] = useState<Set<string>>(new Set());
-  
+  // (Moved player state)
   const [eqLow, setEqLow] = useState(60);
   const [eqMid, setEqMid] = useState(50);
   const [eqHigh, setEqHigh] = useState(40);
@@ -1106,11 +1157,20 @@ export default function App() {
       setSelectedTrackIds(new Set());
   };
 
-  const handleAddSelectedToPlaylist = (playlistId: string) => {
+  const handleAddSelectedToPlaylist = (targetPlaylistId: string) => {
       const selectedTracks = displayTracks.filter(t => selectedTrackIds.has(t.id));
+      if (selectedTracks.length === 0) return;
+
       setPlaylists(prev => prev.map(p => {
-          if (p.id === playlistId) {
-             return { ...p, tracks: [...p.tracks, ...selectedTracks] };
+          // 移動先プレイリストに追加
+          if (p.id === targetPlaylistId) {
+             const existingIds = new Set(p.tracks.map(t => t.id));
+             const tracksToAdd = selectedTracks.filter(t => !existingIds.has(t.id));
+             return { ...p, tracks: [...p.tracks, ...tracksToAdd] };
+          }
+          // 現在のプレイリスト（ALL TRACKS以外）からは削除（移動）
+          if (activePlaylistId !== 'all-tracks' && p.id === activePlaylistId) {
+             return { ...p, tracks: p.tracks.filter(t => !selectedTrackIds.has(t.id)) };
           }
           return p;
       }));
@@ -1333,6 +1393,84 @@ export default function App() {
     setDragOverPlaylistId(null);
   };
 
+  const togglePlaylistSelection = (e: React.MouseEvent, playlistId: string) => {
+    e.stopPropagation();
+    if (playlistId === 'all-tracks') return;
+    
+    const isShift = e.shiftKey;
+    const lastSelected = lastSelectedPlaylistIdRef.current;
+    
+    setSelectedPlaylistIds(prev => {
+      const next = new Set(prev);
+      
+      if (isShift && lastSelected) {
+        const customPlaylists = playlists.filter(p => p.id !== 'all-tracks');
+        const currentIndex = customPlaylists.findIndex(p => p.id === playlistId);
+        const lastIndex = customPlaylists.findIndex(p => p.id === lastSelected);
+        
+        if (currentIndex !== -1 && lastIndex !== -1) {
+          const start = Math.min(currentIndex, lastIndex);
+          const end = Math.max(currentIndex, lastIndex);
+          for (let i = start; i <= end; i++) {
+            next.add(customPlaylists[i].id);
+          }
+          return next;
+        }
+      }
+      
+      if (next.has(playlistId)) {
+        next.delete(playlistId);
+      } else {
+        next.add(playlistId);
+      }
+      return next;
+    });
+    
+    lastSelectedPlaylistIdRef.current = playlistId;
+  };
+
+  const moveSelectedPlaylists = (direction: 'up' | 'down') => {
+    setPlaylists(prev => {
+      const copy = [...prev];
+      if (direction === 'up') {
+        for (let i = 1; i < copy.length; i++) {
+          if (selectedPlaylistIds.has(copy[i].id)) {
+            if (i > 1 && !selectedPlaylistIds.has(copy[i - 1].id)) {
+              const temp = copy[i];
+              copy[i] = copy[i - 1];
+              copy[i - 1] = temp;
+            }
+          }
+        }
+      } else {
+        for (let i = copy.length - 2; i >= 1; i--) {
+          if (selectedPlaylistIds.has(copy[i].id)) {
+            if (i + 1 < copy.length && !selectedPlaylistIds.has(copy[i + 1].id)) {
+              const temp = copy[i];
+              copy[i] = copy[i + 1];
+              copy[i + 1] = temp;
+            }
+          }
+        }
+      }
+      return copy;
+    });
+  };
+
+  const deleteSelectedPlaylists = () => {
+    if (selectedPlaylistIds.size === 0) return;
+    
+    setPlaylists(prev => prev.filter(p => p.id === 'all-tracks' || !selectedPlaylistIds.has(p.id)));
+    if (selectedPlaylistIds.has(activePlaylistId)) {
+      setActivePlaylistId('all-tracks');
+    }
+    if (selectedPlaylistIds.has(playingPlaylistId)) {
+      setPlayingPlaylistId('all-tracks');
+    }
+    setSelectedPlaylistIds(new Set());
+    setConfirmDeleteSelectedPlaylists(false);
+  };
+
   // --- Track Ordering ---
   const moveTrack = (e: React.MouseEvent, fromIndex: number, toIndex: number) => {
     e.stopPropagation();
@@ -1396,22 +1534,99 @@ export default function App() {
   };
 
   // Column resize handlers
-  const handleColMouseDown = (e: React.MouseEvent, key: keyof typeof colWidths) => {
+  const handleColMouseDown = (e: React.MouseEvent, leftCol: string, rightCol?: string) => {
     e.preventDefault();
     e.stopPropagation();
-    colResizing.current = { key, startX: e.clientX, startWidth: colWidths[key] };
-    const onMove = (ev: MouseEvent) => {
-      if (!colResizing.current) return;
-      const resizeKey = colResizing.current.key;
-      const delta = ev.clientX - colResizing.current.startX;
-      const newWidth = Math.max(20, colResizing.current.startWidth + delta);
-      setColWidths(prev => ({ ...prev, [resizeKey]: newWidth }));
+
+    if (leftCol === 'index' || !rightCol) {
+      // Index column resizing
+      const startWidth = colWidths.index;
+      colResizing.current = {
+        type: 'index',
+        key: 'index',
+        startX: e.clientX,
+        startWidth
+      };
+
+      const onMove = (ev: MouseEvent) => {
+        if (!colResizing.current || colResizing.current.type !== 'index') return;
+        const delta = ev.clientX - colResizing.current.startX;
+        const newWidth = Math.min(240, Math.max(60, (colResizing.current.startWidth || 96) + delta));
+        setColWidths(prev => ({ ...prev, index: newWidth }));
+      };
+
+      const onUp = () => {
+        colResizing.current = null;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+      };
+
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+      return;
+    }
+
+    // Pair resizing between adjacent visible columns
+    const containerWidth = columnsContainerRef.current?.clientWidth || 800;
+    const totalWeight = visibleCols.reduce((sum, col) => sum + (colWidths[col as keyof typeof colWidths] || 150), 0) || 1;
+    const startLeft = colWidths[leftCol as keyof typeof colWidths] || 150;
+    const startRight = colWidths[rightCol as keyof typeof colWidths] || 150;
+
+    colResizing.current = {
+      type: 'pair',
+      leftKey: leftCol,
+      rightKey: rightCol,
+      startX: e.clientX,
+      startLeft,
+      startRight,
+      containerWidth,
+      totalWeight
     };
+
+    const onMove = (ev: MouseEvent) => {
+      if (!colResizing.current || colResizing.current.type !== 'pair') return;
+      const { leftKey, rightKey, startX, startLeft, startRight, containerWidth, totalWeight } = colResizing.current;
+      if (!leftKey || !rightKey || startLeft === undefined || startRight === undefined || !containerWidth || !totalWeight) return;
+
+      const deltaX = ev.clientX - startX;
+      // Convert pixel delta to proportional weight delta
+      const weightPerPx = totalWeight / containerWidth;
+      const deltaWeight = deltaX * weightPerPx;
+      const minWeight = Math.max(20, 40 * weightPerPx); // Minimum ~40px width
+
+      let newLeft = startLeft + deltaWeight;
+      let newRight = startRight - deltaWeight;
+
+      const totalPairWeight = startLeft + startRight;
+      if (newLeft < minWeight) {
+        newLeft = minWeight;
+        newRight = totalPairWeight - minWeight;
+      } else if (newRight < minWeight) {
+        newRight = minWeight;
+        newLeft = totalPairWeight - minWeight;
+      }
+
+      setColWidths(prev => ({
+        ...prev,
+        [leftKey]: Math.round(newLeft),
+        [rightKey]: Math.round(newRight)
+      }));
+    };
+
     const onUp = () => {
       colResizing.current = null;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
   };
@@ -1483,7 +1698,7 @@ export default function App() {
             }
           }}
           title={track.missing ? `このPCにファイルがありません: ${track.fileName}\nファイルをドラッグ&ドロップするか、フォルダを読み込んでください` : undefined}
-          className="group flex items-center h-10 px-2 border-b transition-colors shrink-0 select-none"
+          className="group flex items-center h-10 px-2 border-b transition-colors shrink-0 select-none w-full"
           style={{ 
               backgroundColor: isActive ? 'var(--theme-accentMuted)' : (isSelected ? 'var(--theme-surfaceLighter)' : 'transparent'), 
               borderColor: isActive ? 'var(--theme-borderActive)' : 'var(--theme-surface)', 
@@ -1528,7 +1743,7 @@ export default function App() {
           </div>
           {/* Track Info with Inline Edit */}
           {editingTrackId === track.id ? (
-            <div className="flex-1 flex gap-2 pr-4 h-full items-center" onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()} onDoubleClick={e => e.stopPropagation()}>
+            <div className="flex-1 min-w-0 flex gap-2 pr-4 h-full items-center pl-3" onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()} onDoubleClick={e => e.stopPropagation()}>
               <input
                  type="text"
                  value={editTitle}
@@ -1551,40 +1766,41 @@ export default function App() {
               <button onClick={() => setEditingTrackId(null)} className="px-1" title="Cancel" style={{ color: 'var(--theme-textDim)' }}><X size={12} /></button>
             </div>
           ) : (
-            <div className="flex items-center gap-3 pl-3">
-              {colOrder.map(col => {
+            <div className="flex-1 min-w-0 flex items-center gap-3 pl-3 h-full">
+              {visibleCols.map(col => {
+                const weight = colWidths[col as keyof typeof colWidths] || 150;
 
-                if (col === 'fileName' && colVisibility.fileName) {
+                if (col === 'fileName') {
                   return (
-                    <div key="fileName" className="flex-shrink-0 min-w-0 pr-2 truncate font-mono tracking-wide" style={{ width: colWidths.fileName, color: 'var(--theme-textMuted)', fontSize: 'var(--list-font-size-sm)' }} title={track.fileName}>
+                    <div key="fileName" className="min-w-0 pr-2 truncate font-mono tracking-wide" style={{ flex: `${weight} 0 0%`, minWidth: 40, color: 'var(--theme-textMuted)', fontSize: 'var(--list-font-size-sm)' }} title={track.fileName}>
                       {track.fileName}
                     </div>
                   );
                 }
-                if (col === 'trackNumber' && colVisibility.trackNumber) {
+                if (col === 'trackNumber') {
                   return (
-                    <div key="trackNumber" className="flex-shrink-0 text-center font-mono opacity-80" style={{ width: colWidths.trackNumber, fontSize: 'var(--list-font-size-sm)' }}>
+                    <div key="trackNumber" className="min-w-0 text-center font-mono opacity-80 truncate pr-1" style={{ flex: `${weight} 0 0%`, minWidth: 30, fontSize: 'var(--list-font-size-sm)' }}>
                       {track.trackNumber ? track.trackNumber.toString().padStart(2, '0') : '-'}
                     </div>
                   );
                 }
-                if (col === 'title' && colVisibility.title) {
+                if (col === 'title') {
                   return (
-                    <div key="title" className="flex-shrink-0 min-w-0 pr-2 truncate font-bold font-mono tracking-wide" style={{ width: colWidths.title, color: 'var(--theme-textMain)', fontSize: 'var(--list-font-size)' }} title={track.title}>
+                    <div key="title" className="min-w-0 pr-2 truncate font-bold font-mono tracking-wide" style={{ flex: `${weight} 0 0%`, minWidth: 40, color: 'var(--theme-textMain)', fontSize: 'var(--list-font-size)' }} title={track.title}>
                       {track.title}
                     </div>
                   );
                 }
-                if (col === 'artist' && colVisibility.artist) {
+                if (col === 'artist') {
                   return (
-                    <div key="artist" className="flex-shrink-0 min-w-0 pr-2 truncate font-mono tracking-wide" style={{ width: colWidths.artist, color: 'var(--theme-textMuted)', fontSize: 'var(--list-font-size-sm)' }} title={track.artist}>
+                    <div key="artist" className="min-w-0 pr-2 truncate font-mono tracking-wide" style={{ flex: `${weight} 0 0%`, minWidth: 40, color: 'var(--theme-textMuted)', fontSize: 'var(--list-font-size-sm)' }} title={track.artist}>
                       {track.artist}
                     </div>
                   );
                 }
-                if (col === 'album' && colVisibility.album) {
+                if (col === 'album') {
                   return (
-                    <div key="album" className="flex-shrink-0 min-w-0 pr-2 truncate font-mono tracking-wide" style={{ width: colWidths.album, color: 'var(--theme-textDim)', fontSize: 'var(--list-font-size-sm)' }} title={track.album}>
+                    <div key="album" className="min-w-0 pr-2 truncate font-mono tracking-wide" style={{ flex: `${weight} 0 0%`, minWidth: 40, color: 'var(--theme-textDim)', fontSize: 'var(--list-font-size-sm)' }} title={track.album}>
                       {track.album}
                     </div>
                   );
@@ -2223,19 +2439,95 @@ export default function App() {
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
-          <div className="border-b px-2 py-1 flex items-center justify-between h-8 shrink-0" style={{ backgroundColor: 'var(--theme-surfaceLighter)', borderColor: 'var(--theme-border)' }}>
-            <span className="uppercase tracking-wider text-[11px]" style={{ color: 'var(--theme-textMuted)' }}>INDEX MAP</span>
-            <button 
-              onClick={() => { setIsCreatingPlaylist(true); setNewPlaylistName(''); }}
-              className="flex items-center justify-center border rounded-[2px] w-5 h-5 transition-colors hover:opacity-80 active:scale-95"
-              style={{ backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-border)' }}
-              title="CREATE LIST"
-            >
-              <Plus size={10} style={{ color: 'var(--theme-textMuted)' }} />
-            </button>
+          <div className="border-b px-2 py-1 flex items-center justify-between h-8 shrink-0 gap-1 overflow-hidden" style={{ backgroundColor: 'var(--theme-surfaceLighter)', borderColor: 'var(--theme-border)' }}>
+            <div className="flex items-center gap-1 min-w-0">
+              <span className="uppercase tracking-wider text-[11px] truncate" style={{ color: 'var(--theme-textMuted)' }}>INDEX MAP</span>
+              {selectedPlaylistIds.size > 0 && (
+                <span className="text-[9px] font-mono px-1 border rounded-[2px] shrink-0" style={{ borderColor: 'var(--theme-accent)', color: 'var(--theme-accent)', backgroundColor: 'var(--theme-accentMuted)' }}>
+                  {selectedPlaylistIds.size}
+                </span>
+              )}
+            </div>
+            
+            <div className="flex items-center gap-1 shrink-0">
+              {selectedPlaylistIds.size > 0 && (
+                <>
+                  <button 
+                    onClick={() => moveSelectedPlaylists('up')}
+                    className="flex items-center justify-center border rounded-[2px] w-5 h-5 transition-colors hover:opacity-80 active:scale-95"
+                    style={{ backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-border)' }}
+                    title="選択したリストを上に移動"
+                  >
+                    <ChevronUp size={11} style={{ color: 'var(--theme-textMain)' }} />
+                  </button>
+
+                  <button 
+                    onClick={() => moveSelectedPlaylists('down')}
+                    className="flex items-center justify-center border rounded-[2px] w-5 h-5 transition-colors hover:opacity-80 active:scale-95"
+                    style={{ backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-border)' }}
+                    title="選択したリストを下に移動"
+                  >
+                    <ChevronDown size={11} style={{ color: 'var(--theme-textMain)' }} />
+                  </button>
+
+                  {confirmDeleteSelectedPlaylists ? (
+                    <div className="flex items-center gap-0.5 bg-[var(--theme-surface)] px-1 py-0.5 border border-[var(--theme-borderActive)] rounded-[2px]" onClick={e => e.stopPropagation()}>
+                      <span className="text-[8px] uppercase tracking-tighter" style={{ color: 'var(--theme-accent)' }}>DEL?</span>
+                      <button
+                        onClick={deleteSelectedPlaylists}
+                        className="p-0.5 hover:opacity-80"
+                        title="選択したリストを削除"
+                        style={{ color: 'var(--theme-accent)' }}
+                      >
+                        <Trash2 size={10} />
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeleteSelectedPlaylists(false)}
+                        className="p-0.5 hover:opacity-80"
+                        title="キャンセル"
+                        style={{ color: 'var(--theme-textDim)' }}
+                      >
+                        <X size={10} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={() => setConfirmDeleteSelectedPlaylists(true)}
+                      className="flex items-center justify-center border rounded-[2px] w-5 h-5 transition-colors hover:opacity-80 active:scale-95"
+                      style={{ backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-border)' }}
+                      title="選択したリストを削除"
+                    >
+                      <Trash2 size={10} style={{ color: 'var(--theme-accent)' }} />
+                    </button>
+                  )}
+
+                  <button 
+                    onClick={() => { setSelectedPlaylistIds(new Set()); setConfirmDeleteSelectedPlaylists(false); }}
+                    className="flex items-center justify-center border rounded-[2px] w-5 h-5 transition-colors hover:opacity-80 active:scale-95"
+                    style={{ backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-border)' }}
+                    title="選択を解除"
+                  >
+                    <X size={10} style={{ color: 'var(--theme-textDim)' }} />
+                  </button>
+                </>
+              )}
+
+              <button 
+                onClick={() => { setIsCreatingPlaylist(true); setNewPlaylistName(''); }}
+                className="flex items-center justify-center border rounded-[2px] w-5 h-5 transition-colors hover:opacity-80 active:scale-95"
+                style={{ backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-border)' }}
+                title="CREATE LIST"
+              >
+                <Plus size={10} style={{ color: 'var(--theme-textMuted)' }} />
+              </button>
+            </div>
           </div>
           <div className="flex flex-col h-full overflow-y-auto w-full">
-            {playlists.map((pl, plIdx) => (
+            {playlists.map((pl, plIdx) => {
+              const isSelected = pl.id !== 'all-tracks' && selectedPlaylistIds.has(pl.id);
+              const isActive = activePlaylistId === pl.id;
+
+              return (
               <React.Fragment key={pl.id}>
               <div
                 draggable={pl.id !== 'all-tracks' && renamingPlaylistId !== pl.id}
@@ -2243,19 +2535,35 @@ export default function App() {
                 onDragOver={(e) => handlePlaylistDragOver(e, pl.id)}
                 onDrop={(e) => handlePlaylistDrop(e, pl.id)}
                 onDragEnd={handlePlaylistDragEnd}
-                onClick={() => setActivePlaylistId(pl.id)}
+                onClick={(e) => {
+                  if (pl.id === 'all-tracks') {
+                    setActivePlaylistId('all-tracks');
+                    setSelectedPlaylistIds(new Set());
+                    lastSelectedPlaylistIdRef.current = null;
+                    return;
+                  }
+                  if (e.shiftKey || e.ctrlKey || e.metaKey) {
+                    togglePlaylistSelection(e, pl.id);
+                  } else {
+                    setActivePlaylistId(pl.id);
+                    setSelectedPlaylistIds(new Set([pl.id]));
+                    lastSelectedPlaylistIdRef.current = pl.id;
+                  }
+                }}
                 onDoubleClick={() => {
                   if (pl.id !== 'all-tracks') {
                     setRenamingPlaylistId(pl.id);
                     setRenamingPlaylistName(pl.name);
                   }
                 }}
-                className={`text-left px-3 py-2 tracking-widest flex items-center justify-between border-b transition-colors cursor-pointer group ${pl.id !== 'all-tracks' && renamingPlaylistId !== pl.id ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                className={`text-left px-3 py-2 tracking-widest flex items-center justify-between border-b transition-colors cursor-pointer group select-none ${pl.id !== 'all-tracks' && renamingPlaylistId !== pl.id ? 'cursor-grab active:cursor-grabbing' : ''}`}
                 style={{
-                  backgroundColor: activePlaylistId === pl.id ? 'var(--theme-accentMuted)' : (dragOverPlaylistId === pl.id ? 'var(--theme-surfaceLighter)' : 'transparent'),
+                  backgroundColor: isSelected 
+                    ? 'var(--theme-accentMuted)' 
+                    : (isActive ? 'var(--theme-accentMuted)' : (dragOverPlaylistId === pl.id ? 'var(--theme-surfaceLighter)' : 'transparent')),
                   borderBottomColor: dragOverPlaylistId === pl.id ? 'var(--theme-accent)' : 'var(--theme-border)',
-                  borderLeft: `2px solid ${activePlaylistId === pl.id ? 'var(--theme-accent)' : 'transparent'}`,
-                  color: activePlaylistId === pl.id ? 'var(--theme-textMain)' : 'var(--theme-textMuted)',
+                  borderLeft: `2px solid ${isSelected || isActive ? 'var(--theme-accent)' : 'transparent'}`,
+                  color: isSelected || isActive ? 'var(--theme-textMain)' : 'var(--theme-textMuted)',
                   opacity: draggedPlaylistId === pl.id ? 0.5 : 1,
                   fontSize: 'var(--list-font-size)'
                 }}
@@ -2289,28 +2597,66 @@ export default function App() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 truncate">
-                    <ListMusic size={12} style={{ color: activePlaylistId === pl.id ? 'var(--theme-accent)' : 'var(--theme-textDim)' }} />
+                    {isSelected ? (
+                      <Check size={12} style={{ color: 'var(--theme-accent)' }} />
+                    ) : (
+                      <ListMusic size={12} style={{ color: isActive ? 'var(--theme-accent)' : 'var(--theme-textDim)' }} />
+                    )}
                     <span className="truncate">{pl.name}</span>
                   </div>
                 )}
                 <div className="flex items-center gap-2">
-                  <span className="text-[9px] font-mono" style={{ color: activePlaylistId === pl.id ? 'var(--theme-textMain)' : 'var(--theme-textDim)' }}>
+                  <span className="text-[9px] font-mono" style={{ color: isSelected || isActive ? 'var(--theme-textMain)' : 'var(--theme-textDim)' }}>
                     {pl.tracks.length.toString().padStart(3, '0')}
                   </span>
                   {pl.id !== 'all-tracks' && (
-                    <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setPlaylists(prev => prev.filter(p => p.id !== pl.id));
-                          if (activePlaylistId === pl.id) setActivePlaylistId('all-tracks');
-                          if (playingPlaylistId === pl.id) setPlayingPlaylistId('all-tracks');
-                        }}
-                        className="hover:opacity-80 transition-opacity ml-1"
-                        title="DELETE"
-                      >
-                        <X size={10} style={{ color: activePlaylistId === pl.id ? 'var(--theme-textMain)' : 'var(--theme-textDim)' }} />
-                      </button>
+                    <div className={`flex items-center space-x-1 transition-opacity ${confirmDeletePlaylistId === pl.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                      {confirmDeletePlaylistId === pl.id ? (
+                        <div className="flex items-center gap-1 bg-[var(--theme-surface)] px-1 py-0.5 border border-[var(--theme-borderActive)] rounded-[2px]" onClick={e => e.stopPropagation()}>
+                          <span className="text-[8px] uppercase tracking-tighter" style={{ color: 'var(--theme-accent)' }}>DEL?</span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPlaylists(prev => prev.filter(p => p.id !== pl.id));
+                              if (activePlaylistId === pl.id) setActivePlaylistId('all-tracks');
+                              if (playingPlaylistId === pl.id) setPlayingPlaylistId('all-tracks');
+                              setSelectedPlaylistIds(prev => {
+                                const next = new Set(prev);
+                                next.delete(pl.id);
+                                return next;
+                              });
+                              setConfirmDeletePlaylistId(null);
+                            }}
+                            className="hover:opacity-80 transition-opacity p-0.5"
+                            title="削除を確定"
+                            style={{ color: 'var(--theme-accent)' }}
+                          >
+                            <Trash2 size={10} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmDeletePlaylistId(null);
+                            }}
+                            className="hover:opacity-80 transition-opacity p-0.5"
+                            title="キャンセル"
+                            style={{ color: 'var(--theme-textDim)' }}
+                          >
+                            <X size={10} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmDeletePlaylistId(pl.id);
+                          }}
+                          className="hover:opacity-80 transition-opacity ml-1 p-0.5"
+                          title="リストを削除（クリックで確認）"
+                        >
+                          <X size={10} style={{ color: isSelected || isActive ? 'var(--theme-textMain)' : 'var(--theme-textDim)' }} />
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -2335,7 +2681,8 @@ export default function App() {
                  </div>
               )}
               </React.Fragment>
-            ))}
+              );
+            })}
           </div>
           {/* Resize Handle */}
           <div
@@ -2386,32 +2733,34 @@ export default function App() {
                      <div className="flex items-center gap-3">
                        <div className="relative">
                          <button 
-                           onClick={() => setShowAddToPlaylist(!showAddToPlaylist)}
-                           className="flex items-center gap-1 text-[9px] uppercase tracking-wider transition-colors hover:opacity-80 active:scale-95"
-                           style={{ color: 'var(--theme-textMain)' }}
-                         >
-                           <ListPlus size={10} style={{ color: 'var(--theme-accent)' }} />
-                           ADD TO VIEW
-                         </button>
-                         {showAddToPlaylist && (
-                            <div className="absolute top-full left-0 mt-2 w-48 border z-50 flex flex-col p-1 shadow-lg" style={{ backgroundColor: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
-                               {playlists.filter(p => p.id !== 'all-tracks').map(p => (
-                                  <button 
-                                     key={p.id}
-                                     onClick={() => handleAddSelectedToPlaylist(p.id)}
-                                     className="text-left px-2 py-1.5 text-[9px] uppercase tracking-wider hover:opacity-80 transition-colors"
-                                     style={{ color: 'var(--theme-textMain)' }}
-                                     onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--theme-surfaceLighter)'}
-                                     onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-                                  >
-                                    {p.name}
-                                  </button>
-                               ))}
-                               {playlists.length === 1 && (
-                                  <div className="px-2 py-1 text-[9px] uppercase tracking-wider opacity-50 text-center" style={{ color: 'var(--theme-textMuted)' }}>NO CUSTOM VIEWS</div>
-                               )}
-                            </div>
-                         )}
+                            onClick={() => setShowAddToPlaylist(!showAddToPlaylist)}
+                            className="flex items-center gap-1 text-[9px] uppercase tracking-wider transition-colors hover:opacity-80 active:scale-95"
+                            style={{ color: 'var(--theme-textMain)' }}
+                            title="選択した曲を別のリストへ移動/追加"
+                          >
+                            <ListPlus size={10} style={{ color: 'var(--theme-accent)' }} />
+                            {activePlaylistId === 'all-tracks' ? 'ADD TO VIEW' : 'MOVE TO VIEW'}
+                          </button>
+                          {showAddToPlaylist && (
+                             <div className="absolute top-full left-0 mt-2 w-48 max-h-60 overflow-y-auto border z-50 flex flex-col p-1 shadow-lg" style={{ backgroundColor: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
+                                {playlists.filter(p => p.id !== 'all-tracks' && p.id !== activePlaylistId).map(p => (
+                                   <button 
+                                      key={p.id}
+                                      onClick={() => handleAddSelectedToPlaylist(p.id)}
+                                      className="text-left px-2 py-1.5 text-[9px] uppercase tracking-wider hover:opacity-80 transition-colors truncate"
+                                      style={{ color: 'var(--theme-textMain)' }}
+                                      onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--theme-surfaceLighter)'}
+                                      onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                                      title={activePlaylistId === 'all-tracks' ? `ADD TO ${p.name}` : `MOVE TO ${p.name}`}
+                                   >
+                                     {p.name}
+                                   </button>
+                                ))}
+                                {playlists.filter(p => p.id !== 'all-tracks' && p.id !== activePlaylistId).length === 0 && (
+                                   <div className="px-2 py-1 text-[9px] uppercase tracking-wider opacity-50 text-center" style={{ color: 'var(--theme-textMuted)' }}>NO OTHER VIEWS</div>
+                                )}
+                             </div>
+                          )}
                        </div>
                        
                        <button 
@@ -2507,10 +2856,10 @@ export default function App() {
               )}
             </div>
           ) : (
-            <div className="flex flex-col h-full overflow-auto relative">
-              <div className="min-w-max flex flex-col min-h-full">
+            <div className="flex flex-col h-full overflow-y-auto overflow-x-hidden relative w-full">
+              <div className="w-full flex flex-col min-h-full">
                 {/* List Header */}
-                <div className="flex items-center uppercase tracking-normal px-2 h-8 border-b shrink-0 sticky top-0 z-20 text-[10px]" style={{ backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-textMuted)' }}>
+                <div className="flex items-center uppercase tracking-normal px-2 h-8 border-b shrink-0 sticky top-0 z-20 text-[10px] w-full" style={{ backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-textMuted)' }}>
                   <div className="relative flex-shrink-0 flex items-center h-full" style={{ width: colWidths.index }}>
                     <div className="w-8 flex-shrink-0 flex items-center justify-center"></div>
                     <div className="w-8 flex-shrink-0 flex items-center justify-center text-[var(--theme-textDim)]">
@@ -2525,81 +2874,39 @@ export default function App() {
                       <div className="w-[1px] h-full bg-[var(--theme-border)] opacity-40 group-hover:bg-[var(--theme-accent)] group-hover:opacity-100 transition-colors" />
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 pl-3">
-                    {colOrder.map(col => {
+                  <div ref={columnsContainerRef} className="flex-1 min-w-0 flex items-center gap-3 pl-3 h-full">
+                    {visibleCols.map((col, idx) => {
+                      const isLast = idx === visibleCols.length - 1;
+                      const nextCol = isLast ? undefined : visibleCols[idx + 1];
+                      const weight = colWidths[col as keyof typeof colWidths] || 150;
 
-                      if (col === 'fileName' && colVisibility.fileName) {
-                        return (
-                          <div key="fileName" draggable onDragStart={(e) => handleColDragStart(e, 'fileName')} onDragOver={handleColDragOver} onDrop={(e) => handleColDrop(e, 'fileName')} className="relative flex-shrink-0 min-w-0 pr-2 flex items-center" style={{ width: colWidths.fileName }}>
-                            <div onClick={() => handleSort('fileName')} className="flex-1 min-w-0 flex items-center gap-1 cursor-pointer hover:text-[var(--theme-textMain)]">
-                              <span className="truncate">名前</span>
-                              {activeSortConfig.key === 'fileName' && (activeSortConfig.direction === 'asc' ? <ChevronUp size={10} className="shrink-0" /> : <ChevronDown size={10} className="shrink-0" />)}
-                            </div>
-                            <div onMouseDown={(e) => handleColMouseDown(e, 'fileName')} className="absolute right-0 top-0 bottom-0 w-[14px] cursor-col-resize flex justify-center z-20 group" style={{ transform: 'translateX(50%)' }}>
+                      return (
+                        <div 
+                          key={col} 
+                          draggable 
+                          onDragStart={(e) => handleColDragStart(e, col)} 
+                          onDragOver={handleColDragOver} 
+                          onDrop={(e) => handleColDrop(e, col)} 
+                          className="relative min-w-0 pr-2 flex items-center h-full select-none" 
+                          style={{ flex: `${weight} 0 0%`, minWidth: col === 'trackNumber' ? 30 : 40 }}
+                        >
+                          <div onClick={() => handleSort(col as 'title' | 'artist' | 'album' | 'fileName' | 'trackNumber')} className="flex-1 min-w-0 flex items-center gap-1 cursor-pointer hover:text-[var(--theme-textMain)]">
+                            <span className="truncate">{COL_LABELS[col] || col}</span>
+                            {activeSortConfig.key === col && (activeSortConfig.direction === 'asc' ? <ChevronUp size={10} className="shrink-0" /> : <ChevronDown size={10} className="shrink-0" />)}
+                          </div>
+                          {!isLast && nextCol && (
+                            <div onMouseDown={(e) => handleColMouseDown(e, col, nextCol)} className="absolute right-0 top-0 bottom-0 w-[14px] cursor-col-resize flex justify-center z-20 group" style={{ transform: 'translateX(50%)' }}>
                               <div className="w-[1px] h-full bg-[var(--theme-border)] opacity-40 group-hover:bg-[var(--theme-accent)] group-hover:opacity-100 transition-colors" />
                             </div>
-                          </div>
-                        );
-                      }
-                      if (col === 'trackNumber' && colVisibility.trackNumber) {
-                        return (
-                          <div key="trackNumber" draggable onDragStart={(e) => handleColDragStart(e, 'trackNumber')} onDragOver={handleColDragOver} onDrop={(e) => handleColDrop(e, 'trackNumber')} className="relative flex-shrink-0 flex items-center justify-center" style={{ width: colWidths.trackNumber }}>
-                            <div onClick={() => handleSort('trackNumber')} className="flex-1 min-w-0 flex items-center justify-center gap-1 cursor-pointer hover:text-[var(--theme-textMain)]">
-                              #No
-                              {activeSortConfig.key === 'trackNumber' && (activeSortConfig.direction === 'asc' ? <ChevronUp size={10} className="shrink-0" /> : <ChevronDown size={10} className="shrink-0" />)}
-                            </div>
-                            <div onMouseDown={(e) => handleColMouseDown(e, 'trackNumber')} className="absolute right-0 top-0 bottom-0 w-[14px] cursor-col-resize flex justify-center z-20 group" style={{ transform: 'translateX(50%)' }}>
-                              <div className="w-[1px] h-full bg-[var(--theme-border)] opacity-40 group-hover:bg-[var(--theme-accent)] group-hover:opacity-100 transition-colors" />
-                            </div>
-                          </div>
-                        );
-                      }
-                      if (col === 'title' && colVisibility.title) {
-                        return (
-                          <div key="title" draggable onDragStart={(e) => handleColDragStart(e, 'title')} onDragOver={handleColDragOver} onDrop={(e) => handleColDrop(e, 'title')} className="relative flex-shrink-0 min-w-0 pr-2 flex items-center" style={{ width: colWidths.title }}>
-                            <div onClick={() => handleSort('title')} className="flex-1 min-w-0 flex items-center gap-1 cursor-pointer hover:text-[var(--theme-textMain)]">
-                              <span className="truncate">タイトル</span>
-                              {activeSortConfig.key === 'title' && (activeSortConfig.direction === 'asc' ? <ChevronUp size={10} className="shrink-0" /> : <ChevronDown size={10} className="shrink-0" />)}
-                            </div>
-                            <div onMouseDown={(e) => handleColMouseDown(e, 'title')} className="absolute right-0 top-0 bottom-0 w-[14px] cursor-col-resize flex justify-center z-20 group" style={{ transform: 'translateX(50%)' }}>
-                              <div className="w-[1px] h-full bg-[var(--theme-border)] opacity-40 group-hover:bg-[var(--theme-accent)] group-hover:opacity-100 transition-colors" />
-                            </div>
-                          </div>
-                        );
-                      }
-                      if (col === 'artist' && colVisibility.artist) {
-                        return (
-                          <div key="artist" draggable onDragStart={(e) => handleColDragStart(e, 'artist')} onDragOver={handleColDragOver} onDrop={(e) => handleColDrop(e, 'artist')} className="relative flex-shrink-0 min-w-0 pr-2 flex items-center" style={{ width: colWidths.artist }}>
-                            <div onClick={() => handleSort('artist')} className="flex-1 min-w-0 flex items-center gap-1 cursor-pointer hover:text-[var(--theme-textMain)]">
-                              <span className="truncate">参加アーティスト</span>
-                              {activeSortConfig.key === 'artist' && (activeSortConfig.direction === 'asc' ? <ChevronUp size={10} className="shrink-0" /> : <ChevronDown size={10} className="shrink-0" />)}
-                            </div>
-                            <div onMouseDown={(e) => handleColMouseDown(e, 'artist')} className="absolute right-0 top-0 bottom-0 w-[14px] cursor-col-resize flex justify-center z-20 group" style={{ transform: 'translateX(50%)' }}>
-                              <div className="w-[1px] h-full bg-[var(--theme-border)] opacity-40 group-hover:bg-[var(--theme-accent)] group-hover:opacity-100 transition-colors" />
-                            </div>
-                          </div>
-                        );
-                      }
-                      if (col === 'album' && colVisibility.album) {
-                        return (
-                          <div key="album" draggable onDragStart={(e) => handleColDragStart(e, 'album')} onDragOver={handleColDragOver} onDrop={(e) => handleColDrop(e, 'album')} className="relative flex-shrink-0 min-w-0 pr-2 flex items-center" style={{ width: colWidths.album }}>
-                            <div onClick={() => handleSort('album')} className="flex-1 min-w-0 flex items-center gap-1 cursor-pointer hover:text-[var(--theme-textMain)]">
-                              <span className="truncate">アルバム</span>
-                              {activeSortConfig.key === 'album' && (activeSortConfig.direction === 'asc' ? <ChevronUp size={10} className="shrink-0" /> : <ChevronDown size={10} className="shrink-0" />)}
-                            </div>
-                            <div onMouseDown={(e) => handleColMouseDown(e, 'album')} className="absolute right-0 top-0 bottom-0 w-[14px] cursor-col-resize flex justify-center z-20 group" style={{ transform: 'translateX(50%)' }}>
-                              <div className="w-[1px] h-full bg-[var(--theme-border)] opacity-40 group-hover:bg-[var(--theme-accent)] group-hover:opacity-100 transition-colors" />
-                            </div>
-                          </div>
-                        );
-                      }
-                      return null;
+                          )}
+                        </div>
+                      );
                     })}
                   </div>
                   {colVisibility.actions && <div className="w-24 flex-shrink-0 text-center">操作</div>}
                 </div>
                 {/* List Items */}
-                <div className="flex flex-col flex-1 pb-4">
+                <div className="flex flex-col flex-1 pb-4 w-full">
                   {memoizedTrackList}
                 </div>
               </div>

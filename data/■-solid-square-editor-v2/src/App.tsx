@@ -218,7 +218,25 @@ export default function App() {
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
+  const tabStripRef = useRef<HTMLDivElement>(null);
+  const [savedTabCardSize, setSavedTabCardSize] = useState<"S" | "M" | "L">("M");
   const [isLoaded, setIsLoaded] = useState(false);
+
+  // タブバー上でのマウスホイール操作を横スクロールに変換
+  useEffect(() => {
+    const el = tabStripRef.current;
+    if (!el) return;
+    const handleWheel = (e: WheelEvent) => {
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        el.scrollLeft += e.deltaY;
+      }
+    };
+    el.addEventListener("wheel", handleWheel, { passive: false });
+    return () => {
+      el.removeEventListener("wheel", handleWheel);
+    };
+  }, []);
 
   const [confirmDialog, setConfirmDialog] = useState<{ message: string, onConfirm: () => void, onCancel: () => void } | null>(null);
 
@@ -301,11 +319,16 @@ export default function App() {
         if (loaded.savedTabs && Array.isArray(loaded.savedTabs)) {
           setSavedTabs(loaded.savedTabs);
         }
+        if (loaded.savedTabCardSize && ["S", "M", "L"].includes(loaded.savedTabCardSize)) {
+          setSavedTabCardSize(loaded.savedTabCardSize);
+        }
       }
     } catch (_) {}
 
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
+      navigator.serviceWorker.register("/sw.js").then((reg) => {
+        reg.update().catch(() => {});
+      }).catch(() => {});
     }
     
     setIsLoaded(true);
@@ -318,6 +341,7 @@ export default function App() {
       tabs: updatedTabs,
       activeTabId,
       savedTabs,
+      savedTabCardSize,
       fontSize,
       fontWeight,
       lineHeight,
@@ -330,7 +354,7 @@ export default function App() {
       sidebarWidth,
       isSidebarOpen
     }));
-  }, [tabs, activeTabId, savedTabs, fontSize, fontWeight, lineHeight, fontFamily, activeTheme, paperModeEnabled, paperInkLevel, isVertical, sidebarPosition, sidebarWidth, isSidebarOpen, editorText, isLoaded]);
+  }, [tabs, activeTabId, savedTabs, savedTabCardSize, fontSize, fontWeight, lineHeight, fontFamily, activeTheme, paperModeEnabled, paperInkLevel, isVertical, sidebarPosition, sidebarWidth, isSidebarOpen, editorText, isLoaded]);
 
   // Apply Theme and Paper Mode
   useEffect(() => {
@@ -428,8 +452,8 @@ export default function App() {
   };
 
   const addTab = () => {
-    if (tabs.length >= 16) {
-      setStatusText("MAX TAB LIMIT REACHED (16)");
+    if (tabs.length >= 20) {
+      setStatusText("MAX TAB LIMIT REACHED (20)");
       return;
     }
     const newId = generateTabId();
@@ -577,6 +601,10 @@ export default function App() {
   };
 
   const openSavedTab = (saved: SavedTab) => {
+    if (tabs.length >= 20) {
+      setStatusText("MAX TAB LIMIT REACHED (20)");
+      return;
+    }
     const newId = `tab-${Date.now()}`;
     const newTab: Tab = {
       id: newId,
@@ -1436,49 +1464,71 @@ export default function App() {
 
         {/* エディタ本体（タブ＋広大エディタ） */}
         <section className="panel editor-wrap">
-          <div className="tab-strip">
-            {tabs.map(tab => {
-              const isDragging = tab.id === draggedTabId;
-              const isOver = tab.id === dragOverTabId;
-              const dropClass = isOver && dropPosition ? `drop-${dropPosition}` : "";
-              return (
-                <div 
-                  key={tab.id} 
-                  className={`tab-item ${isDragging ? "is-dragging" : ""} ${dropClass}`} 
-                  aria-selected={tab.id === activeTabId}
-                  draggable={true}
-                  onDragStart={(e) => handleTabDragStart(e, tab.id)}
-                  onDragOver={(e) => handleTabDragOver(e, tab.id)}
-                  onDragLeave={(e) => handleTabDragLeave(e, tab.id)}
-                  onDrop={(e) => handleTabDrop(e, tab.id)}
-                  onDragEnd={handleTabDragEnd}
-                  title={`${tab.label} (ドラッグで並び替え可能)`}
-                >
-                  <span onClick={() => switchTab(tab.id)}>{tab.label}</span>
-                  <span className="tab-close" onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }}>×</span>
-                </div>
-              );
-            })}
-            <button className="tab-add" onClick={addTab} title="NEW TAB">+</button>
-            {activeTabId && (
+          <div className="tab-bar-header">
+            <div className="tab-strip" ref={tabStripRef}>
+              {tabs.map(tab => {
+                const isDragging = tab.id === draggedTabId;
+                const isOver = tab.id === dragOverTabId;
+                const dropClass = isOver && dropPosition ? `drop-${dropPosition}` : "";
+                return (
+                  <div 
+                    key={tab.id} 
+                    className={`tab-item ${isDragging ? "is-dragging" : ""} ${dropClass}`} 
+                    aria-selected={tab.id === activeTabId}
+                    draggable={true}
+                    onDragStart={(e) => handleTabDragStart(e, tab.id)}
+                    onDragOver={(e) => handleTabDragOver(e, tab.id)}
+                    onDragLeave={(e) => handleTabDragLeave(e, tab.id)}
+                    onDrop={(e) => handleTabDrop(e, tab.id)}
+                    onDragEnd={handleTabDragEnd}
+                    onClick={() => switchTab(tab.id)}
+                    title={`${tab.label} (クリックで切替 / ドラッグで並替)`}
+                  >
+                    <span className="tab-item-label">{tab.label}</span>
+                    <span 
+                      className="tab-close" 
+                      onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }}
+                      title="このタブを閉じる"
+                    >
+                      ×
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* 右端固定アクション群（タブが多くなっても押し出されない） */}
+            <div className="tab-actions-pinned">
               <button 
-                className="tab-add" 
-                onClick={saveActiveTabToBank} 
-                title="現在のタブを保存タブエリアに保持（使い回し用に保存）" 
-                style={{ width: 'auto', padding: '0 8px', fontSize: 9, marginLeft: 4, color: 'var(--text)', borderColor: 'var(--border-strong)' }}
-                onMouseOver={e => { e.currentTarget.style.borderColor = 'var(--control-accent)'; }}
-                onMouseOut={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; }}
+                className="tab-action-btn tab-add-btn" 
+                onClick={addTab} 
+                title={tabs.length >= 20 ? "タブ上限 (20) に達しています" : "新規タブを作成 (+)"}
+                disabled={tabs.length >= 20}
               >
-                ★ SAVE TAB
+                +
               </button>
-            )}
-            {tabs.length > 1 && (
-               <button className="tab-add" onClick={closeAllTabs} title="CLOSE ALL TABS" style={{width: 'auto', padding: '0 8px', fontSize: 9, marginLeft: 8, color: 'var(--muted)', borderColor: 'var(--border-strong)'}} 
-                       onMouseOver={e => { e.currentTarget.style.color = '#ff6b6b'; e.currentTarget.style.borderColor = '#ff6b6b'; }}
-                       onMouseOut={e => { e.currentTarget.style.color = 'var(--muted)'; e.currentTarget.style.borderColor = 'var(--border-strong)'; }}>
-                 CLEAR ALL
-               </button>
-            )}
+              {activeTabId && (
+                <button 
+                  className="tab-action-btn" 
+                  onClick={saveActiveTabToBank} 
+                  title="現在のタブを保存タブエリアに保持（使い回し用に保存）" 
+                >
+                  ★ SAVE
+                </button>
+              )}
+              {tabs.length > 1 && (
+                <button 
+                  className="tab-action-btn delete-all-tabs" 
+                  onClick={closeAllTabs} 
+                  title="すべてのタブを閉じる（確認ダイアログあり）"
+                >
+                  CLEAR ALL
+                </button>
+              )}
+              <span className="tab-count-badge" title="現在のタブ数 / 上限20">
+                {tabs.length}/20
+              </span>
+            </div>
           </div>
           <div className={`editor-container ${isPreviewMode ? "preview-mode" : ""} ${isVertical ? "vertical-mode" : ""}`}>
             <textarea 
@@ -1776,17 +1826,44 @@ export default function App() {
                 >
                   + SAVE CURRENT TAB
                 </button>
+                <div className="saved-tabs-size-control" title="保存カードの文字サイズ (S:小 / M:標準 / L:大)">
+                  <span className="saved-tabs-size-label">FONT:</span>
+                  <button 
+                    type="button"
+                    className={`size-toggle-btn ${savedTabCardSize === 'S' ? 'active' : ''}`}
+                    onClick={() => setSavedTabCardSize('S')}
+                    title="小サイズ（一覧重視）"
+                  >
+                    S
+                  </button>
+                  <button 
+                    type="button"
+                    className={`size-toggle-btn ${savedTabCardSize === 'M' ? 'active' : ''}`}
+                    onClick={() => setSavedTabCardSize('M')}
+                    title="標準サイズ（バランス）"
+                  >
+                    M
+                  </button>
+                  <button 
+                    type="button"
+                    className={`size-toggle-btn ${savedTabCardSize === 'L' ? 'active' : ''}`}
+                    onClick={() => setSavedTabCardSize('L')}
+                    title="大サイズ（文字くっきり読みやすい）"
+                  >
+                    L
+                  </button>
+                </div>
                 {savedTabs.length > 0 && (
                   <button 
-                    className="mini-btn delete-btn"
-                    type="button"
+                    className="mini-btn delete-btn" 
+                    type="button" 
                     style={{ height: '26px', padding: '0 8px', color: 'var(--muted)' }}
                     onClick={clearAllSavedTabs}
                     title="保存タブを全クリア（確認ダイアログあり）"
                     onMouseOver={e => (e.currentTarget.style.color = '#ff6b6b')}
                     onMouseOut={e => (e.currentTarget.style.color = 'var(--muted)')}
                   >
-                    CLEAR ALL
+                    CLEAR
                   </button>
                 )}
               </div>
@@ -1837,7 +1914,7 @@ export default function App() {
                   定型フォーマットやAI指示書を安全に保持・使い回しできます。
                 </div>
               ) : (
-                <div className="saved-tabs-full-list">
+                <div className={`saved-tabs-full-list size-${savedTabCardSize.toLowerCase()}`}>
                   {savedTabs.map((s) => (
                     <div key={s.id} className="saved-tab-card">
                       <div className="saved-tab-header-row">

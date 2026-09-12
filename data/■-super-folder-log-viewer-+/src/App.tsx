@@ -3,6 +3,7 @@ import { AppProvider } from './AppContext';
 import { Sidebar } from './components/Sidebar';
 import { MainContent } from './components/MainContent';
 import { SettingsPanel } from './components/SettingsPanel';
+import { Resizer } from './components/Resizer';
 import { applySettingsToDOM } from './settingsSync';
 
 export default function App() {
@@ -21,6 +22,7 @@ export default function App() {
   return (
     <AppProvider>
       <Sidebar />
+      <Resizer />
       <SettingsPanel />
       <MainContent />
     </AppProvider>

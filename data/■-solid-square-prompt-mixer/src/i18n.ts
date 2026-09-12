@@ -21,6 +21,8 @@ export const translations = {
   app_title: { en: 'SOLID SQUARE PROMPT MIXER', ja: 'SOLID SQUARE PROMPT MIXER' },
   import_json: { en: 'IMPORT', ja: 'インポート' },
   export_config: { en: 'EXPORT', ja: 'エクスポート' },
+  parts_settings: { en: 'PARTS SETTINGS', ja: 'パーツ設定' },
+  prompt_settings: { en: 'PROMPT SETTINGS', ja: 'プロンプト設定' },
   master_presets: { en: 'MASTER_PRESETS', ja: 'マスター設定' },
   master_prompts: { en: 'MASTER PROMPTS', ja: 'マスタープロンプト設定' },
   negative_prompts: { en: 'NEGATIVE PROMPTS', ja: 'ネガティブプロンプト設定' },

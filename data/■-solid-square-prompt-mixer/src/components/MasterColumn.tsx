@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { MasterPrompt } from '../types';
 import { ConfirmModal } from './ConfirmModal';
 import { AddModal } from './AddModal';
-import { Pencil, Trash2, Check, X, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown, Plus, List, ArrowRightToLine, ArrowLeftToLine, Copy } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, Check, X, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown, Plus, List, ArrowRightToLine, ArrowLeftToLine, Copy } from 'lucide-react';
 import { Language, t } from '../i18n';
 
 interface MasterColumnProps {
@@ -47,6 +47,8 @@ export const MasterColumn: React.FC<MasterColumnProps> = ({
   const [editContent, setEditContent] = useState('');
   const [editNegativeContent, setEditNegativeContent] = useState<string | undefined>(undefined);
   const [editMark, setEditMark] = useState<string | undefined>(undefined);
+  const [expandedActionId, setExpandedActionId] = useState<string | null>(null);
+  const [copiedItemId, setCopiedItemId] = useState<string | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmQuickDeleteId, setConfirmQuickDeleteId] = useState<string | null>(null);
@@ -339,6 +341,28 @@ export const MasterColumn: React.FC<MasterColumnProps> = ({
                     <Trash2 className="w-3 h-3" />
                   </button>
                   <div className="flex gap-2">
+                    <button 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        navigator.clipboard.writeText(editContent);
+                        setCopiedItemId('edit_' + item.id);
+                        setTimeout(() => setCopiedItemId(null), 2000);
+                      }}
+                      className={`px-3 py-1.5 flex items-center justify-center gap-1.5 bg-transparent hover:bg-bg-input border text-[10px] font-mono transition-colors rounded ${
+                        copiedItemId === 'edit_' + item.id ? 'border-green-500/50 text-green-500 bg-green-500/10' : 'border-border-main text-text-dim hover:text-green-400'
+                      }`}
+                      title={lang === 'en' ? "Copy Prompt Text" : "プロンプトをコピー"}
+                    >
+                      {copiedItemId === 'edit_' + item.id ? (
+                        <Check className="w-3 h-3" />
+                      ) : (
+                        <div className="relative w-3 h-3 flex items-center justify-center">
+                          <div className="border border-current rounded-[2px] w-full h-full flex items-center justify-center font-mono text-[9px] font-bold leading-none">P</div>
+                        </div>
+                      )}
+                      COPY
+                    </button>
                     <button onClick={() => setEditingId(null)} className="px-3 py-1.5 bg-transparent hover:bg-bg-input border border-transparent hover:border-border-main text-text-dim hover:text-text-main rounded text-[10px] font-mono transition-colors">
                       CANCEL
                     </button>
@@ -387,52 +411,98 @@ export const MasterColumn: React.FC<MasterColumnProps> = ({
               <div className={`mt-1 text-[10px] font-mono truncate ${isSelected ? 'text-text-dim' : 'text-text-dim'}`}>
                 {item.content || <span className="opacity-40">----- (No Content) -----</span>}
               </div>
-              <div className={`absolute top-2 right-6 ${confirmQuickDeleteId === item.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} flex items-center transition-opacity bg-bg-panel rounded shadow-sm border border-border-main overflow-hidden`}>
-                <button 
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (currentOnReorder && index > 0) currentOnReorder(index, 0); }}
-                  className="p-1.5 text-text-dim hover:text-text-main hover:bg-bg-input transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
-                  disabled={index === 0}
-                  title="Move to Top"
-                ><ChevronsUp className="w-3 h-3" /></button>
-                <button 
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (currentOnReorder && index < currentList.length - 1) currentOnReorder(index, currentList.length - 1); }}
-                  className="p-1.5 text-text-dim hover:text-text-main hover:bg-bg-input transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
-                  disabled={index === currentList.length - 1}
-                  title="Move to Bottom"
-                ><ChevronsDown className="w-3 h-3" /></button>
-                <button 
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (currentOnDuplicate) currentOnDuplicate(item.id); }}
-                  className="p-1.5 text-text-dim hover:text-text-main hover:bg-bg-input transition-colors"
-                  title="Duplicate"
-                ><Copy className="w-3 h-3" /></button>
-                <button 
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (onCopyToPart) onCopyToPart(item); }}
-                  className="p-1.5 text-text-dim hover:text-green-400 hover:bg-bg-input transition-colors"
-                  title="Copy to Variation Parts"
-                ><ArrowRightToLine className="w-3 h-3" /></button>
-                <button 
-                  onClick={(e) => { 
-                    e.preventDefault(); 
-                    e.stopPropagation(); 
-                    if (confirmQuickDeleteId === item.id) {
-                      currentOnDelete(item.id);
-                      setConfirmQuickDeleteId(null);
-                    } else {
-                      setConfirmQuickDeleteId(item.id);
-                      setTimeout(() => setConfirmQuickDeleteId(null), 3000);
-                    }
-                  }}
-                  className={`p-1.5 transition-colors ${
-                    confirmQuickDeleteId === item.id 
-                      ? 'text-red-500 hover:text-red-400 bg-red-500/10 hover:bg-red-500/20 opacity-100' 
-                      : 'text-text-dim hover:text-red-400 hover:bg-bg-input'
-                  }`}
-                  title={confirmQuickDeleteId === item.id ? "Confirm delete" : "Delete"}
-                ><Trash2 className="w-3 h-3" /></button>
-                <button 
-                  onClick={(e) => startEdit(item, e)}
-                  className={`p-1.5 text-text-dim ${isNegative ? 'hover:text-red-400' : 'hover:text-blue-400'} hover:bg-bg-input transition-colors`}
-                ><Pencil className="w-3 h-3" /></button>
+              <div className={`absolute top-2 right-6 flex items-center gap-1`}>
+                {expandedActionId !== item.id && (
+                  <>
+                    <button 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        navigator.clipboard.writeText(item.content);
+                        setCopiedItemId(item.id);
+                        setTimeout(() => setCopiedItemId(null), 2000);
+                      }}
+                      className={`opacity-0 group-hover:opacity-100 p-1 bg-bg-panel rounded shadow-sm border border-border-main transition-all ${
+                        copiedItemId === item.id 
+                          ? 'text-green-500 bg-green-500/10 opacity-100'
+                          : 'text-text-dim hover:text-green-400'
+                      }`}
+                      title={lang === 'en' ? 'Copy Prompt Text' : 'プロンプトをコピー'}
+                    >
+                      {copiedItemId === item.id ? (
+                        <Check className="w-3 h-3" />
+                      ) : (
+                        <div className="relative w-3 h-3 flex items-center justify-center">
+                          <div className="border border-current rounded-[2px] w-full h-full flex items-center justify-center font-mono text-[9px] font-bold leading-none">P</div>
+                        </div>
+                      )}
+                    </button>
+                    <button 
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpandedActionId(item.id); }}
+                      className="opacity-0 group-hover:opacity-100 text-text-dim hover:text-text-main transition-opacity p-1 bg-bg-panel rounded shadow-sm border border-border-main"
+                      title={lang === 'en' ? 'More actions' : 'メニュー'}
+                    >
+                      <MoreHorizontal className="w-3 h-3" />
+                    </button>
+                  </>
+                )}
+                
+                {(expandedActionId === item.id || confirmQuickDeleteId === item.id) && (
+                  <>
+                    <div className="flex items-center bg-bg-panel rounded shadow-sm border border-border-main overflow-hidden">
+                      <button 
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (currentOnReorder && index > 0) currentOnReorder(index, 0); }}
+                        className="p-1.5 text-text-dim hover:text-text-main hover:bg-bg-input transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+                        disabled={index === 0}
+                        title="Move to Top"
+                      ><ChevronsUp className="w-3 h-3" /></button>
+                      <button 
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (currentOnReorder && index < currentList.length - 1) currentOnReorder(index, currentList.length - 1); }}
+                        className="p-1.5 text-text-dim hover:text-text-main hover:bg-bg-input transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+                        disabled={index === currentList.length - 1}
+                        title="Move to Bottom"
+                      ><ChevronsDown className="w-3 h-3" /></button>
+                    </div>
+                    <button 
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (currentOnDuplicate) currentOnDuplicate(item.id); }}
+                      className="p-1.5 text-text-dim hover:text-blue-400 bg-bg-panel rounded shadow-sm border border-border-main"
+                      title="Duplicate"
+                    ><Copy className="w-3 h-3" /></button>
+                    <button 
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (onCopyToPart) onCopyToPart(item); }}
+                      className="p-1.5 text-text-dim hover:text-green-400 bg-bg-panel rounded shadow-sm border border-border-main"
+                      title="Copy to Variation Parts"
+                    ><ArrowRightToLine className="w-3 h-3" /></button>
+                    <button 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (confirmQuickDeleteId === item.id) {
+                          currentOnDelete(item.id);
+                          setConfirmQuickDeleteId(null);
+                        } else {
+                          setConfirmQuickDeleteId(item.id);
+                          setTimeout(() => setConfirmQuickDeleteId(null), 3000);
+                        }
+                      }}
+                      className={`p-1.5 bg-bg-panel rounded shadow-sm border border-border-main ${
+                        confirmQuickDeleteId === item.id 
+                          ? 'text-red-500 hover:text-red-400 bg-red-500/10 hover:bg-red-500/20 opacity-100' 
+                          : 'text-text-dim hover:text-red-400 hover:bg-bg-input'
+                      }`}
+                      title={confirmQuickDeleteId === item.id ? "Confirm delete" : "Delete"}
+                    ><Trash2 className="w-3 h-3" /></button>
+                    <button 
+                      onClick={(e) => startEdit(item, e)}
+                      className="p-1.5 text-text-dim hover:text-blue-400 bg-bg-panel rounded shadow-sm border border-border-main"
+                    ><Pencil className="w-3 h-3" /></button>
+                    <button 
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpandedActionId(null); }}
+                      className="p-1.5 text-text-dim hover:text-red-500 hover:bg-red-500/10 transition-colors bg-bg-panel rounded shadow-sm border border-border-main"
+                      title="Close"
+                    ><X className="w-3 h-3" /></button>
+                  </>
+                )}
               </div>
             </div>
           );
