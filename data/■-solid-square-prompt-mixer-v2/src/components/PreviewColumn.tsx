@@ -2228,13 +2228,13 @@ const handleResizeStart = (e: React.MouseEvent) => {
                       setDraggedTabIndex(null);
                       setDragOverTabIndex(null);
                     }}
-                    className={`group flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-mono border cursor-grab active:cursor-grabbing select-none whitespace-nowrap transition-all ${
+                    className={`group flex items-center gap-1.5 h-7 px-3 text-[10px] font-mono border box-border cursor-grab active:cursor-grabbing select-none whitespace-nowrap ${
                       isDragging ? 'opacity-40' : ''
                     } ${
                       isDragOver 
                         ? 'border-border-hover bg-bg-surface' 
                         : activeTabId === tab.id 
-                          ? 'bg-bg-surface border-2 border-border-hover text-text-main font-bold' 
+                          ? 'bg-bg-surface border-border-hover ring-1 ring-inset ring-border-hover text-text-main font-bold' 
                           : 'bg-bg-base border-border-main text-text-dim hover:bg-bg-input hover:text-text-main hover:border-border-hover'
                     }`}
                     onClick={() => {
