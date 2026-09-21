@@ -1,0 +1,8 @@
+{
+  "name": "■ SOLID SQUARE PROMPT MIXER V2",
+  "description": "High-end multi-section prompt synthesis tool for AI image generation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
