@@ -193,10 +193,10 @@ export const PreviewColumn: React.FC<PreviewColumnProps> = ({
             const stripLeft = el.scrollLeft;
             const stripRight = stripLeft + el.clientWidth;
 
-            if (tabLeft < stripLeft) {
-              el.scrollLeft = tabLeft;
-            } else if (tabRight > stripRight) {
-              el.scrollLeft = tabRight - el.clientWidth;
+            if (tabLeft < stripLeft + 60) {
+              el.scrollLeft = Math.max(0, tabLeft - 60);
+            } else if (tabRight > stripRight - 60) {
+              el.scrollLeft = Math.min(el.scrollWidth - el.clientWidth, tabRight - el.clientWidth + 60);
             }
           }
         }
@@ -2234,7 +2234,7 @@ const handleResizeStart = (e: React.MouseEvent) => {
                       isDragOver 
                         ? 'border-border-hover bg-bg-surface' 
                         : activeTabId === tab.id 
-                          ? 'bg-text-main border-text-main text-bg-base font-bold' 
+                          ? 'bg-bg-surface border-2 border-border-hover text-text-main font-bold' 
                           : 'bg-bg-base border-border-main text-text-dim hover:bg-bg-input hover:text-text-main hover:border-border-hover'
                     }`}
                     onClick={() => {
@@ -2253,8 +2253,8 @@ const handleResizeStart = (e: React.MouseEvent) => {
                         }}
                         className={`ml-1 w-3.5 h-3.5 flex items-center justify-center transition-colors ${
                           activeTabId === tab.id 
-                            ? 'opacity-100 hover:bg-black/10 dark:hover:bg-white/20 hover:text-red-400' 
-                            : 'opacity-0 group-hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10 hover:text-red-400'
+                            ? 'opacity-80 hover:opacity-100 hover:text-red-400' 
+                            : 'opacity-0 group-hover:opacity-100 hover:text-red-400'
                         }`}
                       >
                         <X className="w-3 h-3" />
