@@ -3,6 +3,7 @@ import { VariationPart } from '../types';
 import { Accordion } from './Accordion';
 import { ConfirmModal } from './ConfirmModal';
 import { AddModal } from './AddModal';
+import { AutoResizeTextarea } from './AutoResizeTextarea';
 import { User, Pencil, Trash2, Check, X, Plus, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown, ArrowLeftToLine, ArrowRightToLine, Copy, Pin } from 'lucide-react';
 import { Language, t } from '../i18n';
 import { AttributeMixer } from './AttributeMixer';
@@ -565,19 +566,20 @@ export const VariationColumn: React.FC<VariationColumnProps> = ({
                                   <input 
                                     value={editName}
                                     onChange={e => setEditName(e.target.value)}
-                                    className="bg-bg-base border border-border-main text-xs font-mono p-1.5 text-text-main focus:outline-none focus:border-border-hover w-full"
+                                    className="bg-bg-base border border-border-main text-[12px] font-mono p-1.5 text-text-main font-bold focus:outline-none focus:border-border-hover w-full"
                                     placeholder={t('name', lang)}
                                   />
                                   <input 
                                     value={editCategory}
                                     onChange={e => setEditCategory(e.target.value)}
-                                    className="bg-bg-base border border-border-main text-xs font-mono p-1.5 text-text-main focus:outline-none focus:border-border-hover w-full"
+                                    className="bg-bg-base border border-border-main text-[12px] font-mono p-1.5 text-text-main focus:outline-none focus:border-border-hover w-full"
                                     placeholder={t('category', lang)}
                                   />
-                                  <textarea 
+                                  <AutoResizeTextarea 
                                     value={editContent}
                                     onChange={e => setEditContent(e.target.value)}
-                                    className="bg-bg-base border border-border-main text-[11px] font-mono p-1.5 text-text-dim focus:outline-none focus:border-border-hover resize-y min-h-[64px] h-16 w-full"
+                                    minHeight={60}
+                                    className="bg-bg-base border border-border-main text-[13px] leading-relaxed font-mono p-1.5 text-text-main focus:outline-none focus:border-border-hover w-full"
                                     placeholder={t('content', lang)}
                                   />
                                   <div className="flex justify-between items-center mt-1">

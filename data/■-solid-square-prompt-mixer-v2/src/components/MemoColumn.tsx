@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { MasterPrompt } from '../types';
 import { ConfirmModal } from './ConfirmModal';
 import { AddModal } from './AddModal';
+import { AutoResizeTextarea } from './AutoResizeTextarea';
 import { MoreHorizontal, Pencil, Trash2, Check, X, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown, Plus, List, ArrowRightToLine, ArrowLeftToLine, Copy, Pin, Star, Sparkles, AlertTriangle } from 'lucide-react';
 import { Language, t } from '../i18n';
 import { MARK_OPTIONS, renderMarkSymbol } from './MasterColumn';
@@ -271,13 +272,14 @@ export const MemoColumn: React.FC<MemoColumnProps> = ({
                 <input 
                   value={editName}
                   onChange={e => setEditName(e.target.value)}
-                  className={`bg-bg-base border border-border-main text-xs font-mono p-1.5 text-text-main focus:outline-none ${isNegative ? 'focus:border-red-500' : 'focus:border-border-hover'}`}
+                  className={`bg-bg-base border border-border-main text-[12px] font-mono p-1.5 text-text-main font-bold focus:outline-none ${isNegative ? 'focus:border-red-500' : 'focus:border-border-hover'}`}
                   placeholder={t('name', lang)}
                 />
-                <textarea 
+                <AutoResizeTextarea 
                   value={editContent}
                   onChange={e => setEditContent(e.target.value)}
-                  className={`bg-bg-base border border-border-main text-[11px] font-mono p-1.5 text-text-dim focus:outline-none ${isNegative ? 'focus:border-red-500' : 'focus:border-border-hover'} resize-y min-h-[64px] h-16`}
+                  minHeight={60}
+                  className={`bg-bg-base border border-border-main text-[13px] leading-relaxed font-mono p-1.5 text-text-main focus:outline-none ${isNegative ? 'focus:border-red-500' : 'focus:border-border-hover'}`}
                   placeholder={t('content', lang)}
                 />
                 <div className="flex justify-between items-center mt-1">

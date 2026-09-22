@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Check, Settings2, Pencil, Plus, Trash2, Save, ChevronDown, ChevronUp, ChevronsUp, ChevronsDown, Edit2, RotateCcw, GripVertical, ArrowLeftToLine, Copy } from 'lucide-react';
 import { ConfirmModal } from './ConfirmModal';
+import { AutoResizeTextarea } from './AutoResizeTextarea';
 import { Language, t } from '../i18n';
 import { VariationPart } from '../types';
 
@@ -1057,14 +1058,15 @@ const deleteCheckedItems = () => {
                   <input 
                     value={item?.label || ''}
                     onChange={(e) => updatePresetItem(key, idx, 'label', e.target.value)}
-                    className={`w-full bg-bg-input border border-border-main px-2 py-1 text-[11px] font-mono focus:outline-none focus:border-border-hover ${idx === 0 ? 'text-text-dim cursor-not-allowed opacity-70' : 'text-text-main'}`} 
+                    className={`w-full bg-bg-input border border-border-main px-2 py-1 text-[12px] font-mono focus:outline-none focus:border-border-hover ${idx === 0 ? 'text-text-dim cursor-not-allowed opacity-70' : 'text-text-main font-bold'}`} 
                     disabled={idx === 0}
                     placeholder="項目名 (例: Russian)"
                   />
-                  <textarea 
+                  <AutoResizeTextarea 
                     value={item?.value || ''}
                     onChange={(e) => updatePresetItem(key, idx, 'value', e.target.value)}
-                    className={`w-full bg-bg-surface border border-border-main px-2 py-1 text-[11px] font-mono h-[40px] resize-y min-h-[40px] focus:outline-none focus:border-border-hover ${idx === 0 ? 'text-text-dim cursor-not-allowed opacity-70' : 'text-text-main'}`} 
+                    minHeight={40}
+                    className={`w-full bg-bg-surface border border-border-main px-2 py-1.5 text-[13px] leading-relaxed font-mono focus:outline-none focus:border-border-hover ${idx === 0 ? 'text-text-dim cursor-not-allowed opacity-70' : 'text-text-main'}`} 
                     disabled={idx === 0}
                     placeholder="プロンプト (例: 1russian girl, )"
                   />
