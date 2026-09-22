@@ -1,30 +1,73 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { MasterPrompt } from '../types';
 import { ConfirmModal } from './ConfirmModal';
 import { AddModal } from './AddModal';
 import { AutoResizeTextarea } from './AutoResizeTextarea';
-import { MoreHorizontal, Pencil, Trash2, Check, X, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown, Plus, List, ArrowRightToLine, ArrowLeftToLine, Copy, Pin, Star, Sparkles, AlertTriangle } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, Check, X, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown, Plus, Upload, List, ArrowRightToLine, ArrowLeftToLine, Copy, Pin, Star, Sparkles, AlertTriangle } from 'lucide-react';
 import { Language, t } from '../i18n';
 import { MARK_OPTIONS, renderMarkSymbol } from './MasterColumn';
+import { parseFileNameToTitle } from '../utils/filenameParser';
 
 interface MemoColumnProps {
   theme?: string;
   masters: MasterPrompt[];
-    selectedId: string | null;
-    onSelect: (id: string, insert?: boolean) => void;
-    onAdd: (name: string) => void;
-    onUpdate: (id: string, updates: Partial<MasterPrompt>) => void;
-    onDuplicate?: (id: string) => void;
-    onDelete: (id: string) => void;
-    onDeleteBulk?: (ids: string[]) => void;
-    onDeleteAll?: () => void;
-    onMoveBulk?: (ids: string[], direction: 'top' | 'up' | 'down' | 'bottom') => void;
-    onReorder?: (startIndex: number, endIndex: number) => void;
-          lang: Language;
+  selectedId: string | null;
+  onSelect: (id: string, insert?: boolean) => void;
+  onAdd: (name: string, content?: string) => void;
+  onAddBulk?: (items: { name: string; content: string }[]) => void;
+  onUpdate: (id: string, updates: Partial<MasterPrompt>) => void;
+  onDuplicate?: (id: string) => void;
+  onDelete: (id: string) => void;
+  onDeleteBulk?: (ids: string[]) => void;
+  onDeleteAll?: () => void;
+  onMoveBulk?: (ids: string[], direction: 'top' | 'up' | 'down' | 'bottom') => void;
+  onReorder?: (startIndex: number, endIndex: number) => void;
+  lang: Language;
+}
+
+async function readEntry(entry: any): Promise<{ name: string; content: string }[]> {
+  const results: { name: string; content: string }[] = [];
+  if (!entry) return results;
+
+  if (entry.isFile) {
+    const file = await new Promise<File>((resolve, reject) => {
+      entry.file(resolve, reject);
+    });
+    if (file.name.endsWith('.txt') || file.name.endsWith('.md') || file.name.endsWith('.text') || file.type.startsWith('text/') || file.name.endsWith('.json')) {
+      try {
+        const text = await file.text();
+        const title = parseFileNameToTitle(file.name);
+        results.push({ name: title, content: text });
+      } catch (e) {
+        console.error('Error reading file:', file.name, e);
+      }
+    }
+  } else if (entry.isDirectory) {
+    const dirReader = entry.createReader();
+    const entries = await new Promise<any[]>((resolve) => {
+      const readAll = (acc: any[]) => {
+        dirReader.readEntries((batch: any[]) => {
+          if (!batch || batch.length === 0) {
+            resolve(acc);
+          } else {
+            readAll([...acc, ...batch]);
+          }
+        }, () => resolve(acc));
+      };
+      readAll([]);
+    });
+
+    for (const childEntry of entries) {
+      const childResults = await readEntry(childEntry);
+      results.push(...childResults);
+    }
+  }
+
+  return results;
 }
 
 export const MemoColumn: React.FC<MemoColumnProps> = ({ 
-  masters, selectedId, onSelect, onAdd, onUpdate, onDuplicate, onDelete, onDeleteBulk, onDeleteAll, onMoveBulk, onReorder, lang, theme 
+  masters, selectedId, onSelect, onAdd, onAddBulk, onUpdate, onDuplicate, onDelete, onDeleteBulk, onDeleteAll, onMoveBulk, onReorder, lang, theme 
 }) => {
   const [viewMode, setViewMode] = useState<'list' | 'dropdown'>('list');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -40,6 +83,10 @@ export const MemoColumn: React.FC<MemoColumnProps> = ({
   const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(new Set());
   const [confirmDeleteBulk, setConfirmDeleteBulk] = useState(false);
   const [confirmDeleteAllState, setConfirmDeleteAllState] = useState(false);
+
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const dragCounter = useRef(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currentList = masters;
   const currentSelectedId = selectedId;
@@ -92,6 +139,115 @@ export const MemoColumn: React.FC<MemoColumnProps> = ({
     }
   };
 
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files')) {
+      dragCounter.current += 1;
+      setIsDraggingFile(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files')) {
+      dragCounter.current -= 1;
+      if (dragCounter.current <= 0) {
+        dragCounter.current = 0;
+        setIsDraggingFile(false);
+      }
+    }
+  };
+
+  const handleDragOverArea = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files')) {
+      e.dataTransfer.dropEffect = 'copy';
+    }
+  };
+
+  const handleDropArea = async (e: React.DragEvent) => {
+    if (draggedIndex !== null) return; // If internal item reorder
+
+    if (!e.dataTransfer.types || !Array.from(e.dataTransfer.types).includes('Files')) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current = 0;
+    setIsDraggingFile(false);
+
+    const items = e.dataTransfer.items;
+    const filesList: { name: string; content: string }[] = [];
+
+    if (items && items.length > 0) {
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.kind === 'file') {
+          const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+          if (entry) {
+            const res = await readEntry(entry);
+            filesList.push(...res);
+          } else {
+            const file = item.getAsFile();
+            if (file && (file.name.endsWith('.txt') || file.name.endsWith('.md') || file.name.endsWith('.text') || file.type.startsWith('text/'))) {
+              try {
+                const text = await file.text();
+                filesList.push({ name: parseFileNameToTitle(file.name), content: text });
+              } catch (err) {}
+            }
+          }
+        }
+      }
+    } else if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      for (let i = 0; i < e.dataTransfer.files.length; i++) {
+        const file = e.dataTransfer.files[i];
+        if (file.name.endsWith('.txt') || file.name.endsWith('.md') || file.name.endsWith('.text') || file.type.startsWith('text/')) {
+          try {
+            const text = await file.text();
+            filesList.push({ name: parseFileNameToTitle(file.name), content: text });
+          } catch (err) {}
+        }
+      }
+    }
+
+    if (filesList.length > 0) {
+      if (onAddBulk) {
+        onAddBulk(filesList);
+      } else {
+        filesList.forEach(item => currentOnAdd(item.name, item.content));
+      }
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const items: { name: string; content: string }[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      try {
+        const text = await file.text();
+        const title = parseFileNameToTitle(file.name);
+        items.push({ name: title, content: text });
+      } catch (err) {
+        console.error('Failed to read file:', file.name, err);
+      }
+    }
+
+    if (items.length > 0) {
+      if (onAddBulk) {
+        onAddBulk(items);
+      } else {
+        items.forEach(item => currentOnAdd(item.name, item.content));
+      }
+    }
+
+    e.target.value = '';
+  };
+
   const startEdit = (master: MasterPrompt, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -108,8 +264,6 @@ export const MemoColumn: React.FC<MemoColumnProps> = ({
 
   return (
     <>
-      
-
       <div className="flex items-center justify-between px-3 py-2 bg-bg-panel border-b border-border-main shrink-0">
         <div className="flex gap-2 text-[10px] font-mono w-full">
           {viewMode === 'dropdown' ? (
@@ -119,7 +273,6 @@ export const MemoColumn: React.FC<MemoColumnProps> = ({
                   e.currentTarget.nextElementSibling?.classList.toggle('hidden');
                 }}
                 onBlur={(e) => {
-                  // Small delay to allow click on options
                   setTimeout(() => {
                     e.target.nextElementSibling?.classList.add('hidden');
                   }, 150);
@@ -238,7 +391,21 @@ export const MemoColumn: React.FC<MemoColumnProps> = ({
         </div>
       )}
 
-      <div className="flex-1 overflow-y-scroll p-2 space-y-2 bg-bg-panel relative">
+      <div 
+        className="flex-1 overflow-y-scroll p-2 space-y-2 bg-bg-panel relative min-h-0"
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOverArea}
+        onDrop={handleDropArea}
+      >
+        {isDraggingFile && (
+          <div className="absolute inset-0 bg-bg-surface/90 backdrop-blur-xs border-2 border-dashed border-border-hover z-50 flex flex-col items-center justify-center pointer-events-none p-4 text-center">
+            <Upload className="w-10 h-10 text-text-main mb-2 animate-bounce" />
+            <p className="text-xs font-mono font-bold text-text-main">
+              {t('drop_files_here', lang)}
+            </p>
+          </div>
+        )}
 
         {currentList.filter(item => viewMode === 'list' || item.id === currentSelectedId).map((item, index) => {
           const isSelected = currentSelectedId === item.id;
@@ -253,14 +420,13 @@ export const MemoColumn: React.FC<MemoColumnProps> = ({
                 {!isNegative && (
                   <div className="flex gap-1.5 p-1 bg-bg-base border border-border-main">
                     {MARK_OPTIONS.map(({ id, icon: Icon, isSolid, label }) => {
-                      const isSelected = editMark === id || (id === 'pin' && (editMark === '📌' || editMark === '●')) || (id === 'star' && (editMark === '★' || editMark === '⭐')) || (id === 'check' && (editMark === '✓' || editMark === '✔')) || (id === 'sparkles' && (editMark === '◆' || editMark === '✦' || editMark === '💡')) || (id === 'alert' && (editMark === '▲' || editMark === '⚠️' || editMark === '⚠'));
-
+                      const isSelected = editMark === id;
                       return (
                         <button 
-                          key={id}
-                          onClick={() => setEditMark(prev => isSelected ? undefined : id)}
-                          className={`w-6 h-6 flex items-center justify-center transition-colors ${isSelected ? 'bg-bg-surface border border-border-hover' : 'hover:bg-bg-input hover:!text-text-main'}`}
-                          style={{ color: isSelected ? 'var(--mark-color)' : 'var(--toolbar-icon-color)' }}
+                          key={id} 
+                          type="button" 
+                          onClick={() => setEditMark(isSelected ? undefined : id)} 
+                          className={`w-6 h-6 flex items-center justify-center border transition-all ${isSelected ? 'border-border-hover bg-bg-surface font-bold text-text-main' : 'border-border-main hover:bg-bg-surface text-text-dim hover:text-text-main'}`}
                           title={label}
                         >
                           <Icon className={`w-3.5 h-3.5 ${isSolid ? 'fill-current' : ''}`} />
@@ -269,188 +435,200 @@ export const MemoColumn: React.FC<MemoColumnProps> = ({
                     })}
                   </div>
                 )}
-                <input 
-                  value={editName}
-                  onChange={e => setEditName(e.target.value)}
-                  className={`bg-bg-base border border-border-main text-[12px] font-mono p-1.5 text-text-main font-bold focus:outline-none ${isNegative ? 'focus:border-red-500' : 'focus:border-border-hover'}`}
-                  placeholder={t('name', lang)}
-                />
-                <AutoResizeTextarea 
-                  value={editContent}
-                  onChange={e => setEditContent(e.target.value)}
-                  minHeight={60}
-                  className={`bg-bg-base border border-border-main text-[13px] leading-relaxed font-mono p-1.5 text-text-main focus:outline-none ${isNegative ? 'focus:border-red-500' : 'focus:border-border-hover'}`}
-                  placeholder={t('content', lang)}
-                />
-                <div className="flex justify-between items-center mt-1">
-                  <button onClick={() => setConfirmDeleteId(item.id)} className="text-text-dim hover:text-text-main p-1">
-                    <Trash2 className="w-3 h-3" />
+
+                <div>
+                  <label className="text-[10px] font-mono text-text-dim block mb-1 uppercase">{t('name', lang)}</label>
+                  <input 
+                    type="text" 
+                    value={editName} 
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="w-full bg-bg-base border border-border-main text-text-main text-xs p-1.5 focus:outline-none focus:border-border-hover font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-mono text-text-dim block mb-1 uppercase">{t('content', lang)}</label>
+                  <AutoResizeTextarea
+                    value={editContent} 
+                    onChange={(e) => setEditContent(e.target.value)}
+                    minRows={3}
+                    className="w-full bg-bg-base border border-border-main text-text-main text-[13px] leading-relaxed p-1.5 focus:outline-none focus:border-border-hover font-mono resize-none"
+                  />
+                </div>
+                <div className="flex justify-between items-center pt-1">
+                  <button 
+                    onClick={() => {
+                      setConfirmQuickDeleteId(item.id);
+                    }}
+                    className="px-2 py-1 bg-transparent hover:bg-red-500/10 border border-red-500/40 text-[10px] font-mono text-red-500 transition-colors flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3 h-3" /> DELETE
                   </button>
                   <div className="flex gap-2">
                     <button 
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        navigator.clipboard.writeText(editContent);
-                        setCopiedItemId('edit_' + item.id);
-                        setTimeout(() => setCopiedItemId(null), 2000);
-                      }}
-                      className={`p-1 transition-colors ${
-                        copiedItemId === 'edit_' + item.id ? 'text-green-500' : 'text-text-dim hover:text-green-400'
-                      }`}
-                      title={lang === 'en' ? "Copy Memo Text" : "メモをコピー"}
+                      onClick={() => setEditingId(null)}
+                      className="px-3 py-1 bg-bg-base hover:bg-bg-surface border border-border-main text-[10px] font-mono text-text-dim hover:text-text-main transition-colors flex items-center gap-1"
                     >
-                      {copiedItemId === 'edit_' + item.id ? (
-                        <Check className="w-3 h-3" />
-                      ) : (
-                        <div className="relative w-3 h-3 flex items-center justify-center">
-                          <div className="border border-current w-full h-full flex items-center justify-center font-mono text-[9px] font-bold leading-none">P</div>
-                        </div>
-                      )}
+                      <X className="w-3 h-3" /> {t('cancel', lang)}
                     </button>
-                    <button onClick={() => setEditingId(null)} className="text-text-dim hover:text-text-dim p-1">
-                      <X className="w-3 h-3" />
-                    </button>
-                    <button onClick={() => handleSave(item.id)} className="text-green-500 hover:text-green-400 p-1">
-                      <Check className="w-3 h-3" />
+                    <button 
+                      onClick={() => handleSave(item.id)}
+                      className="px-3 py-1 bg-text-main text-bg-base hover:opacity-90 text-[10px] font-mono font-bold transition-colors flex items-center gap-1"
+                    >
+                      <Check className="w-3 h-3" /> {t('save', lang)}
                     </button>
                   </div>
                 </div>
+
+                <ConfirmModal
+                  isOpen={confirmQuickDeleteId === item.id}
+                  message={t('confirm_delete', lang)}
+                  onConfirm={() => {
+                    currentOnDelete(item.id);
+                    setConfirmQuickDeleteId(null);
+                    setEditingId(null);
+                  }}
+                  onCancel={() => setConfirmQuickDeleteId(null)}
+                  lang={lang}
+                />
               </div>
             );
           }
 
+          const isBulkSelected = bulkSelectedIds.has(item.id);
+
           return (
-            <div
+            <div 
               key={item.id}
               draggable={viewMode === 'list'}
               onDragStart={(e) => handleDragStart(e, index)}
               onDragEnd={handleDragEnd}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, index)}
-              className={`block p-3 group cursor-pointer transition-colors relative ${(theme === 'light' || theme === 'mono') ? 'bg-white shadow-sm' : (isSelected ? 'bg-bg-input' : 'bg-transparent')} ${isSelected ? 'border border-border-hover' : 'border border-border-main hover:border-border-hover'}`}
-              onClick={(e) => {
-                e.preventDefault();
-                currentOnSelect(item.id);
-              }}
+              className={`group border transition-all ${
+                isSelected 
+                  ? 'border-border-hover bg-bg-surface' 
+                  : (isBulkSelected ? 'border-border-hover bg-bg-surface/50' : 'border-border-main bg-bg-input hover:border-border-hover')
+              } ${draggedIndex === index ? 'opacity-50' : ''}`}
             >
-              <div className="flex justify-between items-start">
-                <div className="flex items-start gap-2">
+              <div 
+                onClick={() => {
+                  currentOnSelect(item.id, true);
+                }}
+                className="p-2 cursor-pointer flex items-center justify-between"
+              >
+                <div className="flex items-center space-x-2 min-w-0 flex-1">
                   {viewMode === 'list' && (
                     <input 
                       type="checkbox"
-                      checked={bulkSelectedIds.has(item.id)}
-                      onChange={(e) => handleToggleBulk(item.id, e as any)}
-                      onClick={(e) => e.stopPropagation()}
-                      className="mt-0.5 cursor-pointer accent-gray-600"
+                      checked={isBulkSelected}
+                      onChange={() => {}}
+                      onClick={(e) => handleToggleBulk(item.id, e)}
+                      className="w-3.5 h-3.5 rounded-none accent-text-main cursor-pointer shrink-0"
                     />
                   )}
-                  <div className={`text-[13px] font-bold font-mono pr-6 flex items-center flex-wrap ${isSelected ? 'text-text-main' : 'text-text-dim'}`}>
-                    {renderMarkSymbol(item.mark)}
-                    {item.name.toUpperCase()}
-                  </div>
+
+                  {renderMarkSymbol(item.mark)}
+
+                  <span className={`font-mono text-xs truncate ${isSelected ? 'font-bold text-text-main' : 'text-text-main font-bold'}`}>
+                    {item.name}
+                  </span>
                 </div>
-                <div className={`w-2 h-2 shrink-0 ${isSelected ? (isNegative ? 'bg-red-500 shadow-[0_0_5px_rgba(239,68,68,1)]' : 'bg-gray-400') : 'bg-transparent border border-gray-600'}`}></div>
-              </div>
-              <div className={`mt-1 text-[10px] font-mono truncate ${isSelected ? 'text-text-dim' : 'text-text-dim'}`}>
-                {item.content}
-              </div>
-              <div className={`absolute top-2 right-6 flex items-center gap-1`}>
-                {expandedActionId !== item.id && (
-                  <>
-                    <button 
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        navigator.clipboard.writeText(item.content);
-                        setCopiedItemId(item.id);
-                        setTimeout(() => setCopiedItemId(null), 2000);
-                      }}
-                      className={`opacity-0 group-hover:opacity-100 p-1 bg-bg-panel border border-border-main transition-all ${
-                        copiedItemId === item.id 
-                          ? 'text-green-500 bg-green-500/10 opacity-100'
-                          : 'text-text-dim hover:text-green-400'
-                      }`}
-                      title={lang === 'en' ? 'Copy Memo Text' : 'メモをコピー'}
-                    >
-                      {copiedItemId === item.id ? (
-                        <Check className="w-3 h-3" />
-                      ) : (
-                        <div className="relative w-3 h-3 flex items-center justify-center">
-                          <div className="border border-current w-full h-full flex items-center justify-center font-mono text-[9px] font-bold leading-none">P</div>
-                        </div>
-                      )}
-                    </button>
-                    <button 
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpandedActionId(item.id); }}
-                      className="opacity-0 group-hover:opacity-100 text-text-dim hover:text-text-main transition-opacity p-1 bg-bg-panel border border-border-main"
-                      title={lang === 'en' ? 'More actions' : 'メニュー'}
-                    >
-                      <MoreHorizontal className="w-3 h-3" />
-                    </button>
-                  </>
-                )}
                 
-                {(expandedActionId === item.id || confirmQuickDeleteId === item.id) && (
-                  <>
-                    <div className="flex items-center bg-bg-panel border border-border-main overflow-hidden">
-                      <button 
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (currentOnReorder && index > 0) currentOnReorder(index, 0); }}
-                        className="p-1.5 text-text-dim hover:text-text-main hover:bg-bg-input transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
-                        disabled={index === 0}
-                        title="Move to Top"
-                      ><ChevronsUp className="w-3 h-3" /></button>
-                      <button 
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (currentOnReorder && index < currentList.length - 1) currentOnReorder(index, currentList.length - 1); }}
-                        className="p-1.5 text-text-dim hover:text-text-main hover:bg-bg-input transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
-                        disabled={index === currentList.length - 1}
-                        title="Move to Bottom"
-                      ><ChevronsDown className="w-3 h-3" /></button>
-                    </div>
-                    <button 
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (onDuplicate) onDuplicate(item.id); }}
-                      className="p-1.5 text-text-dim hover:text-text-main bg-bg-panel border border-border-main"
-                      title="Duplicate"
-                    ><Copy className="w-3 h-3" /></button>
-                    <button 
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (confirmQuickDeleteId === item.id) {
-                          currentOnDelete(item.id);
-                          setConfirmQuickDeleteId(null);
-                        } else {
-                          setConfirmQuickDeleteId(item.id);
-                          setTimeout(() => setConfirmQuickDeleteId(null), 3000);
-                        }
-                      }}
-                      className={`p-1.5 bg-bg-panel border border-border-main ${
-                        confirmQuickDeleteId === item.id 
-                          ? 'text-red-500 hover:text-red-400 bg-red-500/10 hover:bg-red-500/20 opacity-100' 
-                          : 'text-text-dim hover:text-red-400 hover:bg-bg-input'
-                      }`}
-                      title={confirmQuickDeleteId === item.id ? 'Confirm delete' : 'Delete'}
-                    ><Trash2 className="w-3 h-3" /></button>
-                    <button 
-                      onClick={(e) => startEdit(item, e)}
-                      className="p-1.5 text-text-dim hover:text-text-main bg-bg-panel border border-border-main transition-colors"
-                    ><Pencil className="w-3 h-3" /></button>
-                    <button 
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpandedActionId(null); }}
-                      className="p-1.5 text-text-dim hover:text-red-500 hover:bg-red-500/10 transition-colors bg-bg-panel border border-border-main"
-                      title="Close"
-                    ><X className="w-3 h-3" /></button>
-                  </>
-                )}
+                <div className="flex items-center space-x-1 shrink-0 ml-2">
+                  <button 
+                    onClick={(e) => startEdit(item, e)}
+                    className="p-1 hover:bg-bg-surface text-text-dim hover:text-text-main transition-colors"
+                    title={t('edit', lang)}
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setConfirmDeleteId(item.id);
+                    }}
+                    className="p-1 hover:bg-bg-surface text-text-dim hover:text-red-400 transition-colors"
+                    title={t('delete', lang)}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setExpandedActionId(expandedActionId === item.id ? null : item.id);
+                    }}
+                    className="p-1 hover:bg-bg-surface text-text-dim hover:text-text-main transition-colors"
+                    title="More actions"
+                  >
+                    <MoreHorizontal className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
+
+              {item.content && (
+                <div 
+                  onClick={() => {
+                    currentOnSelect(item.id, true);
+                  }}
+                  className="px-2 pb-2 text-[13px] leading-relaxed font-mono text-text-main line-clamp-3 cursor-pointer opacity-90"
+                >
+                  {item.content}
+                </div>
+              )}
+
+              {expandedActionId === item.id && (
+                <div className="px-2 py-1.5 bg-bg-base border-t border-border-main flex items-center justify-end gap-1.5">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onDuplicate) onDuplicate(item.id);
+                      setExpandedActionId(null);
+                    }}
+                    className="px-2 py-1 bg-bg-input hover:bg-bg-surface border border-border-main text-[10px] font-mono text-text-dim hover:text-text-main transition-colors flex items-center gap-1"
+                    title="Duplicate memo"
+                  >
+                    <Copy className="w-3 h-3" /> COPY
+                  </button>
+
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setExpandedActionId(null);
+                    }}
+                    className="p-1.5 text-text-dim hover:text-red-500 hover:bg-red-500/10 transition-colors bg-bg-panel border border-border-main"
+                    title="Close"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}
       </div>
+
       <div className="p-3 bg-bg-panel border-t border-border-main flex gap-2">
-        <button onClick={() => setConfirmAdd(true)} className="flex-1 py-2 bg-bg-input hover:bg-bg-surface border border-border-main text-[11px] font-mono font-bold text-text-main transition-colors flex items-center justify-center gap-1.5">
+        <button 
+          onClick={() => setConfirmAdd(true)} 
+          className="flex-1 py-2 bg-bg-input hover:bg-bg-surface border border-border-main text-[11px] font-mono font-bold text-text-main transition-colors flex items-center justify-center gap-1.5"
+        >
           <Plus className="w-3.5 h-3.5" /> {t('add_memo', lang)}
         </button>
+        <button 
+          onClick={() => fileInputRef.current?.click()} 
+          className="flex-1 py-2 bg-bg-input hover:bg-bg-surface border border-border-main text-[11px] font-mono font-bold text-text-main transition-colors flex items-center justify-center gap-1.5"
+          title={lang === 'en' ? 'Load text files' : 'テキストファイルを一括読込'}
+        >
+          <Upload className="w-3.5 h-3.5" /> {t('load_files', lang)}
+        </button>
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          multiple 
+          accept=".txt,.md,.text,text/*" 
+          onChange={handleFileChange} 
+          className="hidden" 
+        />
         {currentOnDeleteAll && (
           <button onClick={() => setConfirmDeleteAllState(true)} className="py-2 px-3 bg-bg-input border border-red-500/40 text-[11px] font-mono font-bold text-red-500 hover:text-white hover:bg-red-500 transition-colors">
             {t('delete_all', lang)}

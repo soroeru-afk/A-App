@@ -1916,9 +1916,18 @@ export default function App() {
       }
     }
   };
-  const handleAddMemo = (name: string) => {
-    const newMemo = { id: `memo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, name, content: '' };
+  const handleAddMemo = (name: string, content: string = '') => {
+    const newMemo = { id: `memo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, name, content };
     setData(prev => ({ ...prev, memos: [newMemo, ...(prev.memos || [])] }));
+  };
+
+  const handleAddBulkMemo = (items: { name: string; content: string }[]) => {
+    const newMemos = items.map((item, idx) => ({
+      id: `memo_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 6)}`,
+      name: item.name,
+      content: item.content
+    }));
+    setData(prev => ({ ...prev, memos: [...newMemos, ...(prev.memos || [])] }));
   };
   
   const handleDuplicateMemo = (id: string) => {
@@ -2175,6 +2184,7 @@ export default function App() {
                     selectedId={selectedMemoId}
                     onSelect={handleSelectMemoId}
                     onAdd={handleAddMemo}
+                    onAddBulk={handleAddBulkMemo}
                     onUpdate={handleUpdateMemo}
                     onDuplicate={handleDuplicateMemo}
                     onDelete={handleDeleteMemo}

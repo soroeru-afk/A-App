@@ -93,6 +93,8 @@ export const translations = {
   save_to_negative: { en: 'SAVE TO NEGATIVE', ja: 'ネガティブ保存' },
   save_master_hint: { en: '(Prefix "▼ Title" for multiple)', ja: '（▼タイトル で複数分割保存）' },
   add_memo: { en: '+ ADD_NEW_MEMO', ja: '+ メモ追加' },
+  load_files: { en: 'LOAD FILES', ja: 'ファイル読込' },
+  drop_files_here: { en: 'Drop text files or folders here', ja: 'ここにテキストまたはフォルダをドロップ' },
   new_memo_title: { en: 'Memo Title...', ja: 'メモタイトル...' },
   new_memo_content: { en: 'Memo content...', ja: 'メモ内容...' },
   confirm_delete: { en: 'Are you sure you want to delete this item?', ja: 'この項目を削除してもよろしいですか？' },
