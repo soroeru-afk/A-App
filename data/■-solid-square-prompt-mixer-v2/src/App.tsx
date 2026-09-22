@@ -266,12 +266,16 @@ export default function App() {
     applyThemeColors(theme);
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (metaThemeColor) {
-      let color = '#0A0A0B';
-      if (theme === 'light') color = '#f9fafb';
-      else if (theme === 'black') color = '#000000';
-      else if (theme === 'red') color = '#140505';
-      else if (theme === 'navy') color = '#060913';
-      else if (theme === 'mono') color = '#ffffff';
+      const bgPanelMap: Record<string, string> = {
+        light: '#e4e4e7',
+        dark: '#14161A',
+        black: '#050505',
+        red: '#1c0a0a',
+        navy: '#0d1222',
+        mono: '#f4f4f5',
+      };
+      const computedBgPanel = getComputedStyle(document.documentElement).getPropertyValue('--bg-panel').trim();
+      const color = computedBgPanel || bgPanelMap[theme] || '#14161A';
       metaThemeColor.setAttribute('content', color);
     }
   }, [theme]);
