@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Settings, Folder, FolderOpen, File as FileIcon, X, Search, Plus, Minus, RotateCw, Trash2, Edit2, Upload, Download, Map as MapIcon, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Menu, Check, Copy, PanelLeftClose, PanelRightClose, PanelLeftOpen, PanelRightOpen, Maximize, Minimize, Palette } from 'lucide-react';
+import { Settings, Folder, FolderOpen, File as FileIcon, X, Search, Plus, Minus, RotateCw, Trash2, Edit2, Upload, Download, Map as MapIcon, ChevronRight, ChevronLeft, ChevronsRight, ChevronsLeft, ChevronUp, ChevronDown, Menu, Check, Copy, PanelLeftClose, PanelRightClose, PanelLeftOpen, PanelRightOpen, PanelLeft, PanelRight, Maximize, Minimize, Palette, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 // === Types ===
@@ -29,6 +29,7 @@ interface AppSettings {
   language: 'jp' | 'en';
   folderIconColor?: string;
   sidebarOpacity?: number;
+  sidebarFontSize?: number;
 }
 
 interface TabData {
@@ -72,7 +73,7 @@ const translations = {
     tmDesc1: 'ブラウザ拡張等から直接場所を追加できます。',
     tmDesc2: 'ローカルストレージ sv_locations_sync を購読中。',
     captured: '撮影:',
-    currLoc: 'Current Location:',
+    currLoc: 'LOCATION:',
     newTab: '新しいタブ',
     clearAllTabs: '全て閉じる',
     fullscreen: 'フルスクリーン',
@@ -80,6 +81,7 @@ const translations = {
     hideUI: 'ヘッダーを隠す',
     showUI: 'ヘッダーを表示',
     sidebarOpacity: 'サイドバー透明度',
+    sidebarFontSize: 'サイドバー文字サイズ',
   },
   en: {
     viewer: 'STREET VIEW VIEWER',
@@ -116,7 +118,7 @@ const translations = {
     tmDesc1: 'Add locations directly from browser extensions.',
     tmDesc2: 'Subscribing to local storage sv_locations_sync.',
     captured: 'Captured:',
-    currLoc: 'CURRENT LOCATION:',
+    currLoc: 'LOCATION:',
     newTab: 'New Tab',
     clearAllTabs: 'CLEAR ALL',
     fullscreen: 'Fullscreen',
@@ -124,6 +126,7 @@ const translations = {
     hideUI: 'Hide UI',
     showUI: 'Show UI',
     sidebarOpacity: 'Sidebar Opacity',
+    sidebarFontSize: 'Sidebar Font Size',
   }
 };
 
@@ -210,6 +213,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   language: 'jp',
   folderIconColor: '#06b6d4',
   sidebarOpacity: 1.0,
+  sidebarFontSize: 12,
 };
 
 // === Main App Component ===
@@ -225,27 +229,133 @@ export default function App() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   
   const tabsContainerRef = useRef<HTMLDivElement>(null);
-  const scrollInterval = useRef<number | null>(null);
+  const tabRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const lastWheelTime = useRef<number>(0);
 
-  const startScroll = (direction: 'left' | 'right') => {
-    stopScroll();
-    scrollInterval.current = window.setInterval(() => {
-      if (tabsContainerRef.current) {
-        tabsContainerRef.current.scrollBy({ left: direction === 'left' ? -15 : 15 });
-      }
-    }, 16);
+  const [draggedTabIndex, setDraggedTabIndex] = useState<number | null>(null);
+  const [dragOverTabIndex, setDragOverTabIndex] = useState<number | null>(null);
+
+  const handleTabDragStart = (e: React.DragEvent, index: number) => {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index.toString());
+    setDraggedTabIndex(index);
   };
 
-  const stopScroll = () => {
-    if (scrollInterval.current !== null) {
-      clearInterval(scrollInterval.current);
-      scrollInterval.current = null;
+  const handleTabDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverTabIndex !== index) {
+      setDragOverTabIndex(index);
     }
   };
 
+  const handleTabDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (draggedTabIndex !== null && draggedTabIndex !== targetIndex) {
+      setTabs(prev => {
+        const next = [...prev];
+        const [moved] = next.splice(draggedTabIndex, 1);
+        next.splice(targetIndex, 0, moved);
+        return next;
+      });
+    }
+    setDraggedTabIndex(null);
+    setDragOverTabIndex(null);
+  };
+
+  const handleTabDragEnd = () => {
+    setDraggedTabIndex(null);
+    setDragOverTabIndex(null);
+  };
+
+  const currentTabIndex = tabs.findIndex(t => t.id === activeTabId);
+
+  const selectTabByIndex = (targetIndex: number) => {
+    if (tabs.length === 0) return;
+    const clampedIndex = Math.max(0, Math.min(tabs.length - 1, targetIndex));
+    setActiveTabId(tabs[clampedIndex].id);
+  };
+
+  const goToPrevTab = () => {
+    if (tabs.length === 0) return;
+    if (currentTabIndex > 0) {
+      selectTabByIndex(currentTabIndex - 1);
+    } else if (currentTabIndex === -1) {
+      selectTabByIndex(0);
+    }
+  };
+
+  const goToNextTab = () => {
+    if (tabs.length === 0) return;
+    if (currentTabIndex >= 0 && currentTabIndex < tabs.length - 1) {
+      selectTabByIndex(currentTabIndex + 1);
+    } else if (currentTabIndex === -1) {
+      selectTabByIndex(0);
+    }
+  };
+
+  const goToFirstTab = () => {
+    if (tabs.length > 0) {
+      selectTabByIndex(0);
+    }
+  };
+
+  const goToLastTab = () => {
+    if (tabs.length > 0) {
+      selectTabByIndex(tabs.length - 1);
+    }
+  };
+
+  // アクティブタブが切り替わったときにタブバー内で表示領域にスクロール
   useEffect(() => {
-    return () => stopScroll();
-  }, []);
+    if (activeTabId) {
+      const el = tabRefs.current.get(activeTabId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      }
+    }
+  }, [activeTabId]);
+
+  // タブ領域でのマウスホイール操作によるタブ切り替え
+  // カオルさまのご指定通り: ホイール下回転 -> 左のタブへ / ホイール上回転 -> 右のタブへ
+  useEffect(() => {
+    const el = tabsContainerRef.current;
+    if (!el) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const now = Date.now();
+      // ホイールの連続発火を防ぎ、1ノッチごとに1タブずつ確実に切り替え
+      if (now - lastWheelTime.current < 130) {
+        return;
+      }
+
+      if (Math.abs(e.deltaY) >= Math.abs(e.deltaX)) {
+        if (Math.abs(e.deltaY) < 5) return;
+        lastWheelTime.current = now;
+        if (e.deltaY > 0) {
+          // ホイールを下にした時に左へ動く（前のタブ）
+          goToPrevTab();
+        } else {
+          // ホイールを上に回した時に右に動く（次のタブ）
+          goToNextTab();
+        }
+      } else {
+        if (Math.abs(e.deltaX) < 5) return;
+        lastWheelTime.current = now;
+        if (e.deltaX > 0) {
+          goToNextTab();
+        } else {
+          goToPrevTab();
+        }
+      }
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', handleWheel);
+    };
+  }, [tabs, activeTabId, currentTabIndex]);
 
   const activeTab = tabs.find(t => t.id === activeTabId);
   const currentItem = activeTab?.location || null;
@@ -257,21 +367,47 @@ export default function App() {
   }, [tabs, activeTabId]);
 
   const handleItemClick = (item: LocationItem) => {
-    const existingTab = tabs.find(t => t.location?.id === item.id);
-    if (existingTab) {
-      setActiveTabId(existingTab.id);
-      return;
-    }
-    
+    // タブが1つもない、またはアクティブタブIDがない場合は新規タブを作成して開く
     if (tabs.length === 0 || !activeTabId) {
       const newTabId = crypto.randomUUID();
-      setTabs([...tabs, { id: newTabId, location: item }]);
+      setTabs([{ id: newTabId, location: item }]);
       setActiveTabId(newTabId);
       return;
     }
-    
-    // Replace the current active tab's location
+
+    const currentActiveTab = tabs.find(t => t.id === activeTabId);
+
+    // 現在選択中のアクティブタブが空（locationがnull）の場合、他で開かれていても現在のタブに割り当てる
+    if (currentActiveTab && !currentActiveTab.location) {
+      setTabs(tabs.map(t => t.id === activeTabId ? { ...t, location: item } : t));
+      return;
+    }
+
+    // 現在のアクティブタブがすでに同じ場所を開いている場合は何もしない
+    if (currentActiveTab && currentActiveTab.location?.id === item.id) {
+      return;
+    }
+
+    // 現在のアクティブタブの場所を、選択した場所に切り替える（他タブにあっても独立して開ける）
     setTabs(tabs.map(t => t.id === activeTabId ? { ...t, location: item } : t));
+  };
+
+  const duplicateTab = (e: React.MouseEvent, tab: TabData) => {
+    e.stopPropagation();
+    const newTabId = crypto.randomUUID();
+    const newTab: TabData = {
+      id: newTabId,
+      location: tab.location ? { ...tab.location } : null,
+    };
+    const currentIndex = tabs.findIndex(t => t.id === tab.id);
+    const newTabs = [...tabs];
+    if (currentIndex !== -1) {
+      newTabs.splice(currentIndex + 1, 0, newTab);
+    } else {
+      newTabs.push(newTab);
+    }
+    setTabs(newTabs);
+    setActiveTabId(newTabId);
   };
 
   const closeTab = (e: React.MouseEvent, id: string) => {
@@ -293,6 +429,17 @@ export default function App() {
 
   const t = (key: keyof typeof translations.jp) => translations[settings.language][key];
 
+  // サイドバー文字サイズ計算 (数値px: 10px〜20px、デフォルト12px)
+  const getSidebarFontSizePx = (): number => {
+    const raw = settings.sidebarFontSize;
+    if (typeof raw === 'number' && !isNaN(raw)) {
+      return Math.max(9, Math.min(20, raw));
+    }
+    if ((raw as any) === 'sm') return 11;
+    if ((raw as any) === 'lg') return 14;
+    return 12;
+  };
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -302,13 +449,20 @@ export default function App() {
     const onFullscreenChange = () => {
       setIsFullscreen(!!(document.fullscreenElement || (document as any).webkitFullscreenElement));
     };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isImmersive) {
+        setIsImmersive(false);
+      }
+    };
     document.addEventListener('fullscreenchange', onFullscreenChange);
     document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+    window.addEventListener('keydown', onKeyDown);
     return () => {
       document.removeEventListener('fullscreenchange', onFullscreenChange);
       document.removeEventListener('webkitfullscreenchange', onFullscreenChange);
+      window.removeEventListener('keydown', onKeyDown);
     };
-  }, []);
+  }, [isImmersive]);
 
   const toggleFullscreen = () => {
     const docEl = document.documentElement as any;
@@ -583,9 +737,31 @@ export default function App() {
     reader.onload = async (ev) => {
       const text = ev.target?.result as string;
       let newItems: LocationItem[] = [];
+      let importedTabs: TabData[] | null = null;
+      let importedActiveTabId: string | null = null;
       
       if (file.name.endsWith('.json')) {
-        try { newItems = JSON.parse(text); } catch(err) { await customAlert('JSONパースエラー'); }
+        try {
+          const parsedData = JSON.parse(text);
+          if (Array.isArray(parsedData)) {
+            // 従来の配列形式JSON
+            newItems = parsedData;
+          } else if (parsedData && typeof parsedData === 'object') {
+            // タブ情報付きのバックアップ形式
+            if (Array.isArray(parsedData.locations)) {
+              newItems = parsedData.locations;
+            }
+            if (Array.isArray(parsedData.tabs)) {
+              importedTabs = parsedData.tabs;
+            }
+            if (typeof parsedData.activeTabId === 'string' || parsedData.activeTabId === null) {
+              importedActiveTabId = parsedData.activeTabId;
+            }
+          }
+        } catch(err) {
+          await customAlert('JSONパースエラー');
+          return;
+        }
       } else {
         const extracted = processBookmarksHtml(text);
         newItems = extracted.map(item => ({
@@ -595,27 +771,57 @@ export default function App() {
         }));
       }
 
-      if (newItems.length === 0) {
+      if (newItems.length === 0 && (!importedTabs || importedTabs.length === 0)) {
         await customAlert('Google マップのURLを含むブックマークか、有効なJSONが見つかりませんでした。');
         return;
       }
 
       setLocations(prev => {
         const added: LocationItem[] = [];
-        const existingUrls = new Set(prev.map(i => i.url));
+        let updatedCount = 0;
+        const newLocations = [...prev];
+
         newItems.forEach(item => {
-          if (!existingUrls.has(item.url)) {
-            const parsedItem = {
-              ...item,
-              id: item.id || `item_${Date.now()}_${Math.random()}`,
-              parsed: item.parsed || parseGoogleMapsUrl(item.url)
-            };
+          const parsedItem = {
+            ...item,
+            id: item.id || `item_${Date.now()}_${Math.random()}`,
+            parsed: item.parsed || parseGoogleMapsUrl(item.url)
+          };
+
+          const existingIndex = newLocations.findIndex(i => i.url === item.url);
+          if (existingIndex !== -1) {
+            newLocations[existingIndex] = { ...newLocations[existingIndex], ...parsedItem, id: newLocations[existingIndex].id };
+            updatedCount++;
+          } else {
             added.push(parsedItem);
-            existingUrls.add(item.url);
+            newLocations.push(parsedItem);
           }
         });
-        customAlert(`読み込み完了！\n新規 ${added.length}件の場所を認識しました。`);
-        return [...prev, ...added];
+
+        // タブ情報の復元
+        if (importedTabs && importedTabs.length > 0) {
+          const restoredTabs: TabData[] = importedTabs.map(t => {
+            let loc = t.location;
+            if (loc) {
+              const matched = newLocations.find(l => l.url === loc!.url || l.id === loc!.id);
+              if (matched) loc = matched;
+            }
+            return {
+              id: t.id || crypto.randomUUID(),
+              location: loc
+            };
+          });
+          setTabs(restoredTabs);
+          if (importedActiveTabId && restoredTabs.some(t => t.id === importedActiveTabId)) {
+            setActiveTabId(importedActiveTabId);
+          } else if (restoredTabs.length > 0) {
+            setActiveTabId(restoredTabs[0].id);
+          }
+        }
+
+        const tabMsg = (importedTabs && importedTabs.length > 0) ? `\n開いていたタブ: ${importedTabs.length}件を復元しました` : '';
+        customAlert(`読み込み完了！\n新規追加: ${added.length}件 / 更新: ${updatedCount}件${tabMsg}`);
+        return newLocations;
       });
       e.target.value = '';
     };
@@ -623,16 +829,33 @@ export default function App() {
   };
 
   const exportDataJson = async () => {
-    if (locations.length === 0) {
+    if (locations.length === 0 && tabs.length === 0) {
       await customAlert('エクスポートするデータがありません。');
       return;
     }
-    const dataStr = JSON.stringify(locations, null, 2);
+
+    // ブックマーク一覧に加えて、開いているタブ情報もエクスポートに含める
+    const exportPayload = {
+      version: 2,
+      type: 'streetview_backup',
+      exportedAt: new Date().toISOString(),
+      locations,
+      tabs,
+      activeTabId
+    };
+
+    const dataStr = JSON.stringify(exportPayload, null, 2);
     const blob = new Blob([dataStr], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `streetview_locations_${new Date().toISOString().split('T')[0]}.json`;
+    
+    // 日付と時間をファイル名に含める
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const dateStr = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+    
+    a.download = `streetview_locations_${dateStr}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -765,7 +988,7 @@ export default function App() {
         
         {/* === Sidebar === */}
         <div 
-          className="flex flex-col border-slate-800 sidebar-container shrink-0 h-full z-40 transition-all duration-300"
+          className="flex flex-col border-slate-800 sidebar-container shrink-0 h-full z-40"
           style={{ 
             position: 'absolute',
             top: 0,
@@ -891,190 +1114,193 @@ export default function App() {
                 {t('noMatch')}
               </div>
             ) : (
-              hierarchicalFolders.map(parent => {
-                const isParentOpen = searchQuery ? true : !!folderState[parent.name];
-                
-                return (
-                  <div key={parent.name} className="mb-2">
-                    {/* 親フォルダ */}
-                    <div className="flex items-center group relative p-1 rounded-sm transition-colors hover:bg-slate-800/50">
-                      <button 
-                        className="flex-1 flex items-center text-slate-300 hover:text-white transition-colors text-left min-w-0"
-                        onClick={() => toggleFolder(parent.name)}
-                      >
-                        <ChevronRight size={14} className={`mr-1 transition-transform shrink-0 ${isParentOpen ? 'rotate-90' : ''}`} />
-                        <Folder size={14} className="mr-2 opacity-80 shrink-0" style={{ color: settings.folderIconColor || '#06b6d4' }} />
-                        <span className="flex-1 truncate uppercase text-[11px] font-bold tracking-wider">
-                          {parent.name}
-                        </span>
-                        <span className="text-[9px] bg-slate-800 px-1.5 rounded-sm opacity-50 shrink-0 mr-2">{parent.totalCount}</span>
-                      </button>
-                      <div className="absolute right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 px-1 rounded-sm">
-                        <button onClick={(e) => editParentFolder(parent.name, e)} className="p-1 hover:text-cyan-400 text-slate-500 transition-colors cursor-pointer"><Edit2 size={12}/></button>
-                        <button onClick={(e) => deleteParentFolder(parent.name, e)} className="p-1 hover:text-red-400 text-slate-500 transition-colors cursor-pointer"><Trash2 size={12}/></button>
+              (() => {
+                const fs = getSidebarFontSizePx();
+                return hierarchicalFolders.map(parent => {
+                  const isParentOpen = searchQuery ? true : !!folderState[parent.name];
+                  
+                  return (
+                    <div key={parent.name} className="mb-2">
+                      {/* 親フォルダ */}
+                      <div className="flex items-center group relative p-1 rounded-sm transition-colors hover:bg-slate-800/50">
+                        <button 
+                          className="flex-1 flex items-center text-slate-300 hover:text-white transition-colors text-left min-w-0"
+                          onClick={() => toggleFolder(parent.name)}
+                        >
+                          <ChevronRight size={14} className={`mr-1 transition-transform shrink-0 ${isParentOpen ? 'rotate-90' : ''}`} />
+                          <Folder size={14} className="mr-2 opacity-80 shrink-0" style={{ color: settings.folderIconColor || '#06b6d4' }} />
+                          <span className="flex-1 truncate uppercase font-bold tracking-wider" style={{ fontSize: `${fs}px` }}>
+                            {parent.name}
+                          </span>
+                          <span className="text-[9px] bg-slate-800 px-1.5 rounded-sm opacity-50 shrink-0 mr-2">{parent.totalCount}</span>
+                        </button>
+                        <div className="absolute right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 px-1 rounded-sm">
+                          <button onClick={(e) => editParentFolder(parent.name, e)} className="p-1 hover:text-cyan-400 text-slate-500 transition-colors cursor-pointer"><Edit2 size={12}/></button>
+                          <button onClick={(e) => deleteParentFolder(parent.name, e)} className="p-1 hover:text-red-400 text-slate-500 transition-colors cursor-pointer"><Trash2 size={12}/></button>
+                        </div>
                       </div>
-                    </div>
 
-                    {isParentOpen && (
-                      <div className="mt-1 pl-3 flex flex-col gap-1">
-                        {/* 子フォルダ */}
-                        {parent.subGroups.map(sub => {
-                          const isSubOpen = searchQuery ? true : !!folderState[sub.fullName];
-                          
-                          return (
-                            <div key={sub.fullName} className="mb-1">
-                              <div className="flex items-center group/sub relative p-1 rounded-sm transition-colors hover:bg-slate-800/30">
-                                <button 
-                                  className="flex-1 flex items-center text-slate-400 hover:text-white transition-colors text-left min-w-0"
-                                  onClick={() => toggleFolder(sub.fullName)}
-                                >
-                                  <ChevronRight size={12} className={`mr-1 transition-transform shrink-0 ${isSubOpen ? 'rotate-90' : ''}`} />
-                                  <FolderOpen size={12} className="mr-2 opacity-50 shrink-0 text-slate-400" />
-                                  <span className="flex-1 truncate text-[10px] font-bold tracking-wide">
-                                    {sub.subName}
-                                  </span>
-                                  <span className="text-[9px] bg-slate-800/50 px-1.5 rounded-sm opacity-40 shrink-0 mr-2">{sub.items.length}</span>
-                                </button>
-                                <div className="absolute right-1 flex gap-1 opacity-0 group-hover/sub:opacity-100 transition-opacity bg-slate-900 px-1 rounded-sm">
-                                  <button onClick={(e) => editFolder(sub.fullName, e)} className="p-1 hover:text-cyan-400 text-slate-500 transition-colors cursor-pointer"><Edit2 size={10}/></button>
-                                  <button onClick={(e) => deleteFolder(sub.fullName, e)} className="p-1 hover:text-red-400 text-slate-500 transition-colors cursor-pointer"><Trash2 size={10}/></button>
-                                </div>
-                              </div>
-
-                              {isSubOpen && (
-                                <div className="mt-1 flex flex-col gap-0.5 pl-4 pr-1 border-l border-slate-800/60 ml-2">
-                                  {sub.items.map(item => {
-                                    const isActive = currentItem?.id === item.id;
-                                    const isChecked = selectedIds.has(item.id);
-                                    return (
-                                      <div 
-                                        key={item.id} 
-                                        className={`
-                                          flex items-center py-1.5 px-2 rounded-sm cursor-pointer border-l-2 transition-colors group/item relative
-                                          ${isActive ? 'bg-cyan-900/20 border-cyan-500 text-cyan-400' : 'border-transparent text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'}
-                                        `}
-                                        onClick={() => {
-                                          if (isSelectMode) {
-                                            const newSet = new Set(selectedIds);
-                                            if (newSet.has(item.id)) newSet.delete(item.id);
-                                            else newSet.add(item.id);
-                                            setSelectedIds(newSet);
-                                          } else {
-                                            handleItemClick(item);
-                                          }
-                                        }}
-                                      >
-                                        {isSelectMode && (
-                                          <div className="mr-3 flex items-center justify-center shrink-0">
-                                            <input 
-                                              type="checkbox" 
-                                              className="custom-checkbox pointer-events-none"
-                                              checked={isChecked}
-                                              readOnly
-                                            />
-                                          </div>
-                                        )}
-                                        <div className="flex-1 min-w-0 flex flex-col">
-                                          <span className="truncate text-xs font-semibold">{item.title}</span>
-                                          <div className="flex items-center gap-2 mt-0.5">
-                                            <span className="truncate text-[9px] opacity-60">
-                                              {item.parsed?.isValid ? `🧭 ${item.parsed.lat}, ${item.parsed.lng}` : '🗺️ 通常URL'}
-                                            </span>
-                                            {item.capturedDate && (
-                                              <span className="text-[9px] bg-slate-950/50 text-cyan-400 px-1 rounded-sm border border-slate-800 shrink-0 uppercase tracking-widest font-mono">
-                                                {item.capturedDate}
-                                              </span>
-                                            )}
-                                          </div>
-                                        </div>
-                                        <div className="absolute right-2 opacity-0 group-hover/item:opacity-100 transition-opacity flex bg-slate-900 rounded-sm">
-                                          <button 
-                                            className="hover:text-cyan-400 p-1.5 transition-colors shrink-0 disabled:opacity-50"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setEditTarget(item);
-                                              setIsEditModalOpen(true);
-                                            }}
-                                            disabled={isSelectMode}
-                                          >
-                                            <Edit2 size={12} />
-                                          </button>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-
-                        {/* 親フォルダ直下のアイテム */}
-                        {parent.directItems.map(item => {
-                          const isActive = currentItem?.id === item.id;
-                          const isChecked = selectedIds.has(item.id);
-                          return (
-                            <div 
-                              key={item.id} 
-                              className={`
-                                flex items-center py-1.5 px-2 rounded-sm cursor-pointer border-l-2 transition-colors group/item relative
-                                ${isActive ? 'bg-cyan-900/20 border-cyan-500 text-cyan-400' : 'border-transparent text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'}
-                              `}
-                              onClick={() => {
-                                if (isSelectMode) {
-                                  const newSet = new Set(selectedIds);
-                                  if (newSet.has(item.id)) newSet.delete(item.id);
-                                  else newSet.add(item.id);
-                                  setSelectedIds(newSet);
-                                } else {
-                                  handleItemClick(item);
-                                }
-                              }}
-                            >
-                              {isSelectMode && (
-                                <div className="mr-3 flex items-center justify-center shrink-0">
-                                  <input 
-                                    type="checkbox" 
-                                    className="custom-checkbox pointer-events-none"
-                                    checked={isChecked}
-                                    readOnly
-                                  />
-                                </div>
-                              )}
-                              <div className="flex-1 min-w-0 flex flex-col">
-                                <span className="truncate text-xs font-semibold">{item.title}</span>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  <span className="truncate text-[9px] opacity-60">
-                                    {item.parsed?.isValid ? `🧭 ${item.parsed.lat}, ${item.parsed.lng}` : '🗺️ 通常URL'}
-                                  </span>
-                                  {item.capturedDate && (
-                                    <span className="text-[9px] bg-slate-950/50 text-cyan-400 px-1 rounded-sm border border-slate-800 shrink-0 uppercase tracking-widest font-mono">
-                                      {item.capturedDate}
+                      {isParentOpen && (
+                        <div className="mt-1 pl-3 flex flex-col gap-1">
+                          {/* 子フォルダ */}
+                          {parent.subGroups.map(sub => {
+                            const isSubOpen = searchQuery ? true : !!folderState[sub.fullName];
+                            
+                            return (
+                              <div key={sub.fullName} className="mb-1">
+                                <div className="flex items-center group/sub relative p-1 rounded-sm transition-colors hover:bg-slate-800/30">
+                                  <button 
+                                    className="flex-1 flex items-center text-slate-400 hover:text-white transition-colors text-left min-w-0"
+                                    onClick={() => toggleFolder(sub.fullName)}
+                                  >
+                                    <ChevronRight size={12} className={`mr-1 transition-transform shrink-0 ${isSubOpen ? 'rotate-90' : ''}`} />
+                                    <FolderOpen size={12} className="mr-2 opacity-50 shrink-0 text-slate-400" />
+                                    <span className="flex-1 truncate font-bold tracking-wide" style={{ fontSize: `${Math.max(9, fs - 1)}px` }}>
+                                      {sub.subName}
                                     </span>
-                                  )}
+                                    <span className="text-[9px] bg-slate-800/50 px-1.5 rounded-sm opacity-40 shrink-0 mr-2">{sub.items.length}</span>
+                                  </button>
+                                  <div className="absolute right-1 flex gap-1 opacity-0 group-hover/sub:opacity-100 transition-opacity bg-slate-900 px-1 rounded-sm">
+                                    <button onClick={(e) => editFolder(sub.fullName, e)} className="p-1 hover:text-cyan-400 text-slate-500 transition-colors cursor-pointer"><Edit2 size={10}/></button>
+                                    <button onClick={(e) => deleteFolder(sub.fullName, e)} className="p-1 hover:text-red-400 text-slate-500 transition-colors cursor-pointer"><Trash2 size={10}/></button>
+                                  </div>
+                                </div>
+
+                                {isSubOpen && (
+                                  <div className="mt-1 flex flex-col gap-0.5 pl-4 pr-1 border-l border-slate-800/60 ml-2">
+                                    {sub.items.map(item => {
+                                      const isActive = currentItem?.id === item.id;
+                                      const isChecked = selectedIds.has(item.id);
+                                      return (
+                                        <div 
+                                          key={item.id} 
+                                          className={`
+                                            flex items-center py-1.5 px-2 rounded-sm cursor-pointer border-l-2 transition-colors group/item relative
+                                            ${isActive ? 'bg-cyan-900/20 border-cyan-500 text-cyan-400' : 'border-transparent text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'}
+                                          `}
+                                          onClick={() => {
+                                            if (isSelectMode) {
+                                              const newSet = new Set(selectedIds);
+                                              if (newSet.has(item.id)) newSet.delete(item.id);
+                                              else newSet.add(item.id);
+                                              setSelectedIds(newSet);
+                                            } else {
+                                              handleItemClick(item);
+                                            }
+                                          }}
+                                        >
+                                          {isSelectMode && (
+                                            <div className="mr-3 flex items-center justify-center shrink-0">
+                                              <input 
+                                                type="checkbox" 
+                                                className="custom-checkbox pointer-events-none"
+                                                checked={isChecked}
+                                                readOnly
+                                              />
+                                            </div>
+                                          )}
+                                          <div className="flex-1 min-w-0 flex flex-col">
+                                            <span className="truncate font-semibold leading-snug" style={{ fontSize: `${fs}px` }}>{item.title}</span>
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                              <span className="truncate opacity-60" style={{ fontSize: `${Math.max(8, fs - 3)}px` }}>
+                                                {item.parsed?.isValid ? `🧭 ${item.parsed.lat}, ${item.parsed.lng}` : '🗺️ 通常URL'}
+                                              </span>
+                                              {item.capturedDate && (
+                                                <span className="bg-slate-950/50 text-cyan-400 px-1 rounded-sm border border-slate-800 shrink-0 uppercase tracking-widest font-mono" style={{ fontSize: `${Math.max(8, fs - 3)}px` }}>
+                                                  {item.capturedDate}
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                          <div className="absolute right-2 opacity-0 group-hover/item:opacity-100 transition-opacity flex bg-slate-900 rounded-sm">
+                                            <button 
+                                              className="hover:text-cyan-400 p-1.5 transition-colors shrink-0 disabled:opacity-50"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setEditTarget(item);
+                                                setIsEditModalOpen(true);
+                                              }}
+                                              disabled={isSelectMode}
+                                            >
+                                              <Edit2 size={12} />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+
+                          {/* 親フォルダ直下のアイテム */}
+                          {parent.directItems.map(item => {
+                            const isActive = currentItem?.id === item.id;
+                            const isChecked = selectedIds.has(item.id);
+                            return (
+                              <div 
+                                key={item.id} 
+                                className={`
+                                  flex items-center py-1.5 px-2 rounded-sm cursor-pointer border-l-2 transition-colors group/item relative
+                                  ${isActive ? 'bg-cyan-900/20 border-cyan-500 text-cyan-400' : 'border-transparent text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'}
+                                `}
+                                onClick={() => {
+                                  if (isSelectMode) {
+                                    const newSet = new Set(selectedIds);
+                                    if (newSet.has(item.id)) newSet.delete(item.id);
+                                    else newSet.add(item.id);
+                                    setSelectedIds(newSet);
+                                  } else {
+                                    handleItemClick(item);
+                                  }
+                                }}
+                              >
+                                {isSelectMode && (
+                                  <div className="mr-3 flex items-center justify-center shrink-0">
+                                    <input 
+                                      type="checkbox" 
+                                      className="custom-checkbox pointer-events-none"
+                                      checked={isChecked}
+                                      readOnly
+                                    />
+                                  </div>
+                                )}
+                                <div className="flex-1 min-w-0 flex flex-col">
+                                  <span className="truncate font-semibold leading-snug" style={{ fontSize: `${fs}px` }}>{item.title}</span>
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    <span className="truncate opacity-60" style={{ fontSize: `${Math.max(8, fs - 3)}px` }}>
+                                      {item.parsed?.isValid ? `🧭 ${item.parsed.lat}, ${item.parsed.lng}` : '🗺️ 通常URL'}
+                                    </span>
+                                    {item.capturedDate && (
+                                      <span className="bg-slate-950/50 text-cyan-400 px-1 rounded-sm border border-slate-800 shrink-0 uppercase tracking-widest font-mono" style={{ fontSize: `${Math.max(8, fs - 3)}px` }}>
+                                        {item.capturedDate}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="absolute right-2 opacity-0 group-hover/item:opacity-100 transition-opacity flex bg-slate-900 rounded-sm">
+                                  <button 
+                                    className="hover:text-cyan-400 p-1.5 transition-colors shrink-0 disabled:opacity-50"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditTarget(item);
+                                      setIsEditModalOpen(true);
+                                    }}
+                                    disabled={isSelectMode}
+                                  >
+                                    <Edit2 size={12} />
+                                  </button>
                                 </div>
                               </div>
-                              <div className="absolute right-2 opacity-0 group-hover/item:opacity-100 transition-opacity flex bg-slate-900 rounded-sm">
-                                <button 
-                                  className="hover:text-cyan-400 p-1.5 transition-colors shrink-0 disabled:opacity-50"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setEditTarget(item);
-                                    setIsEditModalOpen(true);
-                                  }}
-                                  disabled={isSelectMode}
-                                >
-                                  <Edit2 size={12} />
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                });
+              })()
             )}
           </div>
 
@@ -1189,21 +1415,19 @@ export default function App() {
           {/* Header Area (always visible to maintain height) */}
           {!isImmersive && (
             <div 
-              className="h-12 border-b border-slate-800 bg-header-bg/80 backdrop-blur-md flex items-center justify-between shrink-0 z-20 relative transition-all duration-300"
+              className="h-12 border-b border-slate-800 bg-header-bg/80 backdrop-blur-md flex items-center justify-between shrink-0 z-20 relative flex-nowrap overflow-hidden px-3 sm:px-4"
               style={{ 
                 marginRight: (isSidebarOpen && settings.sidebarPosition === 'right') ? `${settings.sidebarWidth}px` : '0px',
                 marginLeft: (isSidebarOpen && settings.sidebarPosition === 'left') ? `${settings.sidebarWidth}px` : '0px',
-                paddingRight: '24px',
-                paddingLeft: '24px',
               }}
             >
-              <div className="flex items-center gap-3 min-w-0 font-mono text-xs">
-                <span className="text-white/90 uppercase tracking-widest text-[9px]">{t('currLoc')}</span>
+              <div className="flex items-center gap-2 min-w-0 font-mono text-xs shrink overflow-hidden mr-2">
+                <span className="text-white/90 uppercase tracking-widest text-[9px] shrink-0">{t('currLoc')}</span>
                 {(activeTab && currentItem) ? (
                   <>
                     <span className="text-white truncate font-bold location-title-text">{currentItem.title}</span>
                     {currentItem.capturedDate && (
-                      <span className="bg-slate-800 border border-slate-700 text-cyan-400 px-1.5 py-0.5 rounded-sm text-[9px] shrink-0">
+                      <span className="bg-slate-800 border border-slate-700 text-cyan-400 px-1.5 py-0.5 rounded-sm text-[9px] shrink-0 hidden md:inline-block">
                         {t('captured')} {currentItem.capturedDate}
                       </span>
                     )}
@@ -1212,49 +1436,70 @@ export default function App() {
                   <span className="text-white/40 truncate font-bold">-</span>
                 )}
               </div>
-              <div className="flex gap-2 shrink-0 items-center">
+              <div className="flex gap-1.5 sm:gap-2 shrink-0 items-center flex-nowrap">
                 {isSidebarOpen && (
-                  <div className="flex items-center">
-                    <div className="flex items-center gap-2 mr-4">
-                      <span className="text-[10px] text-white/90 font-bold uppercase hidden sm:block">{t('sidebarOpacity')}</span>
+                  <div className="hidden sm:flex items-center flex-nowrap">
+                    {/* 不透明度スライダー (OPACITY) */}
+                    <div className="flex items-center gap-1.5 mr-2.5">
+                      <span className="text-[10px] text-white/90 font-bold uppercase tracking-wider hidden md:block">OPACITY</span>
                       <input 
                         type="range" 
                         min="10" 
                         max="100" 
                         value={Math.round((settings.sidebarOpacity ?? 1) * 100)} 
                         onChange={(e) => saveSettings({ ...settings, sidebarOpacity: Number(e.target.value) / 100 })}
-                        className="w-16 sm:w-24 accent-cyan-500 h-1.5 bg-black/40 rounded-lg appearance-none cursor-pointer shadow-inner border border-black/20"
+                        className="w-14 sm:w-16 solid-square-slider"
+                        title={`不透明度: ${Math.round((settings.sidebarOpacity ?? 1) * 100)}%`}
                       />
+                      <span className="text-[9px] font-mono text-cyan-400 font-bold w-5 text-right">
+                        {Math.round((settings.sidebarOpacity ?? 1) * 100)}
+                      </span>
                     </div>
                     
-                    <div className="hidden sm:block w-px h-4 bg-white/20 mr-2"></div>
-                    <div className="hidden sm:flex items-center gap-2 mr-2">
-                      <span className="text-[10px] text-white/90 font-bold uppercase tracking-wider">SIDEBAR</span>
-                      <div className="flex bg-transparent border border-white/20 rounded-[4px] p-[2px]">
-                        <button 
-                          onClick={() => saveSettings({ ...settings, sidebarPosition: 'left' })}
-                          className={`px-3 py-0.5 text-[9px] font-bold rounded-[3px] transition-colors uppercase ${settings.sidebarPosition === 'left' ? 'bg-black/60 text-white shadow-sm' : 'text-white/50 hover:text-white/80'}`}
-                        >
-                          LEFT
-                        </button>
-                        <button 
-                          onClick={() => saveSettings({ ...settings, sidebarPosition: 'right' })}
-                          className={`px-3 py-0.5 text-[9px] font-bold rounded-[3px] transition-colors uppercase ${settings.sidebarPosition === 'right' ? 'bg-black/60 text-white shadow-sm' : 'text-white/50 hover:text-white/80'}`}
-                        >
-                          RIGHT
-                        </button>
-                      </div>
+                    <div className="hidden sm:block w-px h-4 bg-white/20 mr-2.5"></div>
+
+                    {/* サイドバー幅スライダー (WIDTH) - 他と完全に同じ幅・同じスタイルのネイティブスライダー */}
+                    <div className="hidden sm:flex items-center gap-1 mr-2.5">
+                      <span className="text-[10px] text-white/90 font-bold uppercase tracking-wider">WIDTH</span>
+                      <input 
+                        type="range" 
+                        min="200" 
+                        max="550" 
+                        step="1"
+                        value={settings.sidebarWidth || 320} 
+                        onChange={(e) => saveSettings({ ...settings, sidebarWidth: Number(e.target.value) })}
+                        className="w-14 sm:w-16 solid-square-slider"
+                        title={`サイドバー幅: ${settings.sidebarWidth || 320}px`}
+                      />
+                      <span className="text-[9px] font-mono text-cyan-400 font-bold w-6 text-right">
+                        {settings.sidebarWidth || 320}
+                      </span>
                     </div>
+
+                    <div className="hidden sm:block w-px h-4 bg-white/20 mr-2.5"></div>
+
+                    {/* 文字サイズスライダー (TEXT) */}
+                    <div className="hidden sm:flex items-center gap-1 mr-2.5">
+                      <span className="text-[10px] text-white/90 font-bold uppercase tracking-wider">TEXT</span>
+                      <input 
+                        type="range" 
+                        min="10" 
+                        max="18" 
+                        step="1"
+                        value={getSidebarFontSizePx()} 
+                        onChange={(e) => saveSettings({ ...settings, sidebarFontSize: Number(e.target.value) })}
+                        className="w-14 sm:w-16 solid-square-slider"
+                        title={`文字サイズ: ${getSidebarFontSizePx()}px`}
+                      />
+                      <span className="text-[9px] font-mono text-cyan-400 font-bold w-6 text-right">
+                        {getSidebarFontSizePx()}P
+                      </span>
+                    </div>
+
                     <div className="hidden sm:block w-px h-4 bg-white/20 mr-2"></div>
                   </div>
                 )}
-                <button 
-                  onClick={toggleFullscreen}
-                  className="p-1.5 text-white/90 hover:bg-white/20 hover:text-white rounded-md transition-colors"
-                  title={isFullscreen ? t('exitFullscreen') : t('fullscreen')}
-                >
-                  {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
-                </button>
+
                 <button 
                   onClick={() => {
                     const themes = ['navy', 'dark', 'light', 'mocha', 'latte'] as const;
@@ -1262,35 +1507,65 @@ export default function App() {
                     const nextTheme = themes[(currentIndex + 1) % themes.length];
                     saveSettings({ ...settings, theme: nextTheme });
                   }}
-                  className="flex items-center gap-1.5 border border-white/20 hover:border-cyan-500 hover:bg-white/10 text-[10px] text-white/90 hover:text-cyan-400 font-bold px-2 py-1 rounded-md uppercase tracking-wider transition-colors shrink-0"
-                  title="テーマ切り替え"
+                  className="flex items-center justify-center gap-1.5 border border-white/20 hover:border-cyan-500 hover:bg-white/10 text-[10px] text-white/90 hover:text-cyan-400 font-bold px-2 py-1 rounded-md uppercase tracking-wider transition-colors shrink-0 w-[78px]"
+                  title={`テーマ切り替え: ${(settings.theme || 'navy').toUpperCase()}`}
                 >
-                  <Palette size={12} /> THEME: {settings.theme || 'navy'}
+                  <Palette size={12} className="shrink-0" />
+                  <span>{settings.theme || 'navy'}</span>
                 </button>
+
                 <button 
                   onClick={() => setIsSettingsOpen(true)}
-                  className="p-1.5 text-white/90 hover:bg-white/20 hover:text-white rounded-md transition-colors"
+                  className="p-1.5 text-white/90 hover:bg-white/20 hover:text-white rounded-md transition-colors shrink-0"
                   title="設定"
                 >
-                  <Settings size={16} />
+                  <Settings size={15} />
                 </button>
+
+                <button 
+                  onClick={() => setIsImmersive(true)}
+                  className="flex items-center gap-1 border border-white/20 hover:border-cyan-500 hover:bg-white/10 text-[10px] text-white/90 hover:text-cyan-400 font-bold px-2 py-1 rounded-md uppercase tracking-wider transition-colors shrink-0"
+                  title="UIを非表示 (Hide UI)"
+                >
+                  <EyeOff size={12} /> <span className="hidden lg:inline">HIDE UI</span>
+                </button>
+
                 {(activeTab && currentItem) ? (
                   <a 
                     href={currentItem.url} 
                     target="_blank" 
                     rel="noreferrer"
-                    className="flex items-center gap-1.5 bg-transparent border border-white/40 hover:border-white hover:bg-white/10 text-white font-bold text-[10px] px-3 py-1.5 rounded-md uppercase tracking-wider transition-colors open-map-btn"
+                    className="flex items-center gap-1 bg-transparent border border-white/40 hover:border-white hover:bg-white/10 text-white font-bold text-[10px] px-2 py-1 rounded-md uppercase tracking-wider transition-colors open-map-btn shrink-0"
                   >
-                    <MapIcon size={12} /> {t('openMap')}
+                    <MapIcon size={12} /> <span className="hidden lg:inline">{t('openMap')}</span>
                   </a>
                 ) : (
                   <button 
                     disabled
-                    className="flex items-center gap-1.5 bg-transparent border border-slate-800 text-slate-600 font-bold text-[10px] px-3 py-1.5 rounded-md uppercase tracking-wider cursor-not-allowed"
+                    className="flex items-center gap-1 bg-transparent border border-slate-800 text-slate-600 font-bold text-[10px] px-2 py-1 rounded-md uppercase tracking-wider cursor-not-allowed shrink-0"
                   >
-                    <MapIcon size={12} /> {t('openMap')}
+                    <MapIcon size={12} /> <span className="hidden lg:inline">{t('openMap')}</span>
                   </button>
                 )}
+
+                {/* 最右端：サイドバー位置切替トグルアイコン ＆ 全画面ボタン */}
+                <div className="flex items-center gap-1 border-l border-white/20 pl-2 ml-1 shrink-0">
+                  <button 
+                    onClick={() => saveSettings({ ...settings, sidebarPosition: settings.sidebarPosition === 'left' ? 'right' : 'left' })}
+                    className="p-1.5 text-white/90 hover:bg-white/20 hover:text-cyan-400 rounded-md transition-colors border border-white/20 hover:border-white/40"
+                    title={`サイドバー位置切替 (現在: ${settings.sidebarPosition === 'left' ? '左' : '右'} / クリックで${settings.sidebarPosition === 'left' ? '右' : '左'}側へ移動)`}
+                  >
+                    {settings.sidebarPosition === 'left' ? <PanelLeft size={15} /> : <PanelRight size={15} />}
+                  </button>
+
+                  <button 
+                    onClick={toggleFullscreen}
+                    className="p-1.5 text-white/90 hover:bg-white/20 hover:text-white rounded-md transition-colors border border-white/20 hover:border-white/40"
+                    title={isFullscreen ? t('exitFullscreen') : t('fullscreen')}
+                  >
+                    {isFullscreen ? <Minimize size={15} /> : <Maximize size={15} />}
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -1298,43 +1573,77 @@ export default function App() {
           {/* === Tab Bar === */}
           {(tabs.length > 0 && !isImmersive) && (
             <div 
-              className="flex items-center bg-slate-900 border-b border-slate-800 shrink-0 z-20 relative transition-all duration-300 h-12"
+              className="flex items-center bg-slate-900 border-b border-slate-800 shrink-0 z-20 relative h-12"
               style={{ 
                 marginRight: (isSidebarOpen && settings.sidebarPosition === 'right') ? `${settings.sidebarWidth}px` : '0px',
                 marginLeft: (isSidebarOpen && settings.sidebarPosition === 'left') ? `${settings.sidebarWidth}px` : '0px',
               }}
             >
-              <button
-                onPointerDown={() => startScroll('left')}
-                onPointerUp={stopScroll}
-                onPointerLeave={stopScroll}
-                className="p-2.5 text-slate-500 hover:text-white hover:bg-slate-800 transition-colors shrink-0"
-              >
-                <ChevronLeft size={16} />
-              </button>
+              <div className="flex items-center shrink-0 border-r border-slate-800">
+                <button
+                  onClick={goToFirstTab}
+                  disabled={currentTabIndex <= 0}
+                  className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                  title="一番最初のタブへ移動 (最左端)"
+                >
+                  <ChevronsLeft size={16} />
+                </button>
+                <button
+                  onClick={goToPrevTab}
+                  disabled={currentTabIndex <= 0}
+                  className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                  title="前のタブへ移動 (左)"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+              </div>
 
               <div 
                 ref={tabsContainerRef}
-                className="flex-1 flex items-center gap-1 py-2 overflow-x-auto scrollbar-hide"
+                className="flex-1 flex items-center gap-1 py-2 px-1 overflow-x-auto scrollbar-hide"
               >
                 {tabs.map((tab, idx) => (
                   <button
                     key={tab.id}
+                    ref={(node) => {
+                      if (node) tabRefs.current.set(tab.id, node);
+                      else tabRefs.current.delete(tab.id);
+                    }}
+                    draggable
+                    onDragStart={(e) => handleTabDragStart(e, idx)}
+                    onDragOver={(e) => handleTabDragOver(e, idx)}
+                    onDrop={(e) => handleTabDrop(e, idx)}
+                    onDragEnd={handleTabDragEnd}
                     onClick={() => setActiveTabId(tab.id)}
-                    className={`flex items-center gap-2 px-3 py-1.5 border text-[10px] uppercase font-mono font-bold whitespace-nowrap transition-colors
+                    className={`flex items-center gap-2 px-3 py-1.5 border text-[10px] uppercase font-mono font-bold whitespace-nowrap transition-all cursor-grab active:cursor-grabbing select-none
+                      ${draggedTabIndex === idx ? 'opacity-30 scale-95 border-dashed border-cyan-400' : ''}
+                      ${dragOverTabIndex === idx && draggedTabIndex !== idx ? 'border-cyan-400 bg-cyan-950/50 shadow-[inset_0_0_8px_rgba(6,182,212,0.4)] ring-1 ring-cyan-400' : ''}
                       ${activeTabId === tab.id 
-                        ? 'bg-slate-800 border-slate-600 text-white' 
+                        ? 'bg-slate-800 border-slate-600 text-white shadow-sm' 
                         : 'bg-transparent border-slate-700 border-dashed text-slate-500 hover:bg-slate-800/50 hover:text-slate-300 hover:border-slate-600'
                       }`}
+                    title="クリックで選択 / ドラッグで並べ替え"
                   >
-                    <span className="truncate max-w-[120px]">
+                    <span className="truncate max-w-[120px] pointer-events-none">
                       {tab.location ? tab.location.title : `TAB ${(idx + 1).toString().padStart(2, '0')}`}
                     </span>
-                    <X 
-                      size={12} 
-                      className={`opacity-50 hover:opacity-100 cursor-pointer ${activeTabId === tab.id ? 'text-white' : 'text-slate-500'}`} 
-                      onClick={(e) => closeTab(e, tab.id)} 
-                    />
+                    <div 
+                      className="flex items-center gap-1.5 ml-1"
+                      onMouseDown={(e) => e.stopPropagation()}
+                    >
+                      <Copy 
+                        size={11} 
+                        className="opacity-40 hover:opacity-100 hover:text-cyan-400 cursor-pointer transition-all" 
+                        title="タブを複製 (コピー)" 
+                        onClick={(e) => duplicateTab(e, tab)} 
+                      />
+                      <X 
+                        size={12} 
+                        className={`opacity-50 hover:opacity-100 hover:text-rose-400 cursor-pointer transition-all ${activeTabId === tab.id ? 'text-white' : 'text-slate-500'}`} 
+                        title="タブを閉じる"
+                        onClick={(e) => closeTab(e, tab.id)} 
+                      />
+                    </div>
                   </button>
                 ))}
                 
@@ -1354,39 +1663,50 @@ export default function App() {
                 </button>
               </div>
 
-              <button
-                onPointerDown={() => startScroll('right')}
-                onPointerUp={stopScroll}
-                onPointerLeave={stopScroll}
-                className="p-2.5 text-slate-500 hover:text-white hover:bg-slate-800 transition-colors shrink-0"
-              >
-                <ChevronRight size={16} />
-              </button>
+              <div className="flex items-center shrink-0 border-l border-slate-800">
+                <button
+                  onClick={goToNextTab}
+                  disabled={currentTabIndex >= tabs.length - 1}
+                  className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                  title="次のタブへ移動 (右)"
+                >
+                  <ChevronRight size={16} />
+                </button>
+                <button
+                  onClick={goToLastTab}
+                  disabled={currentTabIndex >= tabs.length - 1}
+                  className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                  title="一番最後のタブへ移動 (最右端)"
+                >
+                  <ChevronsRight size={16} />
+                </button>
+              </div>
             </div>
           )}
 
-          {/* Sidebar Toggle Button (Expanding tab with wider hit area) */}
+          {/* Sidebar Toggle Button (Clearly visible boundary handle) */}
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="absolute top-1/2 -translate-y-1/2 z-[60] flex items-center justify-center group cursor-pointer transition-all duration-300"
+            className={`absolute top-1/2 -translate-y-1/2 z-[60] flex items-center justify-center group cursor-pointer ${settings.sidebarPosition === 'left' ? '-translate-x-1/2' : 'translate-x-1/2'}`}
             style={{
               width: '24px',
-              height: '100px',
+              height: '90px',
               left: settings.sidebarPosition === 'left' ? (isSidebarOpen ? `${settings.sidebarWidth}px` : '0px') : 'auto',
               right: settings.sidebarPosition === 'right' ? (isSidebarOpen ? `${settings.sidebarWidth}px` : '0px') : 'auto',
             }}
-            title="サイドバーを開閉"
+            title={isSidebarOpen ? "サイドバーを閉じる" : "サイドバーを開く"}
           >
             <div 
-              className={`absolute top-1/2 -translate-y-1/2 bg-slate-700/60 group-hover:bg-slate-600 transition-all duration-300 shadow-lg backdrop-blur-sm flex items-center justify-center h-[80px] text-white
-                ${settings.sidebarPosition === 'left' ? 'left-0 rounded-r-md' : 'right-0 rounded-l-md'}
-                w-[6px] group-hover:w-[20px]`}
+              className="flex items-center justify-center transition-all duration-200 shadow-md backdrop-blur-sm text-white rounded-full
+                h-[48px] w-[4px] group-hover:w-[20px]
+                bg-slate-300/80 group-hover:bg-slate-900 border border-slate-600/70 group-hover:border-cyan-400
+                opacity-70 group-hover:opacity-100"
             >
-              <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 overflow-hidden shrink-0 flex items-center justify-center w-full">
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 overflow-hidden shrink-0 flex items-center justify-center w-full text-cyan-400">
                 {settings.sidebarPosition === 'left' ? (
-                  isSidebarOpen ? <ChevronLeft size={14} /> : <ChevronRight size={14} />
+                  isSidebarOpen ? <ChevronLeft size={13} /> : <ChevronRight size={13} />
                 ) : (
-                  isSidebarOpen ? <ChevronRight size={14} /> : <ChevronLeft size={14} />
+                  isSidebarOpen ? <ChevronRight size={13} /> : <ChevronLeft size={13} />
                 )}
               </div>
             </div>
@@ -1476,10 +1796,11 @@ export default function App() {
                   <input 
                     type="range" 
                     min="200" 
-                    max="600" 
+                    max="550" 
+                    step="1"
                     value={settings.sidebarWidth} 
                     onChange={(e) => saveSettings({ ...settings, sidebarWidth: Number(e.target.value) })}
-                    className="w-full accent-cyan-500 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer"
+                    className="w-full solid-square-slider"
                   />
                 </div>
 
@@ -1497,7 +1818,7 @@ export default function App() {
                     max="100" 
                     value={Math.round((settings.sidebarOpacity ?? 1) * 100)} 
                     onChange={(e) => saveSettings({ ...settings, sidebarOpacity: Number(e.target.value) / 100 })}
-                    className="w-full accent-cyan-500 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer"
+                    className="w-full solid-square-slider"
                   />
                 </div>
 
@@ -1505,19 +1826,42 @@ export default function App() {
                   <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">
                     {t('sidebarPos')}
                   </label>
-                  <div className="flex bg-slate-800 rounded-md p-1 border border-slate-700">
+                  <div className="flex bg-slate-800 rounded-none p-1 border border-slate-700">
                     <button 
-                      className={`flex-1 flex justify-center items-center py-1.5 text-xs font-bold rounded-sm transition-colors ${settings.sidebarPosition === 'left' ? 'bg-cyan-600 text-black' : 'text-slate-400 hover:text-slate-200'}`}
+                      className={`flex-1 flex justify-center items-center py-1.5 text-xs font-bold transition-colors ${settings.sidebarPosition === 'left' ? 'bg-cyan-600 text-black' : 'text-slate-400 hover:text-slate-200'}`}
                       onClick={() => saveSettings({ ...settings, sidebarPosition: 'left' })}
                     >
                       {t('posLeft')}
                     </button>
                     <button 
-                      className={`flex-1 flex justify-center items-center py-1.5 text-xs font-bold rounded-sm transition-colors ${settings.sidebarPosition === 'right' ? 'bg-cyan-600 text-black' : 'text-slate-400 hover:text-slate-200'}`}
+                      className={`flex-1 flex justify-center items-center py-1.5 text-xs font-bold transition-colors ${settings.sidebarPosition === 'right' ? 'bg-cyan-600 text-black' : 'text-slate-400 hover:text-slate-200'}`}
                       onClick={() => saveSettings({ ...settings, sidebarPosition: 'right' })}
                     >
                       {t('posRight')}
                     </button>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                      {t('sidebarFontSize')}
+                    </label>
+                    <span className="text-xs font-mono font-bold text-cyan-400">{getSidebarFontSizePx()}PX</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="10" 
+                    max="18" 
+                    step="1"
+                    value={getSidebarFontSizePx()} 
+                    onChange={(e) => saveSettings({ ...settings, sidebarFontSize: Number(e.target.value) })}
+                    className="w-full solid-square-slider"
+                  />
+                  <div className="flex justify-between text-[9px] text-slate-500 font-mono mt-1">
+                    <span>10px (小)</span>
+                    <span>12px (標準)</span>
+                    <span>18px (大)</span>
                   </div>
                 </div>
 
