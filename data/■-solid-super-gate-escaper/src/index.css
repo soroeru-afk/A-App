@@ -85,6 +85,12 @@
   --color-cyan-200: #bac8dc;
 }
 
+/* Dark Theme 専用: LOCATIONヘッダーバー背景色 (添付画像通りのスレートカラー #262b36) */
+.theme-dark .location-header-bar,
+.theme-dark .h-12.bg-header-bg\/80 {
+  background-color: #262b36 !important;
+}
+
 /* Mocha Theme Overrides (Warm Dark Brown) */
 .theme-mocha {
   --color-slate-950: #fdf5eb;

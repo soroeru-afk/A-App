@@ -27,12 +27,152 @@ export interface LocationItem {
   };
 }
 
+// === Google Maps 直接ストリートビューURLの安全生成ユーティリティ ===
+export const getDirectStreetViewUrl = (urlOrLoc: string | { url?: string; parsed?: any }) => {
+  let rawUrl = '';
+  let parsedObj: any = null;
+
+  if (typeof urlOrLoc === 'string') {
+    rawUrl = urlOrLoc;
+  } else if (urlOrLoc && typeof urlOrLoc === 'object') {
+    rawUrl = urlOrLoc.url || '';
+    parsedObj = urlOrLoc.parsed;
+  }
+
+  if (!rawUrl && !parsedObj) return '';
+
+  // 1. すでに parsed がある場合、または rawUrl から座標を抽出
+  const latLngMatch = rawUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  const lat = parsedObj?.lat !== undefined && parsedObj?.lat !== null ? String(parsedObj.lat) : (latLngMatch ? latLngMatch[1] : null);
+  const lng = parsedObj?.lng !== undefined && parsedObj?.lng !== null ? String(parsedObj.lng) : (latLngMatch ? latLngMatch[2] : null);
+
+  if (lat && lng) {
+    // pano ID
+    let pano = parsedObj?.pano;
+    if (!pano) {
+      const panoMatch = rawUrl.match(/!1s([^!&?]+)/);
+      if (panoMatch) pano = panoMatch[1];
+    }
+
+    // heading (h)
+    let headingVal = 0;
+    if (parsedObj?.heading !== undefined && parsedObj?.heading !== null) {
+      headingVal = parseFloat(String(parsedObj.heading)) || 0;
+    } else {
+      const hMatch = rawUrl.match(/,(-?\d+(?:\.\d+)?)h/);
+      if (hMatch) headingVal = parseFloat(hMatch[1]) || 0;
+    }
+    const headingStr = `${Math.round(headingVal)}h`;
+
+    // pitch (t) : Google Maps の URL では 90t が正面（水平）、84t や 95t など
+    let pitchT = 90;
+    const tMatch = rawUrl.match(/,(-?\d+(?:\.\d+)?)t/);
+    if (tMatch) {
+      pitchT = parseFloat(tMatch[1]);
+    } else if (parsedObj?.pitch !== undefined && parsedObj?.pitch !== null) {
+      const pVal = parseFloat(String(parsedObj.pitch));
+      pitchT = 90 - (isNaN(pVal) ? 0 : pVal);
+    }
+    const pitchStr = `${pitchT.toFixed(2)}t`;
+    const fov = '75y';
+
+    if (pano) {
+      return `https://www.google.com/maps/@${lat},${lng},3a,${fov},${headingStr},${pitchStr}/data=!3m6!1e1!3m4!1s${pano}!2e0!7i16384!8i8192`;
+    }
+    return `https://www.google.com/maps/@${lat},${lng},3a,${fov},${headingStr},${pitchStr}/data=!3m4!1e1!3m2!1e1!2e0`;
+  }
+
+  // 2. 座標パースができない場合でも、自アプリのドメインや重複を削ぎ落として Google Maps の URL を修復
+  let cleaned = rawUrl.trim();
+  const googleIdx = cleaned.search(/google\.(?:com|co\.jp)\/maps/i);
+  if (googleIdx !== -1) {
+    cleaned = 'https://www.' + cleaned.slice(googleIdx);
+  } else if (!cleaned.startsWith('http://') && !cleaned.startsWith('https://')) {
+    cleaned = 'https://' + cleaned;
+  }
+
+  return cleaned;
+};
+
+// === 新しいウィンドウをモニター中央 (1920×1100) で開くユーティリティ ===
+export const openInCenteredWindow = (urlOrLoc: string | LocationItem, width = 1920, height = 1100) => {
+  if (!urlOrLoc) return;
+  const targetUrl = getDirectStreetViewUrl(urlOrLoc);
+  if (!targetUrl) return;
+
+  // 1. モニターの利用可能領域を取得 (iframe内のinnerHeightではなく、モニター自体の解像度を使用)
+  const screenObj = typeof window !== 'undefined' ? (window.screen as any) : null;
+  const availW = screenObj?.availWidth || screenObj?.width || 1920;
+  const availH = screenObj?.availHeight || screenObj?.height || 1080;
+
+  // モニターの有効高さに収まるように調整 (フルHD 1080p環境でも上下にマージンを残して完全中央配置)
+  const targetW = Math.min(width, availW);
+  const targetH = Math.min(height, Math.max(600, availH - 60));
+
+  // 2. 現在のウィンドウが存在するモニターの左上原点 (マルチモニター対応)
+  let monitorLeft = 0;
+  let monitorTop = 0;
+
+  if (screenObj && typeof screenObj.availLeft === 'number' && typeof screenObj.availTop === 'number') {
+    // Chrome / Edge などの最新マルチモニター座標
+    monitorLeft = screenObj.availLeft;
+    monitorTop = screenObj.availTop;
+  } else {
+    // フォールバック: 現在のウィンドウ位置からモニター基点を算出
+    const currentX = window.screenLeft !== undefined ? window.screenLeft : (window.screenX || 0);
+    const currentY = window.screenTop !== undefined ? window.screenTop : (window.screenY || 0);
+    
+    // 現在のウィンドウ中心があるモニターの原点を計算
+    const windowCenterX = currentX + (window.outerWidth || availW) / 2;
+    const windowCenterY = currentY + (window.outerHeight || availH) / 2;
+    monitorLeft = Math.floor(windowCenterX / availW) * availW;
+    monitorTop = Math.floor(windowCenterY / availH) * availH;
+  }
+
+  // 3. モニターの中央座標 (left, top) を算出
+  const left = Math.round(monitorLeft + (availW - targetW) / 2);
+  const top = Math.round(monitorTop + (availH - targetH) / 2);
+
+  const features = [
+    `width=${targetW}`,
+    `height=${targetH}`,
+    `left=${left}`,
+    `top=${top}`,
+    'resizable=yes',
+    'scrollbars=yes',
+    'status=yes',
+    'menubar=no',
+    'toolbar=no',
+    'location=yes'
+  ].join(',');
+
+  const win = window.open(targetUrl, '_blank', features);
+  if (win) {
+    try {
+      // featuresの座標に加えてmoveTo/resizeToも実行して確実に中央配置
+      win.moveTo(left, top);
+      win.resizeTo(targetW, targetH);
+      win.focus();
+    } catch {
+      win.focus();
+    }
+  }
+};
+
 interface LinkManagerViewProps {
   locations: LocationItem[];
   allFolders: string[];
+  initialFolder?: string | null;
+  navigationToken?: number;
+  onFolderSelect?: (folder: string | null) => void;
+  parentFolderOrder?: string[];
+  onReorderParentFolders?: (newOrder: string[]) => void;
+  subFolderOrder?: Record<string, string[]>;
+  onReorderSubFolders?: (parentName: string, newOrder: string[]) => void;
   theme?: string;
   onSelectLocation: (loc: LocationItem) => void;
-  onOpenInNewTab: (loc: LocationItem) => void;
+  onOpenInNewTab?: (loc: LocationItem) => void;
+  onOpenInNewWindow?: (loc: LocationItem) => void;
   onEditLocation: (loc: LocationItem) => void;
   onDeleteLocation: (id: string) => void;
   onBulkDelete: (ids: string[]) => void;
@@ -44,14 +184,26 @@ interface LinkManagerViewProps {
   onDeleteFolder: (folderName: string) => void;
   onAddLocation: () => void;
   onCloseManager: () => void;
+  listFontSize?: number;
+  onUpdateListFontSize?: (size: number) => void;
   language: 'jp' | 'en';
 }
 
 export const LinkManagerView: React.FC<LinkManagerViewProps> = ({
   locations,
   allFolders,
+  initialFolder = null,
+  navigationToken,
+  onFolderSelect,
+  parentFolderOrder = [],
+  onReorderParentFolders,
+  subFolderOrder = {},
+  onReorderSubFolders,
+  listFontSize = 12,
+  onUpdateListFontSize,
   onSelectLocation,
   onOpenInNewTab,
+  onOpenInNewWindow,
   onEditLocation,
   onDeleteLocation,
   onBulkDelete,
@@ -65,12 +217,108 @@ export const LinkManagerView: React.FC<LinkManagerViewProps> = ({
   onCloseManager,
   language,
 }) => {
-  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  // 階層ナビゲーション状態: 親フォルダ (第1階層) と 子フォルダ (第2階層)
+  const [selectedParent, setSelectedParent] = useState<string | null>(() => {
+    if (!initialFolder) return null;
+    const parts = initialFolder.split(' / ');
+    return parts[0].trim();
+  });
+  const [selectedSub, setSelectedSub] = useState<string | null>(() => {
+    if (!initialFolder) return null;
+    const parts = initialFolder.split(' / ');
+    return parts.length > 1 ? initialFolder : null;
+  });
+
+  // カテゴリカードのドラッグ＆ドロップ並び替え状態 (第1階層 親フォルダ)
+  const [draggedCardParent, setDraggedCardParent] = useState<string | null>(null);
+  const [dragOverCardParent, setDragOverCardParent] = useState<string | null>(null);
+
+  const handleCardParentDrop = (targetParent: string) => {
+    if (!draggedCardParent || draggedCardParent === targetParent || !onReorderParentFolders) {
+      setDraggedCardParent(null);
+      setDragOverCardParent(null);
+      return;
+    }
+    const currentOrder = hierarchicalData.map(p => p.name);
+    const fromIndex = currentOrder.indexOf(draggedCardParent);
+    const toIndex = currentOrder.indexOf(targetParent);
+    if (fromIndex === -1 || toIndex === -1) {
+      setDraggedCardParent(null);
+      setDragOverCardParent(null);
+      return;
+    }
+    const newOrder = [...currentOrder];
+    const [moved] = newOrder.splice(fromIndex, 1);
+    newOrder.splice(toIndex, 0, moved);
+    onReorderParentFolders(newOrder);
+    setDraggedCardParent(null);
+    setDragOverCardParent(null);
+  };
+
+  // サブカテゴリカードのドラッグ＆ドロップ並び替え状態 (第2階層 中間層フォルダ)
+  const [draggedCardSub, setDraggedCardSub] = useState<string | null>(null);
+  const [dragOverCardSub, setDragOverCardSub] = useState<string | null>(null);
+
+  const handleCardSubDrop = (targetSubName: string) => {
+    if (!draggedCardSub || draggedCardSub === targetSubName || !selectedParent || !onReorderSubFolders) {
+      setDraggedCardSub(null);
+      setDragOverCardSub(null);
+      return;
+    }
+    const currentSubs = currentParentInfo?.subFolders.map(s => s.name) || [];
+    const fromIndex = currentSubs.indexOf(draggedCardSub);
+    const toIndex = currentSubs.indexOf(targetSubName);
+    if (fromIndex === -1 || toIndex === -1) {
+      setDraggedCardSub(null);
+      setDragOverCardSub(null);
+      return;
+    }
+    const newOrder = [...currentSubs];
+    const [moved] = newOrder.splice(fromIndex, 1);
+    newOrder.splice(toIndex, 0, moved);
+    onReorderSubFolders(selectedParent, newOrder);
+    setDraggedCardSub(null);
+    setDragOverCardSub(null);
+  };
+
+  // initialFolder / navigationToken の外部変更検知 (サイドバー連動)
+  useEffect(() => {
+    if (initialFolder === undefined && navigationToken === undefined) return;
+    if (!initialFolder) {
+      setSelectedParent(null);
+      setSelectedSub(null);
+    } else {
+      const parts = initialFolder.split(' / ');
+      setSelectedParent(parts[0].trim());
+      setSelectedSub(parts.length > 1 ? initialFolder : null);
+    }
+  }, [initialFolder, navigationToken]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [bulkTargetFolder, setBulkTargetFolder] = useState('');
+
+  // === オリジナルカスタム確認ダイアログ・プロンプト状態 ===
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    isDanger?: boolean;
+    onConfirm: () => void;
+  } | null>(null);
+
+  const [promptModal, setPromptModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    defaultValue: string;
+    onConfirm: (val: string) => void;
+  } | null>(null);
+  const [promptInputVal, setPromptInputVal] = useState('');
 
   // === 列幅のリサイズ状態管理 ===
   const [colWidths, setColWidths] = useState<{ title: number; coords: number; dir: number }>({
@@ -137,12 +385,87 @@ export const LinkManagerView: React.FC<LinkManagerViewProps> = ({
     return counts;
   }, [locations]);
 
+  // フォルダ階層データの構築（第1階層の親フォルダと配下のサブフォルダ）
+  const hierarchicalData = useMemo(() => {
+    const parentMap = new Map<string, {
+      name: string;
+      totalCount: number;
+      directCount: number;
+      subFolders: { name: string; fullName: string; count: number }[];
+    }>();
+
+    for (const folder of allFolders) {
+      const parts = folder.split(' / ');
+      const parentName = parts[0].trim();
+      if (!parentMap.has(parentName)) {
+        parentMap.set(parentName, {
+          name: parentName,
+          totalCount: 0,
+          directCount: 0,
+          subFolders: [],
+        });
+      }
+      const info = parentMap.get(parentName)!;
+      const count = folderCounts[folder] || 0;
+      if (parts.length > 1) {
+        const subName = parts.slice(1).join(' / ').trim();
+        info.subFolders.push({
+          name: subName,
+          fullName: folder,
+          count,
+        });
+        info.totalCount += count;
+      } else {
+        info.directCount += count;
+        info.totalCount += count;
+      }
+    }
+
+    const list = Array.from(parentMap.values());
+    // サイドバーのドラッグ＆ドロップ順序 (parentFolderOrder) を即座に反映！
+    list.sort((a, b) => {
+      const idxA = parentFolderOrder.indexOf(a.name);
+      const idxB = parentFolderOrder.indexOf(b.name);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.name.localeCompare(b.name);
+    });
+    list.forEach(p => {
+      const customSubOrder = subFolderOrder[p.name];
+      if (customSubOrder && customSubOrder.length > 0) {
+        p.subFolders.sort((a, b) => {
+          const idxA = customSubOrder.indexOf(a.name);
+          const idxB = customSubOrder.indexOf(b.name);
+          if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+          if (idxA !== -1) return -1;
+          if (idxB !== -1) return 1;
+          return a.name.localeCompare(b.name);
+        });
+      } else {
+        p.subFolders.sort((a, b) => a.name.localeCompare(b.name));
+      }
+    });
+    return list;
+  }, [allFolders, folderCounts, parentFolderOrder, subFolderOrder]);
+
+  const currentParentInfo = useMemo(() => {
+    if (!selectedParent) return null;
+    return hierarchicalData.find(p => p.name === selectedParent) || null;
+  }, [hierarchicalData, selectedParent]);
+
   // フィルタリングされたアイテムリスト
   const filteredItems = useMemo(() => {
     let list = locations;
-    if (selectedFolder !== null) {
-      list = list.filter(loc => (loc.folderName || 'Unassigned') === selectedFolder);
+    if (selectedSub) {
+      list = list.filter(loc => (loc.folderName || 'Unassigned') === selectedSub);
+    } else if (selectedParent) {
+      list = list.filter(loc => {
+        const f = loc.folderName || 'Unassigned';
+        return f === selectedParent || f.startsWith(`${selectedParent} / `);
+      });
     }
+
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       list = list.filter(loc => 
@@ -152,7 +475,33 @@ export const LinkManagerView: React.FC<LinkManagerViewProps> = ({
       );
     }
     return list;
-  }, [locations, selectedFolder, searchQuery]);
+  }, [locations, selectedParent, selectedSub, searchQuery]);
+
+  // === 無限スクロール・遅延読み込み (800件以上のALL DATAでも爆速表示) ===
+  const [visibleCount, setVisibleCount] = useState(60);
+
+  // フォルダ選択や検索キーワードが変わったら表示件数をリセット
+  useEffect(() => {
+    setVisibleCount(60);
+  }, [selectedParent, selectedSub, searchQuery]);
+
+  // 画面に実際に描画するアイテム（必要に応じてスクロールで動的追加）
+  const displayedItems = useMemo(() => {
+    return filteredItems.slice(0, visibleCount);
+  }, [filteredItems, visibleCount]);
+
+  // テーブルスクロール検知（下部に近づいたら次の50件を瞬時に追加）
+  const handleTableScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollTop + clientHeight >= scrollHeight - 350) {
+      setVisibleCount(prev => {
+        if (prev < filteredItems.length) {
+          return Math.min(prev + 50, filteredItems.length);
+        }
+        return prev;
+      });
+    }
+  };
 
   // 全選択 / 解除
   const toggleSelectAll = () => {
@@ -190,59 +539,81 @@ export const LinkManagerView: React.FC<LinkManagerViewProps> = ({
     }
   };
 
+  // 表示中リスト (filteredItems) での並び替え順序を locations 全体に正確に適用・保存する
+  const applyReorderedFilteredItems = (newFiltered: LocationItem[]) => {
+    // 現在の locations において filteredItems に属するアイテムのインデックス位置を収集
+    const filteredIdSet = new Set(filteredItems.map(f => f.id));
+    const indices: number[] = [];
+    locations.forEach((item, index) => {
+      if (filteredIdSet.has(item.id)) {
+        indices.push(index);
+      }
+    });
+
+    const newLocations = [...locations];
+    // 収集したインデックス位置に、新しく並び替えたアイテムを順番に格納
+    indices.forEach((locIndex, i) => {
+      if (i < newFiltered.length) {
+        newLocations[locIndex] = newFiltered[i];
+      }
+    });
+
+    onReorderItems(newLocations);
+  };
+
   // === 複数選択された項目の上下移動（Kナビゲーター方式） ===
   const moveSelectedUp = () => {
     if (selectedIds.size === 0) return;
-    const newItems = [...locations];
-    for (let i = 1; i < newItems.length; i++) {
-      if (selectedIds.has(newItems[i].id) && !selectedIds.has(newItems[i - 1].id)) {
-        const temp = newItems[i];
-        newItems[i] = newItems[i - 1];
-        newItems[i - 1] = temp;
+    const newFiltered = [...filteredItems];
+    for (let i = 1; i < newFiltered.length; i++) {
+      if (selectedIds.has(newFiltered[i].id) && !selectedIds.has(newFiltered[i - 1].id)) {
+        const temp = newFiltered[i];
+        newFiltered[i] = newFiltered[i - 1];
+        newFiltered[i - 1] = temp;
       }
     }
-    onReorderItems(newItems);
+    applyReorderedFilteredItems(newFiltered);
   };
 
   const moveSelectedDown = () => {
     if (selectedIds.size === 0) return;
-    const newItems = [...locations];
-    for (let i = newItems.length - 2; i >= 0; i--) {
-      if (selectedIds.has(newItems[i].id) && !selectedIds.has(newItems[i + 1].id)) {
-        const temp = newItems[i];
-        newItems[i] = newItems[i + 1];
-        newItems[i + 1] = temp;
+    const newFiltered = [...filteredItems];
+    for (let i = newFiltered.length - 2; i >= 0; i--) {
+      if (selectedIds.has(newFiltered[i].id) && !selectedIds.has(newFiltered[i + 1].id)) {
+        const temp = newFiltered[i];
+        newFiltered[i] = newFiltered[i + 1];
+        newFiltered[i + 1] = temp;
       }
     }
-    onReorderItems(newItems);
+    applyReorderedFilteredItems(newFiltered);
   };
 
   const moveSelectedToTop = () => {
     if (selectedIds.size === 0) return;
     const selected: LocationItem[] = [];
     const unselected: LocationItem[] = [];
-    for (const item of locations) {
+    for (const item of filteredItems) {
       if (selectedIds.has(item.id)) {
         selected.push(item);
       } else {
         unselected.push(item);
       }
     }
-    onReorderItems([...selected, ...unselected]);
+    applyReorderedFilteredItems([...selected, ...unselected]);
   };
 
   const moveSelectedToBottom = () => {
     if (selectedIds.size === 0) return;
     const selected: LocationItem[] = [];
     const unselected: LocationItem[] = [];
-    for (const item of locations) {
+    for (const item of filteredItems) {
       if (selectedIds.has(item.id)) {
         selected.push(item);
       } else {
         unselected.push(item);
       }
     }
-    onReorderItems([...unselected, ...selected]);
+    applyReorderedFilteredItems([...unselected, ...selected]);
   };
 
   // ドラッグ＆ドロップ処理
@@ -268,14 +639,14 @@ export const LinkManagerView: React.FC<LinkManagerViewProps> = ({
       return;
     }
 
-    const fromIndex = locations.findIndex(item => item.id === draggedId);
-    const toIndex = locations.findIndex(item => item.id === targetId);
+    const fromIndex = filteredItems.findIndex(item => item.id === draggedId);
+    const toIndex = filteredItems.findIndex(item => item.id === targetId);
 
     if (fromIndex !== -1 && toIndex !== -1) {
-      const newItems = [...locations];
-      const [movedItem] = newItems.splice(fromIndex, 1);
-      newItems.splice(toIndex, 0, movedItem);
-      onReorderItems(newItems);
+      const newFiltered = [...filteredItems];
+      const [movedItem] = newFiltered.splice(fromIndex, 1);
+      newFiltered.splice(toIndex, 0, movedItem);
+      applyReorderedFilteredItems(newFiltered);
     }
 
     setDraggedId(null);
@@ -308,10 +679,20 @@ export const LinkManagerView: React.FC<LinkManagerViewProps> = ({
   // 一括削除
   const handleBulkDelete = () => {
     if (selectedIds.size === 0) return;
-    if (window.confirm(language === 'jp' ? `選択した ${selectedIds.size} 件の場所を削除してもよろしいですか？` : `Delete ${selectedIds.size} selected locations?`)) {
-      onBulkDelete(Array.from(selectedIds));
-      setSelectedIds(new Set());
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: language === 'jp' ? '一括削除の確認' : 'Confirm Bulk Deletion',
+      message: language === 'jp' 
+        ? `選択した ${selectedIds.size} 件の場所を削除してもよろしいですか？\nこの操作は取り消せません。`
+        : `Are you sure you want to delete ${selectedIds.size} selected locations?`,
+      confirmText: language === 'jp' ? '削除する' : 'Delete',
+      isDanger: true,
+      onConfirm: () => {
+        onBulkDelete(Array.from(selectedIds));
+        setSelectedIds(new Set());
+        setConfirmModal(null);
+      }
+    });
   };
 
   // 一括タブ化
@@ -323,28 +704,51 @@ export const LinkManagerView: React.FC<LinkManagerViewProps> = ({
 
   // フォルダ名変更
   const handleRenameCurrentFolder = () => {
-    if (!selectedFolder) return;
-    const newName = window.prompt(
-      language === 'jp' ? `「${selectedFolder}」の新しいフォルダ名を入力してください` : `Enter new name for "${selectedFolder}"`,
-      selectedFolder
-    );
-    if (newName && newName.trim() && newName.trim() !== selectedFolder) {
-      onRenameFolder(selectedFolder, newName.trim());
-      setSelectedFolder(newName.trim());
-    }
+    const targetFolder = selectedSub || selectedParent;
+    if (!targetFolder) return;
+    setPromptInputVal(targetFolder);
+    setPromptModal({
+      isOpen: true,
+      title: language === 'jp' ? 'フォルダ名の変更' : 'Rename Folder',
+      message: language === 'jp' ? `「${targetFolder}」の新しいフォルダ名を入力してください` : `Enter new name for "${targetFolder}"`,
+      defaultValue: targetFolder,
+      onConfirm: (newName) => {
+        if (newName && newName.trim() && newName.trim() !== targetFolder) {
+          onRenameFolder(targetFolder, newName.trim());
+          if (selectedSub) {
+            setSelectedSub(newName.trim());
+          } else {
+            setSelectedParent(newName.trim());
+          }
+        }
+        setPromptModal(null);
+      }
+    });
   };
 
   // フォルダ削除
   const handleDeleteCurrentFolder = () => {
-    if (!selectedFolder) return;
-    if (window.confirm(
-      language === 'jp' 
-        ? `フォルダ「${selectedFolder}」および含まれるすべての場所 (${folderCounts[selectedFolder] || 0} 件) を削除しますか？`
-        : `Delete folder "${selectedFolder}" and all its ${folderCounts[selectedFolder] || 0} locations?`
-    )) {
-      onDeleteFolder(selectedFolder);
-      setSelectedFolder(null);
-    }
+    const targetFolder = selectedSub || selectedParent;
+    if (!targetFolder) return;
+    const count = selectedSub ? (folderCounts[selectedSub] || 0) : (currentParentInfo?.totalCount || 0);
+    setConfirmModal({
+      isOpen: true,
+      title: language === 'jp' ? 'フォルダ削除の確認' : 'Confirm Folder Deletion',
+      message: language === 'jp' 
+        ? `フォルダ「${targetFolder}」および含まれるすべての場所 (${count} 件) を削除しますか？\nこのフォルダ内の登録データもすべて削除されます。`
+        : `Delete folder "${targetFolder}" and all its ${count} locations?`,
+      confirmText: language === 'jp' ? 'フォルダごと削除' : 'Delete Folder',
+      isDanger: true,
+      onConfirm: () => {
+        onDeleteFolder(targetFolder);
+        if (selectedSub) {
+          setSelectedSub(null);
+        } else {
+          setSelectedParent(null);
+        }
+        setConfirmModal(null);
+      }
+    });
   };
 
   const isAllSelected = filteredItems.length > 0 && selectedIds.size === filteredItems.length;
@@ -369,28 +773,61 @@ export const LinkManagerView: React.FC<LinkManagerViewProps> = ({
             </div>
           </div>
 
-          {/* パンくずナビゲーション */}
-          <div className="hidden md:flex items-center gap-2 ml-4 pl-4 border-l border-slate-700/60 text-xs font-mono min-w-0 text-slate-400">
+          {/* パンくずナビゲーション (BREADCRUMBS) */}
+          <div className="hidden md:flex items-center gap-1.5 ml-4 pl-4 border-l border-slate-700/60 text-xs font-mono min-w-0 text-slate-400">
             <span className="font-bold uppercase shrink-0 text-slate-400">CURRENT DIR:</span>
+            
+            {/* ルート: [ ALL DATA ] */}
             <button 
-              onClick={() => setSelectedFolder(null)}
+              onClick={() => {
+                setSelectedParent(null);
+                setSelectedSub(null);
+                onFolderSelect?.(null);
+              }}
               className={`hover:underline font-black transition-colors shrink-0 cursor-pointer ${
-                selectedFolder === null ? 'text-cyan-600 dark:text-cyan-400 underline' : 'text-slate-300'
+                selectedParent === null ? 'text-cyan-600 dark:text-cyan-400 underline' : 'text-slate-300'
               }`}
             >
               [ ALL DATA ]
             </button>
-            {selectedFolder && (
-              <>
-                <ChevronRight size={14} className="text-slate-600" />
-                <span className="font-bold px-2 py-0.5 rounded truncate max-w-[200px] border border-cyan-500/40 bg-cyan-500/20 text-white">
-                  {selectedFolder}
-                </span>
 
-                {/* フォルダ操作ボタン */}
+            {/* 第1階層: 親フォルダ */}
+            {selectedParent && (
+              <>
+                <ChevronRight size={14} className="text-slate-600 shrink-0" />
+                <button
+                  onClick={() => {
+                    setSelectedSub(null);
+                    onFolderSelect?.(selectedParent);
+                  }}
+                  className={`font-bold px-2 py-0.5 rounded truncate max-w-[220px] border transition-colors cursor-pointer ${
+                    selectedSub === null
+                      ? 'border-cyan-500/40 bg-cyan-500/20 text-white font-black'
+                      : 'border-slate-700 bg-slate-900/60 text-slate-300 hover:border-slate-500 hover:text-white'
+                  }`}
+                  title={selectedParent}
+                >
+                  {selectedParent}
+                </button>
+              </>
+            )}
+
+            {/* 第2階層: 子フォルダ */}
+            {selectedSub && (
+              <>
+                <ChevronRight size={14} className="text-slate-600 shrink-0" />
+                <span className="font-black px-2 py-0.5 rounded truncate max-w-[240px] border border-cyan-500/40 bg-cyan-500/20 text-white" title={selectedSub}>
+                  {selectedSub.split(' / ').slice(1).join(' / ') || selectedSub}
+                </span>
+              </>
+            )}
+
+            {/* フォルダ操作ボタン（名前変更・削除） */}
+            {(selectedParent || selectedSub) && (
+              <div className="flex items-center gap-1 ml-1 shrink-0">
                 <button
                   onClick={handleRenameCurrentFolder}
-                  className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded transition-colors shrink-0 ml-1 border border-slate-700 hover:bg-slate-800 text-slate-300 cursor-pointer"
+                  className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded transition-colors shrink-0 border border-slate-700 hover:bg-slate-800 text-slate-300 cursor-pointer"
                   title="フォルダ名を変更"
                 >
                   <FolderEdit size={12} />
@@ -404,7 +841,7 @@ export const LinkManagerView: React.FC<LinkManagerViewProps> = ({
                   <FolderMinus size={12} />
                   <span>{language === 'jp' ? "フォルダ削除" : "DELETE"}</span>
                 </button>
-              </>
+              </div>
             )}
           </div>
         </div>
@@ -441,101 +878,247 @@ export const LinkManagerView: React.FC<LinkManagerViewProps> = ({
         </div>
       </div>
 
-      {/* === 2. SUB-DIRECTORIES (Kナビゲーター風 等幅グリッド) === */}
+      {/* === 2. SUB-DIRECTORIES (Kナビゲーター風 階層連動グリッド) === */}
       <div className="px-5 py-3 border-b border-slate-800 bg-slate-900/60 shrink-0 transition-colors">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-slate-400 font-bold">
             <Folder size={14} className="text-cyan-600 dark:text-cyan-400" />
-            <span>CATEGORIES ({allFolders.length + 1})</span>
+            <span>
+              {selectedParent === null 
+                ? `CATEGORIES (${hierarchicalData.length})` 
+                : `CATEGORIES : ${selectedParent} (${(currentParentInfo?.subFolders.length || 0) + (currentParentInfo?.directCount ? 1 : 0)})`
+              }
+            </span>
           </div>
-          {selectedFolder && (
+          {selectedParent && (
             <button
-              onClick={() => setSelectedFolder(null)}
-              className="text-[10px] font-mono underline font-black text-cyan-600 dark:text-cyan-400 hover:opacity-80 cursor-pointer"
+              onClick={() => {
+                setSelectedParent(null);
+                setSelectedSub(null);
+                onFolderSelect?.(null);
+              }}
+              className="text-[10px] font-mono underline font-black text-cyan-600 dark:text-cyan-400 hover:opacity-80 cursor-pointer flex items-center gap-1"
             >
-              {language === 'jp' ? "すべてのフォルダを表示" : "Show All Folders"}
+              <span>← {language === 'jp' ? "トップ階層に戻る" : "Back to Top Categories"}</span>
             </button>
           )}
         </div>
 
-        {/* 等幅グリッド配置（黒文字・高コントラスト対応） */}
+        {/* 等幅グリッド配置 */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-36 overflow-y-auto pr-1">
-          {/* [ ALL DATA ] 全件表示カード */}
-          <button
-            onClick={() => setSelectedFolder(null)}
-            className={`flex items-center justify-between px-3 py-2 rounded border text-xs font-mono transition-all cursor-pointer shadow-xs ${
-              selectedFolder === null
-                ? 'bg-cyan-500 border-cyan-400 text-slate-950 font-black ring-2 ring-cyan-500/30'
-                : 'bg-slate-900 border-slate-800 hover:border-slate-700 text-slate-300 hover:bg-slate-800/80'
-            }`}
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              <Database size={14} className={selectedFolder === null ? 'text-slate-950' : 'text-slate-400'} />
-              <span className="font-black truncate">[ ALL DATA ]</span>
-            </div>
-            <span className={`ml-2 px-2 py-0.5 rounded text-[11px] font-mono font-black shrink-0 border ${
-              selectedFolder === null
-                ? 'bg-slate-950 text-white border-slate-800'
-                : 'bg-slate-800 text-slate-300 border-slate-700/60'
-            }`}>
-              {locations.length}
-            </span>
-          </button>
-
-          {/* 各フォルダカード */}
-          {allFolders.map(folder => {
-            const count = folderCounts[folder] || 0;
-            const isSelected = selectedFolder === folder;
-            return (
+          {selectedParent === null ? (
+            /* [トップ階層] [ ALL DATA ] + 第1階層の親フォルダカード (8個のみ) */
+            <>
+              {/* [ ALL DATA ] 全件表示カード */}
               <button
-                key={folder}
-                onClick={() => setSelectedFolder(isSelected ? null : folder)}
+                onClick={() => {
+                  setSelectedParent(null);
+                  setSelectedSub(null);
+                  onFolderSelect?.(null);
+                }}
+                className="flex items-center justify-between px-3 py-2 rounded border text-xs font-mono transition-all cursor-pointer shadow-xs bg-cyan-500 border-cyan-400 text-slate-950 font-black ring-2 ring-cyan-500/30"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <Database size={14} className="text-slate-950" />
+                  <span className="font-black truncate">[ ALL DATA ]</span>
+                </div>
+                <span className="ml-2 px-2 py-0.5 rounded text-[11px] font-mono font-black shrink-0 border bg-slate-950 text-white border-slate-800">
+                  {locations.length}
+                </span>
+              </button>
+
+              {/* 第1階層親フォルダ (8個) */}
+              {hierarchicalData.map(parent => {
+                const isDragOver = dragOverCardParent === parent.name;
+                const isDragging = draggedCardParent === parent.name;
+                return (
+                  <button
+                    key={parent.name}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('text/plain', parent.name);
+                      setDraggedCardParent(parent.name);
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (dragOverCardParent !== parent.name) {
+                        setDragOverCardParent(parent.name);
+                      }
+                    }}
+                    onDragLeave={() => {
+                      if (dragOverCardParent === parent.name) {
+                        setDragOverCardParent(null);
+                      }
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      handleCardParentDrop(parent.name);
+                    }}
+                    onDragEnd={() => {
+                      setDraggedCardParent(null);
+                      setDragOverCardParent(null);
+                    }}
+                    onClick={() => {
+                      setSelectedParent(parent.name);
+                      setSelectedSub(null);
+                      onFolderSelect?.(parent.name);
+                    }}
+                    className={`flex items-center justify-between px-3 py-2 rounded border text-xs font-mono transition-all cursor-pointer shadow-xs bg-slate-900 border-slate-800 hover:border-cyan-500/50 hover:bg-slate-800/90 text-slate-300 hover:text-white ${
+                      isDragOver ? 'ring-2 ring-cyan-400 border-cyan-400' : ''
+                    } ${isDragging ? 'opacity-40' : ''}`}
+                    title="クリックで開く / ドラッグでカテゴリー並べ替え"
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <GripVertical size={12} className="text-slate-500 shrink-0 cursor-grab" />
+                      <Folder size={14} className="text-slate-400 shrink-0" />
+                      <span className="font-bold truncate" title={parent.name}>{parent.name}</span>
+                    </div>
+                    <span className="ml-2 px-2 py-0.5 rounded text-[11px] font-mono font-black shrink-0 border bg-slate-800 text-slate-300 border-slate-700/60">
+                      {parent.totalCount}
+                    </span>
+                  </button>
+                );
+              })}
+            </>
+          ) : (
+            /* [親フォルダ選択時] [ 親フォルダ すべて ] + その親に属するサブフォルダカード */
+            <>
+              {/* [ 親フォルダ すべて ] カード */}
+              <button
+                onClick={() => {
+                  setSelectedSub(null);
+                  onFolderSelect?.(selectedParent);
+                }}
                 className={`flex items-center justify-between px-3 py-2 rounded border text-xs font-mono transition-all cursor-pointer shadow-xs ${
-                  isSelected
+                  selectedSub === null
                     ? 'bg-cyan-500 border-cyan-400 text-slate-950 font-black ring-2 ring-cyan-500/30'
                     : 'bg-slate-900 border-slate-800 hover:border-slate-700 text-slate-300 hover:bg-slate-800/80'
                 }`}
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <Folder size={14} className={isSelected ? 'text-slate-950' : 'text-slate-400'} />
-                  <span className="font-black truncate" title={folder}>{folder}</span>
+                  <FolderOpen size={14} className={selectedSub === null ? 'text-slate-950' : 'text-slate-400'} />
+                  <span className="font-black truncate">[ {selectedParent} すべて ]</span>
                 </div>
                 <span className={`ml-2 px-2 py-0.5 rounded text-[11px] font-mono font-black shrink-0 border ${
-                  isSelected
+                  selectedSub === null
                     ? 'bg-slate-950 text-white border-slate-800'
                     : 'bg-slate-800 text-slate-300 border-slate-700/60'
                 }`}>
-                  {count}
+                  {currentParentInfo?.totalCount || 0}
                 </span>
               </button>
-            );
-          })}
+
+              {/* サブフォルダたち (第2階層 中間層) */}
+              {currentParentInfo?.subFolders.map(sub => {
+                const isSelected = selectedSub === sub.fullName;
+                const isDragOver = dragOverCardSub === sub.name;
+                const isDragging = draggedCardSub === sub.name;
+                return (
+                  <button
+                    key={sub.fullName}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('text/plain', sub.name);
+                      setDraggedCardSub(sub.name);
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (dragOverCardSub !== sub.name) {
+                        setDragOverCardSub(sub.name);
+                      }
+                    }}
+                    onDragLeave={() => {
+                      if (dragOverCardSub === sub.name) {
+                        setDragOverCardSub(null);
+                      }
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      handleCardSubDrop(sub.name);
+                    }}
+                    onDragEnd={() => {
+                      setDraggedCardSub(null);
+                      setDragOverCardSub(null);
+                    }}
+                    onClick={() => {
+                      const next = isSelected ? null : sub.fullName;
+                      setSelectedSub(next);
+                      onFolderSelect?.(next || selectedParent);
+                    }}
+                    className={`flex items-center justify-between px-3 py-2 rounded border text-xs font-mono transition-all cursor-pointer shadow-xs ${
+                      isDragOver ? 'ring-2 ring-cyan-400 border-cyan-400' : ''
+                    } ${isDragging ? 'opacity-40' : ''} ${
+                      isSelected
+                        ? 'bg-cyan-500 border-cyan-400 text-slate-950 font-black ring-2 ring-cyan-500/30'
+                        : 'bg-slate-900 border-slate-800 hover:border-cyan-500/50 hover:bg-slate-800/90 text-slate-300 hover:text-white'
+                    }`}
+                    title="クリックで選択 / ドラッグでサブカテゴリー並べ替え"
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <GripVertical size={12} className={`shrink-0 cursor-grab ${isSelected ? 'text-slate-900' : 'text-slate-500'}`} />
+                      <Folder size={14} className={isSelected ? 'text-slate-950' : 'text-slate-400'} />
+                      <span className="font-bold truncate" title={sub.name}>{sub.name}</span>
+                    </div>
+                    <span className={`ml-2 px-2 py-0.5 rounded text-[11px] font-mono font-black shrink-0 border ${
+                      isSelected
+                        ? 'bg-slate-950 text-white border-slate-800'
+                        : 'bg-slate-800 text-slate-300 border-slate-700/60'
+                    }`}>
+                      {sub.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </>
+          )}
         </div>
       </div>
 
       {/* === 3. LIST TOOLBAR === */}
-      <div className="px-5 py-2 border-b border-slate-800 bg-slate-900/40 flex flex-wrap items-center justify-between gap-3 shrink-0 transition-colors">
-        <div className="flex items-center gap-3">
-          <div className="text-xs font-mono tracking-wider text-slate-400">
+      <div className="px-4 py-1.5 border-b border-slate-800 bg-slate-900/40 flex items-center justify-between gap-2 shrink-0 transition-colors overflow-x-auto select-none">
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="text-xs font-mono tracking-wider text-slate-400 shrink-0">
             <span className="font-black uppercase text-white">BOOKMARKS</span>
-            <span className="mx-2 text-slate-500">|</span>
-            <span>TOTAL RECS: <strong className="text-cyan-600 dark:text-cyan-400 font-black">{filteredItems.length}</strong></span>
+            <span className="mx-1 text-slate-500">|</span>
+            <span>TOTAL: <strong className="text-cyan-600 dark:text-cyan-400 font-black">{filteredItems.length}</strong></span>
           </div>
 
-          <div className="h-4 w-px hidden sm:block bg-slate-800" />
+          <div className="h-4 w-px hidden sm:block bg-slate-800 shrink-0" />
 
           {/* 新規登録ボタン */}
           <button
             onClick={onAddLocation}
-            className="flex items-center gap-1.5 px-3 py-1 bg-cyan-600 hover:bg-cyan-500 text-black font-black text-xs uppercase tracking-wider rounded shadow transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1 bg-cyan-600 hover:bg-cyan-500 text-black font-black text-xs uppercase tracking-wider rounded shadow transition-colors cursor-pointer shrink-0"
           >
             <Plus size={13} strokeWidth={2.5} />
             <span>+ ADD LOCATION</span>
           </button>
+
+          {/* リスト文字サイズ調整スライダー */}
+          {onUpdateListFontSize && (
+            <>
+              <div className="h-4 w-px hidden sm:block bg-slate-800 shrink-0" />
+              <div className="hidden sm:flex items-center gap-1.5 text-xs font-mono shrink-0">
+                <span className="text-slate-400 font-bold text-[10px] uppercase tracking-wider shrink-0">TEXT:</span>
+                <input
+                  type="range"
+                  min="10"
+                  max="20"
+                  step="1"
+                  value={listFontSize}
+                  onChange={(e) => onUpdateListFontSize(Number(e.target.value))}
+                  style={{ width: '54px', minWidth: '54px', maxWidth: '54px' }}
+                  className="solid-square-slider cursor-pointer shrink-0"
+                  title={`リスト文字サイズ: ${listFontSize}px`}
+                />
+                <span className="text-cyan-400 font-bold text-[10px] shrink-0 w-6 text-right">{listFontSize}P</span>
+              </div>
+            </>
+          )}
         </div>
 
         {/* 選択関連の一括アクション ＆ Kナビゲーター上下移動ボタン [ ⤊ ] [ ↑ ] [ ↓ ] [ ⤋ ] */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 shrink-0">
           {/* 全選択ボタン */}
           <button
             onClick={toggleSelectAll}
@@ -647,7 +1230,10 @@ export const LinkManagerView: React.FC<LinkManagerViewProps> = ({
       </div>
 
       {/* === 4. LIST TABLE (境界線グリップハンドル付きリサイズ可能テーブル) === */}
-      <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0">
+      <div 
+        onScroll={handleTableScroll}
+        className="flex-1 overflow-y-auto overflow-x-auto min-h-0"
+      >
         <table className="w-full text-left border-collapse font-sans text-xs table-fixed">
           {/* 列幅のcolgroup指定 */}
           <colgroup>
@@ -720,7 +1306,8 @@ export const LinkManagerView: React.FC<LinkManagerViewProps> = ({
                 </td>
               </tr>
             ) : (
-              filteredItems.map((item, index) => {
+              <>
+                {displayedItems.map((item, index) => {
                 const isSelected = selectedIds.has(item.id);
                 const isDragging = draggedId === item.id;
                 const isOver = dragOverId === item.id;
@@ -801,7 +1388,8 @@ export const LinkManagerView: React.FC<LinkManagerViewProps> = ({
                                 if (e.key === 'Enter') saveInlineTitle(item);
                                 if (e.key === 'Escape') setEditingItemId(null);
                               }}
-                              className="text-xs px-2 py-1 rounded w-full focus:outline-none shadow-sm border border-cyan-500 bg-slate-900 text-slate-100"
+                              className="px-2 py-1 rounded w-full focus:outline-none shadow-sm border border-cyan-500 bg-slate-900 text-slate-100"
+                              style={{ fontSize: `${listFontSize}px` }}
                             />
                             <button
                               onClick={() => saveInlineTitle(item)}
@@ -822,7 +1410,8 @@ export const LinkManagerView: React.FC<LinkManagerViewProps> = ({
                           <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
                             <div className="flex items-center gap-1.5">
                               <span 
-                                className="font-bold truncate text-xs text-white group-hover:underline"
+                                className="font-bold truncate text-white group-hover:underline"
+                                style={{ fontSize: `${listFontSize}px` }}
                                 title={item.title}
                               >
                                 {item.title}
@@ -873,7 +1462,13 @@ export const LinkManagerView: React.FC<LinkManagerViewProps> = ({
                       onClick={(e) => e.stopPropagation()}
                     >
                       <button
-                        onClick={() => setSelectedFolder(item.folderName || 'Unassigned')}
+                        onClick={() => {
+                          const folder = item.folderName || 'Unassigned';
+                          const parts = folder.split(' / ');
+                          setSelectedParent(parts[0].trim());
+                          setSelectedSub(parts.length > 1 ? folder : null);
+                          onFolderSelect?.(folder);
+                        }}
                         className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] max-w-full truncate transition-colors cursor-pointer border border-slate-700 bg-slate-900 text-slate-300 hover:border-cyan-500 hover:text-cyan-400"
                         title="このフォルダで絞り込む"
                       >
@@ -896,9 +1491,17 @@ export const LinkManagerView: React.FC<LinkManagerViewProps> = ({
                           <Compass size={14} />
                         </button>
                         <button
-                          onClick={() => onOpenInNewTab(item)}
-                          className="p-1.5 rounded transition-colors cursor-pointer text-slate-400 hover:text-white hover:bg-slate-800 shrink-0"
-                          title="新しいタブで開く"
+                          onClick={() => {
+                            if (onOpenInNewWindow) {
+                              onOpenInNewWindow(item);
+                            } else if (onOpenInNewTab) {
+                              onOpenInNewTab(item);
+                            } else {
+                              openInCenteredWindow(item.url, 1920, 1100);
+                            }
+                          }}
+                          className="p-1.5 rounded transition-colors cursor-pointer text-slate-400 hover:text-cyan-400 hover:bg-slate-800 shrink-0"
+                          title={language === 'jp' ? "新しいウィンドウで開く (1920×1100 センター表示)" : "Open in new window (1920x1100 centered)"}
                         >
                           <ExternalLink size={14} />
                         </button>
@@ -911,9 +1514,17 @@ export const LinkManagerView: React.FC<LinkManagerViewProps> = ({
                         </button>
                         <button
                           onClick={() => {
-                            if (window.confirm(language === 'jp' ? `「${item.title}」を削除しますか？` : `Delete "${item.title}"?`)) {
-                              onDeleteLocation(item.id);
-                            }
+                            setConfirmModal({
+                              isOpen: true,
+                              title: language === 'jp' ? '場所の削除' : 'Delete Location',
+                              message: language === 'jp' ? `「${item.title}」を削除しますか？` : `Delete "${item.title}"?`,
+                              confirmText: language === 'jp' ? '削除' : 'Delete',
+                              isDanger: true,
+                              onConfirm: () => {
+                                onDeleteLocation(item.id);
+                                setConfirmModal(null);
+                              }
+                            });
                           }}
                           className="p-1.5 rounded transition-colors cursor-pointer text-slate-400 hover:text-red-400 hover:bg-red-950/40 shrink-0"
                           title="削除"
@@ -924,7 +1535,26 @@ export const LinkManagerView: React.FC<LinkManagerViewProps> = ({
                     </td>
                   </tr>
                 );
-              })
+              })}
+              {visibleCount < filteredItems.length && (
+                <tr>
+                  <td colSpan={6} className="py-3 text-center text-slate-400 bg-slate-900/60 border-t border-slate-800/80">
+                    <div className="flex items-center justify-center gap-3">
+                      <span className="text-xs font-mono text-slate-400">
+                        {filteredItems.length} 件中 {displayedItems.length} 件を表示中（スクロールで自動展開）
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setVisibleCount(filteredItems.length)}
+                        className="text-xs text-cyan-400 hover:text-cyan-300 font-bold underline px-2 py-0.5 rounded hover:bg-cyan-500/10 cursor-pointer transition-colors"
+                      >
+                        全件を一括表示
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </>
             )}
           </tbody>
         </table>
@@ -947,6 +1577,95 @@ export const LinkManagerView: React.FC<LinkManagerViewProps> = ({
           💡 列境界線をドラッグで幅変更 / 行ドラッグで並べ替え / [ ⤊ ][ ↑ ][ ↓ ][ ⤋ ]で一括移動
         </div>
       </div>
+
+      {/* === 6. オリジナルカスタム確認ダイアログ (MODAL) === */}
+      {confirmModal && confirmModal.isOpen && (
+        <div 
+          className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-xs flex items-center justify-center p-4"
+          onClick={() => setConfirmModal(null)}
+        >
+          <div 
+            className="bg-slate-900 border border-slate-700/80 rounded-xl w-full max-w-sm overflow-hidden shadow-2xl flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-slate-800 bg-slate-900 flex items-center gap-2">
+              {confirmModal.isDanger ? (
+                <Trash2 size={16} className="text-red-400 shrink-0" />
+              ) : (
+                <Folder size={16} className="text-cyan-400 shrink-0" />
+              )}
+              <h2 className="text-sm font-bold text-white tracking-wide">{confirmModal.title}</h2>
+            </div>
+            <div className="p-5 text-slate-200 text-xs whitespace-pre-line leading-relaxed">
+              {confirmModal.message}
+            </div>
+            <div className="p-4 bg-slate-950 border-t border-slate-800 flex justify-end gap-2 shrink-0">
+              <button
+                onClick={() => setConfirmModal(null)}
+                className="px-4 py-2 border border-slate-700 text-slate-300 hover:bg-slate-800 rounded-md text-xs font-bold transition-colors cursor-pointer"
+              >
+                {confirmModal.cancelText || (language === 'jp' ? 'キャンセル' : 'Cancel')}
+              </button>
+              <button
+                onClick={() => confirmModal.onConfirm()}
+                className={`px-4 py-2 rounded-md text-xs font-bold transition-colors cursor-pointer ${
+                  confirmModal.isDanger 
+                    ? 'bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/30' 
+                    : 'bg-cyan-600 hover:bg-cyan-500 text-black shadow-lg shadow-cyan-500/30'
+                }`}
+              >
+                {confirmModal.confirmText || (language === 'jp' ? 'OK' : 'OK')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* === 7. オリジナルカスタムプロンプト (MODAL) === */}
+      {promptModal && promptModal.isOpen && (
+        <div 
+          className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-xs flex items-center justify-center p-4"
+          onClick={() => setPromptModal(null)}
+        >
+          <div 
+            className="bg-slate-900 border border-slate-700/80 rounded-xl w-full max-w-sm overflow-hidden shadow-2xl flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-slate-800 bg-slate-900 flex items-center gap-2">
+              <Edit2 size={16} className="text-cyan-400 shrink-0" />
+              <h2 className="text-sm font-bold text-white tracking-wide">{promptModal.title}</h2>
+            </div>
+            <div className="p-5 text-slate-200 text-xs flex flex-col gap-3">
+              <p className="whitespace-pre-line leading-relaxed">{promptModal.message}</p>
+              <input
+                type="text"
+                value={promptInputVal}
+                onChange={(e) => setPromptInputVal(e.target.value)}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') promptModal.onConfirm(promptInputVal);
+                  if (e.key === 'Escape') setPromptModal(null);
+                }}
+                className="w-full bg-slate-800 border border-cyan-500/80 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-400"
+              />
+            </div>
+            <div className="p-4 bg-slate-950 border-t border-slate-800 flex justify-end gap-2 shrink-0">
+              <button
+                onClick={() => setPromptModal(null)}
+                className="px-4 py-2 border border-slate-700 text-slate-300 hover:bg-slate-800 rounded-md text-xs font-bold transition-colors cursor-pointer"
+              >
+                {language === 'jp' ? 'キャンセル' : 'Cancel'}
+              </button>
+              <button
+                onClick={() => promptModal.onConfirm(promptInputVal)}
+                className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-black rounded-md text-xs font-bold transition-colors cursor-pointer shadow-lg shadow-cyan-500/30"
+              >
+                {language === 'jp' ? '変更する' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
