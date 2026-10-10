@@ -94,8 +94,9 @@ export const getDirectStreetViewUrl = (urlOrLoc: string | { url?: string; parsed
     const pitchStr = `${pitchT.toFixed(2)}t`;
     const fov = '75y';
 
-    // AF1Qip等のユーザー投稿360写真は削除・期限切れになりやすいため、公式Googleパノラマ以外は座標ベースで安定起動
-    const isOfficialPano = pano && !pano.startsWith('AF1Qip') && !pano.startsWith('CAoS') && !pano.startsWith('0x') && !pano.startsWith('ChIJ');
+    // 公式GoogleストリートビューパノラマID（撮影車による道路の公式写真）の場合は、その公式パノラマを直接指定
+    // これにより、繁華街や店舗密集地で近傍の個人投稿写真や店内360写真へ誤って吸着するのを防ぎます
+    const isOfficialPano = pano && !pano.startsWith('AF1Qip') && !pano.startsWith('CAoS') && !pano.startsWith('0x') && !pano.startsWith('ChIJ') && !pano.startsWith('search') && pano.length >= 10;
 
     if (isOfficialPano) {
       return `https://www.google.com/maps/@${lat},${lng},3a,${fov},${headingStr},${pitchStr}/data=!3m6!1e1!3m4!1s${pano}!2e0!7i16384!8i8192`;
@@ -528,6 +529,8 @@ export const LinkManagerView: React.FC<LinkManagerViewProps> = ({
     }
   };
 
+  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
+
   // 全選択 / 解除
   const toggleSelectAll = () => {
     if (selectedIds.size === filteredItems.length && filteredItems.length > 0) {
@@ -535,10 +538,40 @@ export const LinkManagerView: React.FC<LinkManagerViewProps> = ({
     } else {
       setSelectedIds(new Set(filteredItems.map(item => item.id)));
     }
+    setLastSelectedId(null);
   };
 
   const toggleSelectItem = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+
+    // Shift + クリックによる範囲選択 / 範囲解除 (上から下、任意の位置間をまとめて選択・解除)
+    if (e.shiftKey && lastSelectedId) {
+      const fromIdx = filteredItems.findIndex(item => item.id === lastSelectedId);
+      const toIdx = filteredItems.findIndex(item => item.id === id);
+
+      if (fromIdx !== -1 && toIdx !== -1) {
+        const start = Math.min(fromIdx, toIdx);
+        const end = Math.max(fromIdx, toIdx);
+        const rangeItems = filteredItems.slice(start, end + 1);
+
+        // クリックした要素がすでに選択状態なら範囲解除、未選択なら範囲選択
+        const shouldSelect = !selectedIds.has(id);
+        const next = new Set(selectedIds);
+
+        rangeItems.forEach(item => {
+          if (shouldSelect) {
+            next.add(item.id);
+          } else {
+            next.delete(item.id);
+          }
+        });
+
+        setSelectedIds(next);
+        setLastSelectedId(id);
+        return;
+      }
+    }
+
     const next = new Set(selectedIds);
     if (next.has(id)) {
       next.delete(id);
@@ -546,6 +579,7 @@ export const LinkManagerView: React.FC<LinkManagerViewProps> = ({
       next.add(id);
     }
     setSelectedIds(next);
+    setLastSelectedId(id);
   };
 
   // URLの短縮フォーマット（Google Mapsの長いパラメータを削って短く表示）
