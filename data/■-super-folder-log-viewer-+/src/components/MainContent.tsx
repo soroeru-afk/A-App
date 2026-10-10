@@ -1,23 +1,31 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAppContext } from '../AppContext';
-import { EditIcon, SaveIcon, MoveIcon, FolderIcon, SpeakerIcon, ReadIcon, DeleteIcon } from './Icons';
+import { EditIcon, SaveIcon, MoveIcon, FolderIcon, SpeakerIcon, ReadIcon, DeleteIcon, CopyIcon, ShortcutIcon, UnlinkIcon } from './Icons';
 import { ChevronsLeft, ChevronLeft, ChevronsRight, ChevronRight } from 'lucide-react';
-import { extractFirstSentence, highlightText, highlightTextSafe, linkifyUrls, escHtml } from '../utils';
+import { extractFirstSentence, highlightText, highlightTextSafe, linkifyUrls, escHtml, getDirectoryHandleByPath } from '../utils';
 import { applySettingsToDOM } from '../settingsSync';
 import { MarkdownView } from './MarkdownView';
 import { FolderExplorer } from './FolderExplorer';
+import { ThemeQuickToggle } from './ThemeQuickToggle';
 
 export const MainContent = () => {
   const {
-    dirHandle, allFiles, searchQueries,
+    dirHandle, isFallbackMode, allFiles, searchQueries,
     currentFileObj, currentContent, isEditing, toggleEdit, saveFile,
     openMovePanel, deleteCurrentFile, renameCurrentFile,
-    movePanelState, closeMovePanels, physicalFolders, execBulkMove, moveToNewFolder,
+    movePanelState, closeMovePanels, setMovePanelMode, physicalFolders, execBulkMove, moveToNewFolder,
+    createShortcut, removeShortcut, execBulkShortcut, duplicateFile, execBulkDuplicate,
+    fileShortcuts,
     renameFolder, deleteFolder, selectedFiles, selectedFileMap,
+    toast, showToast,
     lang, t, speakerModeEnabled, ttsSettings, voices, writingMode, setWritingMode,
     paperMode, paperColor, setPaperColor, setPaperMode, togglePaperMode, fileMarks, setFileMark, hasPrevFile, hasNextFile, goToPrevFile, goToNextFile,
+    mainBgWhite, toggleMainBgWhite,
     isResuming, pendingResumeHandle, resumeSavedFolder, loading,
-    viewMode, openExplorer
+    viewMode, openExplorer,
+    sidebarPosition,
+    isNewFileModalOpen, newFileInitialCategory, closeNewFileDialog, createAndOpenFile, allCategories,
+    createNewFolder, isNewFolderModalOpen, newFolderInitialParentPath, closeNewFolderDialog
   } = useAppContext();
 
   const [markPaletteOpen, setMarkPaletteOpen] = useState(false);
@@ -27,6 +35,53 @@ export const MainContent = () => {
   const [renameInputVal, setRenameInputVal] = useState('');
   const [folderRenameTarget, setFolderRenameTarget] = useState<{ name: string; handle: any } | null>(null);
   const [folderRenameInputVal, setFolderRenameInputVal] = useState('');
+
+  const [newFileName, setNewFileName] = useState('');
+  const [newFileCategory, setNewFileCategory] = useState('');
+
+  const [newFolderModalName, setNewFolderModalName] = useState('');
+  const [newFolderModalParent, setNewFolderModalParent] = useState('');
+  const newFolderInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isNewFileModalOpen) {
+      setNewFileName('');
+      setNewFileCategory(newFileInitialCategory || '');
+    }
+  }, [isNewFileModalOpen, newFileInitialCategory]);
+
+  useEffect(() => {
+    if (isNewFolderModalOpen) {
+      setNewFolderModalName('');
+      setNewFolderModalParent(newFolderInitialParentPath || '');
+      setTimeout(() => {
+        newFolderInputRef.current?.focus();
+      }, 50);
+    }
+  }, [isNewFolderModalOpen, newFolderInitialParentPath]);
+
+  const handleCreateFolderModalSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const trimmed = newFolderModalName.trim();
+    if (!trimmed) return;
+
+    let targetHandle = dirHandle;
+    if (newFolderModalParent) {
+      const found = physicalFolders.find(p => p.name === newFolderModalParent);
+      if (found && found.handle) {
+        targetHandle = found.handle;
+      }
+    }
+
+    const success = await createNewFolder(targetHandle, newFolderModalParent, trimmed);
+    if (success) {
+      closeNewFolderDialog();
+      setNewFolderModalName('');
+      const fullPath = newFolderModalParent ? `${newFolderModalParent}/${trimmed}` : trimmed;
+      openExplorer(fullPath);
+      showToast(lang === 'en' ? `✓ Created folder 「${trimmed}」` : `✓ フォルダー「${trimmed}」を作成しました`, 'info');
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -217,9 +272,33 @@ export const MainContent = () => {
   };
 
   const [editValue, setEditValue] = useState("");
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
+
   useEffect(() => {
     setEditValue(currentContent);
   }, [currentContent, isEditing]);
+
+  // 編集モード時：枠が画面下まで自然に広がり、確実にカーソルが入るようフォーカス
+  useEffect(() => {
+    if (isEditing) {
+      const focusAndExpand = () => {
+        if (editTextareaRef.current) {
+          const el = editTextareaRef.current;
+          el.style.height = 'auto';
+          const minViewportH = Math.max(500, window.innerHeight - 280);
+          const calculatedH = Math.max(minViewportH, el.scrollHeight + 32);
+          el.style.height = `${calculatedH}px`;
+          el.focus();
+          const len = el.value.length;
+          el.setSelectionRange(len, len);
+        }
+      };
+      focusAndExpand();
+      const t1 = setTimeout(focusAndExpand, 40);
+      const t2 = setTimeout(focusAndExpand, 120);
+      return () => { clearTimeout(t1); clearTimeout(t2); };
+    }
+  }, [isEditing, editValue]);
 
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   useEffect(() => {
@@ -295,9 +374,19 @@ export const MainContent = () => {
       return (
         <textarea 
           id="edit-area" 
+          ref={editTextareaRef}
           style={{display: 'block'}}
           value={editValue} 
-          onChange={e => setEditValue(e.target.value)}
+          onChange={e => {
+            setEditValue(e.target.value);
+            if (editTextareaRef.current) {
+              const el = editTextareaRef.current;
+              el.style.height = 'auto';
+              const minViewportH = Math.max(500, window.innerHeight - 280);
+              const calculatedH = Math.max(minViewportH, el.scrollHeight + 32);
+              el.style.height = `${calculatedH}px`;
+            }
+          }}
         />
       );
     }
@@ -494,6 +583,7 @@ export const MainContent = () => {
   };
 
   const [newFolderName, setNewFolderName] = useState('');
+  const [newFolderParentPath, setNewFolderParentPath] = useState('');
 
   const isInitialLoading = (isResuming || loading) && allFiles.length === 0;
 
@@ -727,6 +817,22 @@ export const MainContent = () => {
                         WHITE
                       </button>
                     </div>
+
+                    <button
+                      className={`tool-btn ${mainBgWhite ? 'primary' : ''}`}
+                      onClick={toggleMainBgWhite}
+                      title={
+                        mainBgWhite 
+                          ? (lang === 'en' ? 'Main Background: White (Click for theme default)' : 'メイン画面背景: 白（クリックでテーマ標準色に戻す）') 
+                          : (lang === 'en' ? 'Main Background: Theme Default (Click for white)' : 'メイン画面背景: テーマ標準（クリックで白背景にする）')
+                      }
+                      style={{ fontSize: '11px', fontWeight: 600 }}
+                    >
+                      {mainBgWhite ? '⚪ 白背景 ON' : '⚪ 白背景'}
+                    </button>
+
+                    <ThemeQuickToggle />
+
                     <button
                       className={`tool-btn ${!hasPrevFile ? 'disabled-nav' : ''}`}
                       onClick={goToPrevFile}
@@ -810,16 +916,115 @@ export const MainContent = () => {
                       )}
                     </div>
 
-                    <button id="move-btn" style={{display:'inline-flex'}} onClick={e => openMovePanel(e, 'single')}>
+                    {currentFileObj.isShortcut && (
+                      <div 
+                        id="shortcut-origin-badge"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '0 8px',
+                          height: '26px',
+                          boxSizing: 'border-box',
+                          background: 'rgba(59, 130, 246, 0.12)',
+                          border: '1px solid var(--sb-accent, #3b82f6)',
+                          color: 'var(--sb-accent, #3b82f6)',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          borderRadius: '0px',
+                          whiteSpace: 'nowrap'
+                        }}
+                        title={`原本の場所: ${currentFileObj.originalCategory || 'ALL DATA (ルート)'} / ${currentFileObj.originalFilename || currentFileObj.filename}`}
+                      >
+                        <ShortcutIcon size={12} />
+                        <span>{lang === 'en' ? 'Shortcut' : 'ショートカット'}</span>
+                        <span style={{ opacity: 0.75, fontSize: '10px', fontWeight: 'normal' }}>
+                          ({lang === 'en' ? 'Original: ' : '原本: '}{currentFileObj.originalCategory || (lang === 'en' ? 'Root' : 'ルート')})
+                        </span>
+                      </div>
+                    )}
+
+                    {!currentFileObj.isShortcut && (() => {
+                      const origKey = (currentFileObj.category || '') + '::' + currentFileObj.filename;
+                      const activeCats = fileShortcuts[origKey] || [];
+                      if (activeCats.length === 0) return null;
+                      return (
+                        <div 
+                          id="original-master-badge"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '0 8px',
+                            height: '26px',
+                            boxSizing: 'border-box',
+                            background: 'rgba(16, 185, 129, 0.12)',
+                            border: '1px solid #10b981',
+                            color: '#059669',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            borderRadius: '0px',
+                            whiteSpace: 'nowrap',
+                            cursor: 'help'
+                          }}
+                          title={`👑 原本ファイル (マスター)\nショートカット配置先(${activeCats.length}件):\n${activeCats.map(c => '・' + (c || 'ALL DATA (ルート)')).join('\n')}`}
+                        >
+                          <span style={{ fontSize: '12px' }}>👑</span>
+                          <span>{lang === 'en' ? 'Original Master' : '原本ファイル'}</span>
+                        </div>
+                      );
+                    })()}
+
+                    {currentFileObj.isShortcut && (
+                      <button
+                        id="unlink-shortcut-btn"
+                        className="tool-btn"
+                        style={{ 
+                          display: 'inline-flex', 
+                          alignItems: 'center', 
+                          gap: '4px', 
+                          color: '#ef4444',
+                          borderColor: 'rgba(239, 68, 68, 0.45)',
+                          background: 'rgba(239, 68, 68, 0.08)'
+                        }}
+                        onClick={deleteCurrentFile}
+                        title={lang === 'en' ? 'Remove this shortcut link' : 'このフォルダーからショートカットを解除（原本は残ります）'}
+                      >
+                        <UnlinkIcon size={12} /> {lang === 'en' ? 'Unlink' : 'ショートカット解除'}
+                      </button>
+                    )}
+
+                    <button 
+                      id="duplicate-file-btn" 
+                      className="tool-btn"
+                      style={{display:'inline-flex', alignItems:'center', gap:'4px'}} 
+                      onClick={() => duplicateFile(currentFileObj)}
+                      title={lang === 'en' ? 'Duplicate file in current folder' : 'このフォルダー内に複製（コピー）を作成'}
+                    >
+                      <CopyIcon size={12} /> {lang === 'en' ? 'Duplicate' : '複製'}
+                    </button>
+
+                    <button 
+                      id="shortcut-btn" 
+                      className="tool-btn"
+                      style={{display:'inline-flex', alignItems:'center', gap:'4px'}} 
+                      onClick={e => openMovePanel(e, 'single', 'shortcut')}
+                      title={lang === 'en' ? 'Add shortcut to another folder' : '別フォルダーにショートカット（リンク）を作成'}
+                    >
+                      <ShortcutIcon size={12} /> {lang === 'en' ? 'Shortcut' : 'ショートカット'}
+                    </button>
+
+                    <button id="move-btn" className="tool-btn" style={{display:'inline-flex', alignItems:'center', gap:'4px'}} onClick={e => openMovePanel(e, 'single', 'move')}>
                       <MoveIcon /> {t.main.moveTo}
                     </button>
-                    <button id="folder-edit-btn" style={{display:'inline-flex'}} onClick={e => openMovePanel(e, 'folder')}>
+                    <button id="folder-edit-btn" className="tool-btn" style={{display:'inline-flex', alignItems:'center', gap:'4px'}} onClick={e => openMovePanel(e, 'folder')}>
                       <FolderIcon /> {t.main.folderEdit}
                     </button>
 
                     <button 
                       id="rename-file-btn" 
-                      style={{display:'inline-flex'}} 
+                      className="tool-btn"
+                      style={{display:'inline-flex', alignItems:'center', gap:'4px'}} 
                       onClick={() => {
                         if (!currentFileObj) return;
                         setRenameInputVal(currentFileObj.filename);
@@ -829,12 +1034,14 @@ export const MainContent = () => {
                       <EditIcon /> {t.main.rename}
                     </button>
 
-                    <button id="delete-file-btn" style={{display:'inline-flex'}} onClick={deleteCurrentFile}>
-                      <DeleteIcon /> {t.main.delete}
-                    </button>
+                    {!currentFileObj.isShortcut && (
+                      <button id="delete-file-btn" className="tool-btn" style={{display:'inline-flex', alignItems:'center', gap:'4px'}} onClick={deleteCurrentFile}>
+                        <DeleteIcon /> {t.main.delete}
+                      </button>
+                    )}
 
                     {(currentFileObj.category || dirHandle) && (
-                      <div id="location-badge" style={{display: 'inline-flex'}}>
+                      <div id="location-badge" style={{display: 'inline-flex', height: '26px', boxSizing: 'border-box', alignItems: 'center', gap: '4px'}}>
                         <FolderIcon /> {currentFileObj.category || dirHandle?.name}
                         {!currentFileObj.category && <span style={{opacity:0.5,fontWeight:'normal',fontSize:'9px'}}> {t.main.rootPath}</span>}
                       </div>
@@ -907,103 +1114,319 @@ export const MainContent = () => {
       )}
 
       {/* Panels rendering conditionally based on movePanelState */}
-      {movePanelState && movePanelState.isOpen && (
-        <div 
-          className="open-panel"
-          style={{
-            position: 'fixed', zIndex: 200, 
-            background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', 
-            borderRadius: '0px', padding: 0, boxShadow: '0 12px 48px rgba(0,0,0,0.55)', 
-            width: movePanelState.type === 'bulk' && (!movePanelState.triggerRect || movePanelState.triggerRect.left < 280) ? 'calc(var(--sb-width) - 20px)' : '360px',
-            maxWidth: 'calc(100vw - 32px)',
-            boxSizing: 'border-box',
-            overflow: 'hidden',
-            top: movePanelState.triggerRect && (movePanelState.type !== 'bulk' || movePanelState.triggerRect.left >= 280)
-              ? Math.max(10, Math.min(movePanelState.triggerRect.bottom + 6, window.innerHeight - 360)) + 'px'
-              : (movePanelState.type === 'bulk' ? 'auto' : Math.max(10, Math.min((movePanelState.triggerRect?.bottom || 0) + 5, window.innerHeight - 340)) + 'px'),
-            bottom: movePanelState.type === 'bulk' && (!movePanelState.triggerRect || movePanelState.triggerRect.left < 280) ? '70px' : 'auto',
-            left: movePanelState.triggerRect && (movePanelState.type !== 'bulk' || movePanelState.triggerRect.left >= 280)
-              ? Math.max(16, Math.min(movePanelState.triggerRect.left, window.innerWidth - 376)) + 'px'
-              : '10px'
-          }}
-          onClick={e => e.stopPropagation()}
-        >
-          {movePanelState.type === 'single' || movePanelState.type === 'bulk' ? (
-            <>
-              <div className="move-panel-title">{t.main.moveBulkAction}</div>
-              <div style={{ maxHeight: '40vh', overflowY: 'auto' }} className="move-panel-scroll">
-                <button className="move-folder-btn" style={{color: 'var(--panel-text)', fontSize: '13px', opacity: 1}} onClick={async (e) => { e.stopPropagation(); const isBulk = movePanelState.type === 'bulk'; await execBulkMove(isBulk ? Array.from(selectedFileMap.values()) : [currentFileObj!], null, null); closeMovePanels(); }}>
-                  <FolderIcon /> {t.main.moveToRoot}
-                </button>
-                {physicalFolders.map(cat => {
-                  const parts = cat.name.split('/');
-                  const depth = parts.length - 1;
-                  const shortName = parts[parts.length - 1];
-                  const parentPath = depth > 0 ? parts.slice(0, -1).join(' / ') : null;
+      {movePanelState && movePanelState.isOpen && (() => {
+        const rect = movePanelState.triggerRect;
+        const isFromSidebar = rect 
+          ? (sidebarPosition === 'left' ? rect.left < 340 : rect.left > window.innerWidth - 340)
+          : (movePanelState.type === 'bulk');
+        const isBulkFromSidebar = movePanelState.type === 'bulk' && isFromSidebar;
 
-                  return (
-                    <button 
-                      key={cat.name} 
-                      className={`move-folder-btn ${depth > 0 ? 'is-subfolder' : ''}`}
-                      style={{ paddingLeft: `${depth * 14 + 12}px` }}
-                      onClick={async (e) => { 
-                        e.stopPropagation(); 
-                        const isBulk = movePanelState.type === 'bulk'; 
-                        await execBulkMove(isBulk ? Array.from(selectedFileMap.values()) : [currentFileObj!], cat.handle, cat.name); 
-                        closeMovePanels(); 
+        let panelStyle: React.CSSProperties = {
+          position: 'fixed',
+          zIndex: 200,
+          background: 'var(--panel-bg)',
+          border: '1px solid var(--panel-border)',
+          borderRadius: '0px',
+          padding: 0,
+          boxShadow: '0 12px 48px rgba(0,0,0,0.55)',
+          boxSizing: 'border-box',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+        };
+
+        if (isBulkFromSidebar) {
+          const bottomPos = rect ? Math.max(16, window.innerHeight - rect.top + 6) : 64;
+          panelStyle = {
+            ...panelStyle,
+            bottom: `${bottomPos}px`,
+            top: 'auto',
+            left: sidebarPosition === 'left' ? '12px' : 'auto',
+            right: sidebarPosition === 'right' ? '12px' : 'auto',
+            width: 'calc(var(--sb-width, 270px) - 24px)',
+            maxWidth: '380px',
+            maxHeight: `calc(100vh - ${bottomPos + 24}px)`,
+          };
+        } else {
+          let top = rect ? rect.bottom + 6 : 60;
+          if (top + 480 > window.innerHeight) {
+            top = Math.max(16, window.innerHeight - 500);
+          }
+          const panelWidth = 500;
+          let left = rect ? Math.max(16, Math.min(rect.left, window.innerWidth - panelWidth - 20)) : 16;
+          // トリガーが右寄りにある場合、右端に合わせて揃える
+          if (rect && rect.right > window.innerWidth - panelWidth) {
+            left = Math.max(16, rect.right - panelWidth);
+          }
+          panelStyle = {
+            ...panelStyle,
+            top: `${top}px`,
+            bottom: 'auto',
+            left: `${left}px`,
+            right: 'auto',
+            width: `${panelWidth}px`,
+            maxWidth: 'calc(100vw - 32px)',
+            maxHeight: `calc(100vh - ${top + 20}px)`,
+          };
+        }
+
+        return (
+          <div 
+            className="open-panel"
+            style={panelStyle}
+            onClick={e => e.stopPropagation()}
+          >
+          {movePanelState.type === 'single' || movePanelState.type === 'bulk' ? (() => {
+            const currentMode = movePanelState.mode || 'move';
+            const isBulk = movePanelState.type === 'bulk';
+            const targetFiles = isBulk ? Array.from(selectedFileMap.values()) : (currentFileObj ? [currentFileObj] : []);
+
+            const handleFolderAction = async (targetHandle: any | null, targetCatName: string | null) => {
+              if (targetFiles.length === 0) return;
+              if (currentMode === 'move') {
+                await execBulkMove(targetFiles, targetHandle, targetCatName);
+              } else if (currentMode === 'shortcut') {
+                await execBulkShortcut(targetFiles, targetCatName);
+              } else if (currentMode === 'duplicate') {
+                await execBulkDuplicate(targetFiles, targetHandle, targetCatName);
+              }
+              closeMovePanels();
+            };
+
+            const handleCreateAndAction = async (targetFolder: string) => {
+              if (!targetFolder || targetFiles.length === 0) return;
+              const targetFullPath = newFolderParentPath ? `${newFolderParentPath}/${targetFolder}` : targetFolder;
+              if (currentMode === 'move') {
+                await moveToNewFolder(targetFullPath, isBulk);
+              } else if (currentMode === 'shortcut') {
+                if (dirHandle && !isFallbackMode) {
+                  try {
+                    const nh = await getDirectoryHandleByPath(dirHandle, targetFullPath, true);
+                  } catch (e) {}
+                }
+                await execBulkShortcut(targetFiles, targetFullPath);
+              } else if (currentMode === 'duplicate') {
+                let nh = null;
+                if (dirHandle && !isFallbackMode) {
+                  try {
+                    nh = await getDirectoryHandleByPath(dirHandle, targetFullPath, true);
+                  } catch (e) {}
+                }
+                await execBulkDuplicate(targetFiles, nh, targetFullPath);
+              }
+              setNewFolderName('');
+              closeMovePanels();
+            };
+
+            return (
+              <>
+                {/* モード選択タブ（移動 / ショートカット / 複製） */}
+                <div style={{ display: 'flex', borderBottom: '1px solid var(--panel-border)', background: 'rgba(0,0,0,0.06)' }}>
+                  <button
+                    type="button"
+                    onClick={() => setMovePanelMode('move')}
+                    style={{
+                      flex: 1, padding: '9px 4px', fontSize: '11.5px', fontWeight: currentMode === 'move' ? 700 : 500,
+                      background: currentMode === 'move' ? 'var(--panel-bg)' : 'transparent',
+                      color: currentMode === 'move' ? 'var(--sb-accent, #3b82f6)' : 'var(--panel-text)',
+                      border: 'none', borderBottom: currentMode === 'move' ? '2.5px solid var(--sb-accent, #3b82f6)' : '2.5px solid transparent',
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px'
+                    }}
+                  >
+                    <MoveIcon />
+                    <span>{lang === 'en' ? 'Move' : '移動'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMovePanelMode('shortcut')}
+                    style={{
+                      flex: 1, padding: '9px 4px', fontSize: '11.5px', fontWeight: currentMode === 'shortcut' ? 700 : 500,
+                      background: currentMode === 'shortcut' ? 'var(--panel-bg)' : 'transparent',
+                      color: currentMode === 'shortcut' ? 'var(--sb-accent, #3b82f6)' : 'var(--panel-text)',
+                      border: 'none', borderBottom: currentMode === 'shortcut' ? '2.5px solid var(--sb-accent, #3b82f6)' : '2.5px solid transparent',
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px'
+                    }}
+                  >
+                    <ShortcutIcon size={13} />
+                    <span>{lang === 'en' ? 'Shortcut' : 'ショートカット'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMovePanelMode('duplicate')}
+                    style={{
+                      flex: 1, padding: '9px 4px', fontSize: '11.5px', fontWeight: currentMode === 'duplicate' ? 700 : 500,
+                      background: currentMode === 'duplicate' ? 'var(--panel-bg)' : 'transparent',
+                      color: currentMode === 'duplicate' ? 'var(--sb-accent, #3b82f6)' : 'var(--panel-text)',
+                      border: 'none', borderBottom: currentMode === 'duplicate' ? '2.5px solid var(--sb-accent, #3b82f6)' : '2.5px solid transparent',
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px'
+                    }}
+                  >
+                    <CopyIcon size={13} />
+                    <span>{lang === 'en' ? 'Duplicate' : '複製'}</span>
+                  </button>
+                </div>
+
+                <div style={{ padding: '6px 12px', fontSize: '10.5px', opacity: 0.75, background: 'rgba(0,0,0,0.03)', borderBottom: '1px solid var(--panel-border)' }}>
+                  {currentMode === 'move' && (lang === 'en' ? 'Move file(s) to selected folder' : '原本を指定フォルダーへ移動します（元の場所からはなくなります）')}
+                  {currentMode === 'shortcut' && (lang === 'en' ? 'Place shortcut in selected folder (synced with original)' : '原本は残し、指定フォルダーにもリンクを配置します（どこから編集しても原本と連動）')}
+                  {currentMode === 'duplicate' && (lang === 'en' ? 'Create independent duplicate in selected folder' : '内容を複製して新しい実体ファイルを作成します')}
+                </div>
+
+                <div className="move-panel-scroll">
+                  <button 
+                    className="move-folder-btn" 
+                    style={{color: 'var(--panel-text)', fontSize: '13px', opacity: 1}} 
+                    onClick={async (e) => { 
+                      e.stopPropagation(); 
+                      await handleFolderAction(null, null);
+                    }}
+                  >
+                    <FolderIcon /> {t.main.moveToRoot || 'ALL DATA (ルート)'}
+                  </button>
+                  {physicalFolders.map(cat => {
+                    const parts = cat.name.split('/');
+                    const depth = parts.length - 1;
+                    const shortName = parts[parts.length - 1];
+                    const parentPath = depth > 0 ? parts.slice(0, -1).join(' / ') : null;
+
+                    return (
+                      <button 
+                        key={cat.name} 
+                        className={`move-folder-btn ${depth > 0 ? 'is-subfolder' : ''}`}
+                        style={{ paddingLeft: `${depth * 14 + 12}px` }}
+                        onClick={async (e) => { 
+                          e.stopPropagation(); 
+                          await handleFolderAction(cat.handle, cat.name);
+                        }}
+                        title={`配置先: ${cat.name}`}
+                      >
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                          {depth > 0 && <span style={{ opacity: 0.45, fontSize: '11px', fontFamily: 'monospace' }}>└</span>}
+                          <FolderIcon /> 
+                          <span style={{ fontWeight: depth > 0 ? 500 : 700 }}>{shortName}</span>
+                          {parentPath && (
+                            <span style={{ fontSize: '10px', opacity: 0.5, marginLeft: '4px' }}>
+                              ({parentPath})
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {physicalFolders.length === 0 && <div style={{padding:'12px',opacity:0.5,fontSize:'12px'}}>{t.main.noDestFolder}</div>}
+                </div>
+                
+                {/* 新規フォルダー作成欄（親フォルダー選択対応） */}
+                <div style={{ padding: '8px 10px', background: 'rgba(0,0,0,0.03)', borderTop: '1px solid var(--panel-border)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px' }}>
+                    <label style={{ fontWeight: 700, opacity: 0.85, whiteSpace: 'nowrap' }}>
+                      {lang === 'en' ? 'Parent:' : '作成先:'}
+                    </label>
+                    <select
+                      value={newFolderParentPath}
+                      onChange={e => setNewFolderParentPath(e.target.value)}
+                      style={{
+                        flex: 1,
+                        padding: '3px 6px',
+                        fontSize: '11px',
+                        borderRadius: '0px',
+                        border: '1px solid var(--panel-border)',
+                        background: 'var(--panel-bg)',
+                        color: 'var(--panel-text)',
+                        outline: 'none',
+                        height: '26px'
                       }}
-                      title={`移動先: ${cat.name}`}
                     >
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                        {depth > 0 && <span style={{ opacity: 0.45, fontSize: '11px', fontFamily: 'monospace' }}>└</span>}
-                        <FolderIcon /> 
-                        <span style={{ fontWeight: depth > 0 ? 500 : 700 }}>{shortName}</span>
-                        {parentPath && (
-                          <span style={{ fontSize: '10px', opacity: 0.5, marginLeft: '4px' }}>
-                            ({parentPath})
-                          </span>
-                        )}
-                      </span>
+                      <option value="">🏠 {lang === 'en' ? 'Root Folder (Top level)' : 'ルートフォルダー (最上位)'}</option>
+                      {physicalFolders.map(pf => (
+                        <option key={pf.name} value={pf.name}>
+                          📁 {pf.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (newFolderName.startsWith('00_')) {
+                          setNewFolderName(newFolderName.slice(3));
+                        } else {
+                          setNewFolderName('00_' + newFolderName);
+                        }
+                      }}
+                      style={{
+                        padding: '0 6px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        fontFamily: 'monospace',
+                        height: '28px',
+                        border: newFolderName.startsWith('00_') ? '1px solid var(--sb-accent, #3b82f6)' : '1px solid var(--panel-border, rgba(120, 120, 120, 0.4))',
+                        background: newFolderName.startsWith('00_') ? 'var(--sb-accent, #3b82f6)' : 'var(--btn-bg, transparent)',
+                        color: newFolderName.startsWith('00_') ? '#ffffff' : 'var(--btn-text, inherit)',
+                        cursor: 'pointer',
+                        flexShrink: 0
+                      }}
+                      title={newFolderName.startsWith('00_') ? '先頭の「00_」を取り除く' : '先頭に「00_」を付与'}
+                    >
+                      {newFolderName.startsWith('00_') ? '00_✓' : '+00_'}
                     </button>
-                  );
-                })}
-                {physicalFolders.length === 0 && <div style={{padding:'12px',opacity:0.5,fontSize:'12px'}}>{t.main.noDestFolder}</div>}
-              </div>
-              <div className="move-panel-new">
-                <input 
-                  type="text" 
-                  placeholder={t.main.newFolderName} 
-                  value={newFolderName} 
-                  onChange={e => setNewFolderName(e.target.value)} 
-                  onKeyDown={async e => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      const targetFolder = newFolderName.trim();
-                      if (!targetFolder) return;
-                      const isBulk = movePanelState.type === 'bulk';
-                      await moveToNewFolder(targetFolder, isBulk); 
-                      setNewFolderName(''); 
-                      closeMovePanels(); 
-                    }
-                  }}
-                />
-                <button onClick={async e => { 
-                  e.stopPropagation();
-                  const targetFolder = newFolderName.trim();
-                  if (!targetFolder) return;
-                  const isBulk = movePanelState.type === 'bulk';
-                  await moveToNewFolder(targetFolder, isBulk); 
-                  setNewFolderName(''); 
-                  closeMovePanels(); 
-                }}>{t.main.createAndMove}</button>
-              </div>
-              <button className="move-panel-close" onClick={closeMovePanels}>{t.main.cancel}</button>
-            </>
-          ) : (
+                    <input 
+                      type="text" 
+                      placeholder={newFolderParentPath ? `${newFolderParentPath}/ に新規作成...` : (t.main.newFolderName || '新しいフォルダー名...')} 
+                      value={newFolderName} 
+                      onChange={e => setNewFolderName(e.target.value)} 
+                      style={{
+                        flex: 1,
+                        height: '28px',
+                        fontSize: '11.5px',
+                        padding: '0 8px',
+                        border: '1px solid var(--panel-border)',
+                        background: 'var(--panel-bg)',
+                        color: 'var(--panel-text)',
+                        boxSizing: 'border-box'
+                      }}
+                      onKeyDown={async e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const targetFolder = newFolderName.trim();
+                          if (!targetFolder) return;
+                          await handleCreateAndAction(targetFolder);
+                        }
+                      }}
+                    />
+                    <button 
+                      style={{
+                        padding: '0 10px',
+                        height: '28px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        background: 'var(--sb-accent, #3b82f6)',
+                        color: '#ffffff',
+                        border: 'none',
+                        cursor: 'pointer',
+                        flexShrink: 0,
+                        whiteSpace: 'nowrap'
+                      }}
+                      onClick={async e => { 
+                        e.stopPropagation();
+                        const targetFolder = newFolderName.trim();
+                        if (!targetFolder) return;
+                        await handleCreateAndAction(targetFolder);
+                      }}
+                    >
+                      {currentMode === 'move' ? (t.main.createAndMove || '作成して移動') : (currentMode === 'shortcut' ? (lang === 'en' ? 'Create & Link' : '作成してショートカット配置') : (lang === 'en' ? 'Create & Copy' : '作成して複製'))}
+                    </button>
+                  </div>
+                </div>
+                <button className="move-panel-close" onClick={closeMovePanels}>{t.main.cancel}</button>
+              </>
+            );
+          })() : (
             <>
               <div className="move-panel-title">{t.main.folderEditTitle}</div>
-              <div style={{ maxHeight: '40vh', overflowY: 'auto' }} className="move-panel-scroll">
+              <div className="move-panel-scroll">
                 {physicalFolders.length === 0 ? (
                   <div className="folder-edit-empty">{t.main.noFolders}</div>
                 ) : (
@@ -1024,6 +1447,21 @@ export const MainContent = () => {
                         <div className="folder-edit-actions">
                         <button 
                           className="folder-edit-action" 
+                          title={cat.name.split('/').pop()?.startsWith('00_') ? '先頭の「00_」を外す' : '先頭に「00_」を付与'} 
+                          style={{ fontFamily: 'monospace', fontWeight: 'bold', fontSize: '11px', width: 'auto', padding: '0 5px' }}
+                          onClick={async () => {
+                            const parts = cat.name.split('/');
+                            const short = parts[parts.length - 1];
+                            const newShort = short.startsWith('00_') ? short.slice(3) : ('00_' + short);
+                            if (newShort.trim()) {
+                              await renameFolder(cat.name, cat.handle, newShort.trim());
+                            }
+                          }}
+                        >
+                          {cat.name.split('/').pop()?.startsWith('00_') ? '00_✓' : '+00_'}
+                        </button>
+                        <button 
+                          className="folder-edit-action" 
                           title={t.main.rename} 
                           onClick={() => {
                             setFolderRenameTarget({ name: cat.name, handle: cat.handle });
@@ -1035,7 +1473,6 @@ export const MainContent = () => {
                         <button 
                           className="folder-edit-action" 
                           title={t.main.delete} 
-                          style={{color: 'rgba(255,100,100,0.85)'}} 
                           onClick={() => deleteFolder(cat.name, cat.handle)}
                         >
                           🗑️
@@ -1050,7 +1487,8 @@ export const MainContent = () => {
             </>
           )}
         </div>
-      )}
+        );
+      })()}
 
       {/* ファイル名前変更モーダル */}
       {isRenameModalOpen && currentFileObj && (
@@ -1116,7 +1554,31 @@ export const MainContent = () => {
               <span>{t.main.rename}</span>
             </div>
             <div className="modal-body">
-              <label className="modal-label">{t.main.renameFolderPrompt} {folderRenameTarget.name}</label>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <label className="modal-label" style={{ margin: 0 }}>{t.main.renameFolderPrompt} {folderRenameTarget.name}</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (folderRenameInputVal.startsWith('00_')) {
+                      setFolderRenameInputVal(folderRenameInputVal.slice(3));
+                    } else {
+                      setFolderRenameInputVal('00_' + folderRenameInputVal);
+                    }
+                  }}
+                  style={{
+                    padding: '2px 8px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    fontFamily: 'monospace',
+                    border: folderRenameInputVal.startsWith('00_') ? '1px solid var(--sb-accent, #3b82f6)' : '1px solid var(--panel-border, rgba(120, 120, 120, 0.4))',
+                    background: folderRenameInputVal.startsWith('00_') ? 'var(--sb-accent, #3b82f6)' : 'var(--btn-bg, transparent)',
+                    color: folderRenameInputVal.startsWith('00_') ? '#ffffff' : 'var(--btn-text, inherit)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {folderRenameInputVal.startsWith('00_') ? '✓ 00_解除' : '＋「00_」付与'}
+                </button>
+              </div>
               <input
                 type="text"
                 className="modal-input"
@@ -1159,10 +1621,246 @@ export const MainContent = () => {
         </div>
       )}
 
+      {/* 新規ファイル作成モーダル（カテゴリー選択・即時編集起動対応） */}
+      {isNewFileModalOpen && (
+        <div className="modal-backdrop" onClick={closeNewFileDialog}>
+          <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px' }}>
+            <div className="modal-header">
+              <span style={{ fontSize: '15px' }}>📄＋</span>
+              <span>{lang === 'en' ? 'Create New File' : '新規ファイル作成'}</span>
+            </div>
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label className="modal-label" style={{ marginBottom: '6px' }}>
+                  {lang === 'en' ? 'Save Location (Folder / Category):' : '保存先フォルダー（カテゴリー）:'}
+                </label>
+                <select
+                  className="modal-input"
+                  value={newFileCategory}
+                  onChange={e => setNewFileCategory(e.target.value)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <option value="">🏠 {lang === 'en' ? 'Root (ALL DATA / Timeline)' : '最上位（ALL DATA / 時系列）'}</option>
+                  {allCategories.map(cat => (
+                    <option key={cat.name} value={cat.name}>
+                      📁 {cat.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="modal-hint">
+                  {newFileCategory ? `「${newFileCategory}」の中に保存されます` : 'どのフォルダーにも属さない最上位（ALL DATA）に保存されます'}
+                </div>
+              </div>
+
+              <div>
+                <label className="modal-label" style={{ marginBottom: '6px' }}>
+                  {lang === 'en' ? 'File Name (Number or Title):' : 'ファイル名（番号またはタイトル）:'}
+                </label>
+                <input
+                  type="text"
+                  className="modal-input"
+                  placeholder="例: 0001 または 記録"
+                  value={newFileName}
+                  onChange={e => setNewFileName(e.target.value)}
+                  autoFocus
+                  onKeyDown={async e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (newFileName.trim()) {
+                        await createAndOpenFile(newFileName.trim(), newFileCategory || null);
+                      }
+                    } else if (e.key === 'Escape') {
+                      closeNewFileDialog();
+                    }
+                  }}
+                />
+                {(() => {
+                  const raw = newFileName.trim();
+                  let ext = '.txt';
+                  if (raw.endsWith('.md')) ext = '';
+                  else if (raw.endsWith('.txt')) ext = '';
+
+                  const now = new Date();
+                  const yyyy = now.getFullYear();
+                  const mm = String(now.getMonth() + 1).padStart(2, '0');
+                  const dd = String(now.getDate()).padStart(2, '0');
+                  const hh = String(now.getHours()).padStart(2, '0');
+                  const min = String(now.getMinutes()).padStart(2, '0');
+                  const datePrefix = `${yyyy}${mm}${dd}_${hh}${min}_`;
+
+                  let previewName = (raw || '0001') + ext;
+                  if (!/^\d{4}-?\d{2}-?\d{2}_\d{2}-?\d{2}\.?_/.test(previewName)) {
+                    previewName = datePrefix + previewName;
+                  }
+
+                  return (
+                    <div style={{ marginTop: '7px', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      <div style={{ color: 'var(--sb-accent, #3b82f6)', fontWeight: 700, fontFamily: 'monospace' }}>
+                        📄 {lang === 'en' ? 'File to create: ' : '作成されるファイル名: '}
+                        <span style={{ textDecoration: 'underline' }}>{previewName}</span>
+                      </div>
+                      <div className="modal-hint" style={{ margin: 0 }}>
+                        {lang === 'en' 
+                          ? '※ Standard text file (.txt) formatted with current date & number. Opens directly in EDIT mode.'
+                          : '※ 他のファイルと同じ「日付＋番号」形式（.txt）で作成され、すぐに編集モードで開かれます'}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="modal-btn-cancel" onClick={closeNewFileDialog}>
+                {t.main.cancel}
+              </button>
+              <button
+                className="modal-btn-primary"
+                disabled={!newFileName.trim()}
+                onClick={async () => {
+                  if (newFileName.trim()) {
+                    await createAndOpenFile(newFileName.trim(), newFileCategory || null);
+                  }
+                }}
+              >
+                {lang === 'en' ? 'Create & Edit ➔' : '作成して編集を開始 ➔'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 新規フォルダー作成モーダル（親フォルダー選択・00_付与ボタン対応） */}
+      {isNewFolderModalOpen && (
+        <div className="modal-backdrop" onClick={closeNewFolderDialog}>
+          <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px' }}>
+            <div className="modal-header">
+              <span style={{ fontSize: '15px' }}>📁＋</span>
+              <span>{lang === 'en' ? 'Create New Folder' : '新規フォルダー作成'}</span>
+            </div>
+            <form onSubmit={handleCreateFolderModalSubmit}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div>
+                  <label className="modal-label" style={{ marginBottom: '6px' }}>
+                    {lang === 'en' ? 'Destination Folder (Location):' : '作成先の場所（親フォルダー）:'}
+                  </label>
+                  <select
+                    className="modal-input"
+                    value={newFolderModalParent}
+                    onChange={e => setNewFolderModalParent(e.target.value)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <option value="">🏠 {lang === 'en' ? 'Root Folder (Top level)' : 'ルートフォルダー (最上位)'} ({allFiles.length} {lang === 'en' ? 'files' : '件'})</option>
+                    {physicalFolders.map(cat => (
+                      <option key={cat.name} value={cat.name}>
+                        📁 {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="modal-hint">
+                    {newFolderModalParent ? `「${newFolderModalParent}」の中に作成されます` : '最上位（ルート）に作成されます'}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <label className="modal-label" style={{ margin: 0 }}>
+                      {lang === 'en' ? 'New Folder Name:' : '新しいフォルダー名:'}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (newFolderModalName.startsWith('00_')) {
+                          setNewFolderModalName(newFolderModalName.slice(3));
+                        } else {
+                          setNewFolderModalName('00_' + newFolderModalName);
+                        }
+                        newFolderInputRef.current?.focus();
+                      }}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '3px 8px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        fontFamily: 'monospace',
+                        borderRadius: '0px',
+                        border: newFolderModalName.startsWith('00_') ? '1px solid #3b82f6' : '1px solid var(--card-border, #CBD5E1)',
+                        background: newFolderModalName.startsWith('00_') ? '#3b82f6' : 'var(--btn-bg, #F1F5F9)',
+                        color: newFolderModalName.startsWith('00_') ? '#ffffff' : 'var(--main-text, #0F172A)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                      title={newFolderModalName.startsWith('00_') ? '先頭の「00_」を取り除く' : '先頭に「00_」をワンクリックで付与'}
+                    >
+                      {newFolderModalName.startsWith('00_') ? '✓ 先頭に 00_ 付き (解除)' : '＋「00_」を付ける'}
+                    </button>
+                  </div>
+                  <input
+                    ref={newFolderInputRef}
+                    type="text"
+                    className="modal-input"
+                    autoFocus
+                    placeholder={lang === 'en' ? 'Enter folder name...' : '例: 進行用_2026, 会議録 など'}
+                    value={newFolderModalName}
+                    onChange={e => setNewFolderModalName(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Escape') closeNewFolderDialog();
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="modal-btn-cancel" onClick={closeNewFolderDialog}>
+                  {t.main.cancel}
+                </button>
+                <button
+                  type="submit"
+                  className="modal-btn-primary"
+                  disabled={!newFolderModalName.trim()}
+                >
+                  📁 {lang === 'en' ? 'Create Folder ➔' : 'フォルダーを作成 ➔'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {currentFileObj && (
         <div id="footer" style={{display: 'flex'}}>
           <span id="footer-left">{dirHandle ? dirHandle.name + ' / ' + allFiles.length + ' files' : ''}</span>
           <span id="footer-right">{(currentFileObj.date||'') + (currentFileObj.time?' '+currentFileObj.time:'')}</span>
+        </div>
+      )}
+
+      {/* 操作完了トースト通知（複製・移動・ショートカット等） */}
+      {toast && (
+        <div
+          key={toast.id}
+          className="app-toast"
+          style={{
+            position: 'fixed',
+            bottom: '28px',
+            right: '28px',
+            zIndex: 9999,
+            background: toast.type === 'warn' ? '#d97706' : toast.type === 'info' ? '#2563eb' : '#059669',
+            color: '#ffffff',
+            padding: '10px 18px',
+            borderRadius: '0px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+            fontSize: '13px',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            animation: 'fadeInUp 0.2s ease-out forwards',
+            pointerEvents: 'none',
+            letterSpacing: '0.3px',
+            border: '1px solid rgba(255,255,255,0.2)'
+          }}
+        >
+          <span>{toast.message}</span>
         </div>
       )}
 

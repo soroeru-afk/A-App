@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAppContext } from '../AppContext';
-import { SearchIcon, FolderIcon, RefreshIcon, HighlightIcon, SettingsIcon, ExternalLinkIcon } from './Icons';
+import { SearchIcon, FolderIcon, FoldersStackIcon, RefreshIcon, HighlightIcon, SettingsIcon, ExternalLinkIcon, SolidSeriesIcon, SideChangeIcon } from './Icons';
 import { FileObj } from '../types';
 import { highlightText, escHtml } from '../utils';
 
@@ -10,21 +10,39 @@ export const Sidebar = () => {
     setSearchQuery, clearSearch, removeSearchQuery, openFolder, reopenFolder, refreshFolder,
     loading, refreshing, isSelectMode, toggleSelectMode, isHighlightOff, toggleHighlight,
     expandAllGroups, collapseAllGroups, toggleSettings, settingsOpen,
-    selectedFiles, currentFileObj, selectFile, toggleFileSelection,
+    selectedFiles, currentFileObj, selectFile, toggleFileSelection, selectFileRange,
     categoryOpenState, setCategoryOpen,
     movePanelState, closeMovePanels, openMovePanel, bulkDeleteFiles, execBulkMove,
-    createNewFolder, createNewFile,
+    fileShortcuts,
+    createNewFolder, createNewFile, openNewFileDialog, openNewFolderDialog,
     lang, setLang, t,
     sortMode, sortDirection, setSortMode, setSortDirection,
+    customFolderOrders,
     fileMarks, setBulkFileMarks, isResuming, pendingResumeHandle, resumeSavedFolder,
-    openExplorer, viewMode, setViewMode,
-    canGoBack, canGoForward, goBack, goForward
+    openExplorer, explorerCategory, viewMode, setViewMode,
+    canGoBack, canGoForward, goBack, goForward,
+    sidebarPosition, toggleSidebarPosition,
+    isBackgroundLoading, backgroundProgress
   } = useAppContext();
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [isAddMode, setIsAddMode] = useState(false);
   const [bulkMarkOpen, setBulkMarkOpen] = useState(false);
   const bulkMarkRef = useRef<HTMLDivElement>(null);
+
+  const visibleSidebarFiles = React.useMemo(() => {
+    if (searchQueries.length === 0) return allFiles;
+    return allFiles.filter(f => {
+      const q = searchQueries;
+      const fn = f.filename.toLowerCase();
+      const tit = f.title ? f.title.toLowerCase() : '';
+      const ct = f.content ? f.content.toLowerCase() : '';
+      return q.every(query => {
+        const lq = query.toLowerCase();
+        return fn.includes(lq) || tit.includes(lq) || ct.includes(lq);
+      });
+    });
+  }, [allFiles, searchQueries]);
 
   const isAnyGroupOpen = () => {
     const keys = Object.keys(categoryOpenState);
@@ -131,8 +149,20 @@ export const Sidebar = () => {
         key={(f.category||'')+'::'+f.filename}
         className={`file-item ${isSelected ? 'selected' : ''} ${isActive ? 'active' : ''}`}
         onClick={(e) => {
-          if (isSelectMode) toggleFileSelection(f);
-          else selectFile(f);
+          if (isSelectMode) {
+            if (e.shiftKey) {
+              selectFileRange(f, visibleSidebarFiles);
+            } else {
+              toggleFileSelection(f);
+            }
+          } else {
+            if (e.shiftKey) {
+              toggleSelectMode();
+              selectFileRange(f, visibleSidebarFiles, true);
+            } else {
+              selectFile(f);
+            }
+          }
         }}
         onContextMenu={(e) => {
           e.preventDefault();
@@ -154,12 +184,70 @@ export const Sidebar = () => {
         onDragEnd={() => { window.__draggedFiles = null; }}
       >
         {isSelectMode && (
-          <div className="file-checkbox">
-            {isSelected && <svg viewBox="-2 -2 28 28" fill="none" stroke="white" strokeWidth="3" style={{width:'100%', height:'100%'}}><polyline points="20 6 9 17 4 12"/></svg>}
+          <div 
+            className={`file-checkbox ${isSelected ? 'checked' : ''}`}
+            role="checkbox"
+            aria-checked={isSelected}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (e.shiftKey) {
+                selectFileRange(f, visibleSidebarFiles);
+              } else {
+                toggleFileSelection(f);
+              }
+            }}
+          >
+            {isSelected && (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="file-check-svg">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            )}
           </div>
         )}
         {f.date && <div className="file-date">{f.dateSource==='os'?<span style={{opacity:0.5,fontSize:'9px'}}>📅 </span>:null}{f.date.replace(/-/g,'.')} {f.time}</div>}
         <div className="file-title">
+          {f.isShortcut && (
+            <span 
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                marginRight: '4px',
+                fontSize: '9.5px',
+                fontWeight: 700,
+                color: 'var(--sb-accent, #3b82f6)',
+                background: 'rgba(59, 130, 246, 0.12)',
+                padding: '0 3px',
+                borderRadius: '0px'
+              }}
+              title={`🔗 ショートカット (原本: ${f.originalCategory || 'ALL DATA (ルート)'})`}
+            >
+              🔗
+            </span>
+          )}
+          {!f.isShortcut && (() => {
+            const origKey = (f.category || '') + '::' + f.filename;
+            const dests = fileShortcuts[origKey] || [];
+            if (dests.length === 0) return null;
+            return (
+              <span 
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  marginRight: '4px',
+                  fontSize: '9px',
+                  fontWeight: 700,
+                  color: '#059669',
+                  background: 'rgba(16, 185, 129, 0.12)',
+                  border: '1px solid #10b981',
+                  padding: '0 4px',
+                  borderRadius: '0px'
+                }}
+                title={`👑 原本ファイル (ショートカット配信先 ${dests.length}件):\n${dests.map(d => '・' + (d || 'ALL DATA (ルート)')).join('\n')}`}
+              >
+                👑原本 📤{dests.length}
+              </span>
+            );
+          })()}
           {fileMarks[f.filename] && renderMarkBadge(fileMarks[f.filename])}
           <span dangerouslySetInnerHTML={{__html: titleHtml}} />
         </div>
@@ -174,9 +262,10 @@ export const Sidebar = () => {
     if (searchQueries.length > 0) isOpen = true;
 
     const isCategory = groupKey.startsWith('cat:');
+    let targetCatName: string | null = null;
     let targetHandle: any = null;
     if (isCategory) {
-      const targetCatName = groupKey.slice(4);
+      targetCatName = groupKey.slice(4);
       const cat = physicalFolders.find(c => c.name === targetCatName);
       if (cat) targetHandle = cat.handle;
     }
@@ -215,7 +304,7 @@ export const Sidebar = () => {
             <span 
               className="new-file-btn"
               title={t.main.newFilePrompt}
-              onClick={(e) => { e.stopPropagation(); createNewFile(targetHandle); }}
+              onClick={(e) => { e.stopPropagation(); openNewFileDialog(targetCatName); }}
               style={{
                 marginLeft: 'auto', background: 'var(--sb-accent)', color: '#fff',
                 width: '18px', height: '18px', borderRadius: '0px', display: 'flex',
@@ -291,38 +380,52 @@ export const Sidebar = () => {
     const isArchiveOrAiFolder = (name: string) => /過去ログ|アーカイブ|archive|agent|エージェント|ai/i.test(name);
 
     const sortCategoryNodes = (nodes: CategoryNode[], parentName: string = '') => {
-      const isTarget = isArchiveOrAiFolder(parentName) || nodes.some(n => {
-        const short = n.name.split('/').pop() || n.name;
-        return isYearMonthName(short);
-      });
-
-      if (isTarget) {
-        nodes.sort((a, b) => {
-          const shortA = a.name.split('/').pop() || a.name;
-          const shortB = b.name.split('/').pop() || b.name;
-          const isDateA = isYearMonthName(shortA);
-          const isDateB = isYearMonthName(shortB);
-
-          if (sortMode === 'date') {
-            // 日付順: 降順(desc)なら最新月が上 (例: 2026-08 -> 2026-07 -> 2026-06)
-            if (isDateA && isDateB) {
-              return sortDirection === 'desc'
-                ? shortB.localeCompare(shortA, undefined, { numeric: true })
-                : shortA.localeCompare(shortB, undefined, { numeric: true });
-            }
-            if (isDateA && !isDateB) return sortDirection === 'desc' ? -1 : 1;
-            if (!isDateA && isDateB) return sortDirection === 'desc' ? 1 : -1;
-
-            return sortDirection === 'desc'
-              ? shortB.localeCompare(shortA, 'ja', { numeric: true })
-              : shortA.localeCompare(shortB, 'ja', { numeric: true });
-          } else {
-            // 名前順: 昇順(asc)なら a->b、降順(desc)なら b->a
-            return sortDirection === 'asc'
-              ? shortA.localeCompare(shortB, 'ja', { numeric: true })
-              : shortB.localeCompare(shortA, 'ja', { numeric: true });
-          }
+      if (sortMode === 'custom') {
+        const orderList = customFolderOrders[parentName || '__root__'] || [];
+        if (orderList.length > 0) {
+          nodes.sort((a, b) => {
+            const idxA = orderList.indexOf(a.name);
+            const idxB = orderList.indexOf(b.name);
+            const posA = idxA >= 0 ? idxA : 999999;
+            const posB = idxB >= 0 ? idxB : 999999;
+            if (posA !== posB) return posA - posB;
+            return a.name.localeCompare(b.name, 'ja');
+          });
+        }
+      } else {
+        const isTarget = isArchiveOrAiFolder(parentName) || nodes.some(n => {
+          const short = n.name.split('/').pop() || n.name;
+          return isYearMonthName(short);
         });
+
+        if (isTarget) {
+          nodes.sort((a, b) => {
+            const shortA = a.name.split('/').pop() || a.name;
+            const shortB = b.name.split('/').pop() || b.name;
+            const isDateA = isYearMonthName(shortA);
+            const isDateB = isYearMonthName(shortB);
+
+            if (sortMode === 'date') {
+              // 日付順: 降順(desc)なら最新月が上 (例: 2026-08 -> 2026-07 -> 2026-06)
+              if (isDateA && isDateB) {
+                return sortDirection === 'desc'
+                  ? shortB.localeCompare(shortA, undefined, { numeric: true })
+                  : shortA.localeCompare(shortB, undefined, { numeric: true });
+              }
+              if (isDateA && !isDateB) return sortDirection === 'desc' ? -1 : 1;
+              if (!isDateA && isDateB) return sortDirection === 'desc' ? 1 : -1;
+
+              return sortDirection === 'desc'
+                ? shortB.localeCompare(shortA, 'ja', { numeric: true })
+                : shortA.localeCompare(shortB, 'ja', { numeric: true });
+            } else {
+              // 名前順: 昇順(asc)なら a->b、降順(desc)なら b->a
+              return sortDirection === 'asc'
+                ? shortA.localeCompare(shortB, 'ja', { numeric: true })
+                : shortB.localeCompare(shortA, 'ja', { numeric: true });
+            }
+          });
+        }
       }
 
       // 再帰的に子階層も処理
@@ -342,6 +445,52 @@ export const Sidebar = () => {
     };
 
     const elements: React.ReactNode[] = [];
+
+    // 最上部（ルート）の ALL DATA ホームボタン
+    const isRootExplorerActive = viewMode === 'explorer' && !explorerCategory;
+    elements.push(
+      <div className="category-group" data-group-key="root:all_data" key="root:all_data" style={{ marginBottom: '4px' }}>
+        <button
+          className={`category-header root-all-data-header ${isRootExplorerActive ? 'open' : ''}`}
+          style={{
+            paddingLeft: '10px',
+            background: isRootExplorerActive ? 'var(--sb-item-active, rgba(255,255,255,0.12))' : 'transparent',
+            color: isRootExplorerActive ? 'var(--sb-accent)' : 'var(--sb-text)',
+            borderLeft: isRootExplorerActive ? '3px solid var(--sb-accent)' : '3px solid transparent',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '7px'
+          }}
+          onClick={() => {
+            openExplorer(null);
+          }}
+          onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect='move'; e.currentTarget.classList.add('drag-over'); }}
+          onDragLeave={e => e.currentTarget.classList.remove('drag-over')}
+          onDrop={async e => {
+            e.preventDefault(); e.currentTarget.classList.remove('drag-over');
+            if (!window.__draggedFiles) return;
+            await execBulkMove(window.__draggedFiles, dirHandle, null);
+          }}
+          title={lang === 'en' ? 'Open Root Directory / All Data (Home)' : '最上位階層（ホーム / ALL DATA）を開く'}
+        >
+          <span className="category-icon" style={{ display: 'inline-flex', alignItems: 'center' }}>
+            <FoldersStackIcon size={15} />
+          </span>
+          <span className="category-name" style={{ fontWeight: 700, letterSpacing: '0.4px' }}>
+            ALL DATA
+          </span>
+          <span className="category-count" style={{ marginLeft: 'auto' }}>
+            {allFiles.length}
+          </span>
+        </button>
+      </div>
+    );
+
+    if (allCategories.length > 0) {
+      elements.push(<div key="root-sep" style={{ height: '1px', background: 'var(--sb-border, rgba(255,255,255,0.06))', margin: '4px 8px 6px' }} />);
+    }
+
     treeTop.forEach(node => {
       elements.push(buildCategoryTree(node, 0));
     });
@@ -406,29 +555,44 @@ export const Sidebar = () => {
 
   return (
     <div id="sidebar" onClick={() => { if (settingsOpen) toggleSettings(); closeMovePanels(); }}>
-      <div id="app-brand" style={{flexDirection: 'column', alignItems: 'flex-start', gap: '8px', paddingBottom: '16px'}}>
-        <div style={{display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'flex-end'}}>
-          <div id="app-name">SUPER FOLDER<br/><span>LOG VIEWER</span></div>
-          {isInIframe && (
-            <button 
-              title={t.app.fallbackReopen}
-              onClick={(e) => { e.stopPropagation(); window.open(window.location.href, '_blank'); }}
-              style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid var(--sb-border)', color: 'var(--sb-accent)', borderRadius: '0px', padding: '5px 8px', fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 'bold' }}
-            >
-              <ExternalLinkIcon />
-              {t.app.fallbackReopen}
-            </button>
-          )}
+      <div id="app-brand" style={{flexDirection: 'column', alignItems: 'flex-start', gap: '10px', paddingBottom: '16px'}}>
+        <div style={{display: 'flex', alignItems: 'center', gap: '10px', width: '100%'}}>
+          <SolidSeriesIcon size={32} />
+          <div id="app-name" style={{flex: 1}}>SUPER FOLDER<br/><span>LOG VIEWER</span></div>
         </div>
         <div style={{display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center'}}>
           <div id="app-version">React Edition v3.1.2</div>
-          <div 
-            className="lang-toggle-container"
-            onClick={(e) => { e.stopPropagation(); setLang(lang === 'ja' ? 'en' : 'ja'); }} 
-            title={lang === 'ja' ? 'Switch to English' : '日本語に切り替え'}
-          >
-            <div className={`lang-toggle-btn ${lang === 'en' ? 'active' : 'inactive'}`}>EN</div>
-            <div className={`lang-toggle-btn ${lang === 'ja' ? 'active' : 'inactive'}`}>JP</div>
+          <div style={{display: 'flex', alignItems: 'center', gap: '5px'}}>
+            <button 
+              id="side-change-btn"
+              className="side-change-btn"
+              onClick={(e) => { e.stopPropagation(); toggleSidebarPosition(); }}
+              title={lang === 'en' ? (sidebarPosition === 'left' ? 'Switch sidebar to right side' : 'Switch sidebar to left side') : (sidebarPosition === 'left' ? 'サイドバーを右側に移動' : 'サイドバーを左側に移動')}
+              aria-label="Toggle Sidebar Position"
+            >
+              <SideChangeIcon size={13} />
+            </button>
+
+            <div 
+              className="lang-toggle-container"
+              onClick={(e) => { e.stopPropagation(); setLang(lang === 'ja' ? 'en' : 'ja'); }} 
+              title={lang === 'ja' ? 'Switch to English' : '日本語に切り替え'}
+            >
+              <div className={`lang-toggle-btn ${lang === 'en' ? 'active' : 'inactive'}`}>EN</div>
+              <div className={`lang-toggle-btn ${lang === 'ja' ? 'active' : 'inactive'}`}>JP</div>
+            </div>
+
+            {isInIframe && (
+              <button 
+                id="external-link-btn"
+                className="side-change-btn"
+                title={t.app.fallbackReopen}
+                onClick={(e) => { e.stopPropagation(); window.open(window.location.href, '_blank'); }}
+                aria-label="Open in new window"
+              >
+                <ExternalLinkIcon size={11} />
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -569,6 +733,24 @@ export const Sidebar = () => {
             >
               {t.sidebar.sortName} {sortMode === 'name' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
             </button>
+            <button 
+              className={`sort-btn ${sortMode === 'custom' ? 'active' : ''}`}
+              style={{
+                background: sortMode === 'custom' ? 'var(--sb-item-active)' : 'transparent', 
+                border: '1px solid var(--sb-border)', 
+                color: sortMode === 'custom' ? 'var(--sb-accent)' : 'var(--sb-text)', 
+                padding: '3px 7px', fontSize: '10px', borderRadius: '0px', cursor: 'pointer',
+                fontWeight: sortMode === 'custom' ? 'bold' : '600',
+                display: 'flex', alignItems: 'center', gap: '2px'
+              }}
+              onClick={() => {
+                setSortMode('custom');
+              }}
+              title={lang === 'en' ? 'Custom manual order' : 'カスタム順'}
+            >
+              <span>↕</span>
+              <span>{t.sidebar.sortCustom || 'カスタム'}</span>
+            </button>
           </div>
 
           <div style={{display:'flex', gap:'4px', alignItems:'center'}}>
@@ -582,11 +764,11 @@ export const Sidebar = () => {
                 letterSpacing: '1px', padding: '3px 6px', borderRadius: '0px', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap'
               }}
-              title={t.main.newFolderPrompt}
+              title={lang === 'en' ? 'Toggle Add Mode (Create File / Folder)' : '新規作成モード切替（ファイル・フォルダー作成）'}
             >
               ＋ <FolderIcon />
             </button>
-            <button id="select-mode-btn" className={isSelectMode ? 'active' : ''} onClick={toggleSelectMode} title={t.sidebar.selectMode}>{isSelectMode ? 'Done' : t.sidebar.selectMode}</button>
+            <button id="select-mode-btn" className={isSelectMode ? 'active' : ''} onClick={toggleSelectMode} title={t.sidebar.selectMode}>{isSelectMode ? (lang === 'en' ? 'Done' : '終了') : t.sidebar.selectMode}</button>
             <button 
               id="highlight-toggle-btn" 
               className={isHighlightOff ? 'off' : ''} 
@@ -627,6 +809,14 @@ export const Sidebar = () => {
           <div id="bulk-bar-inner">
             <span id="bulk-count">{lang === 'en' ? `${selectedFiles.size}${t.sidebar.selectedCount}` : `${selectedFiles.size}${t.sidebar.selectedCount}`}</span>
             
+            <button 
+              id="bulk-cancel-btn"
+              onClick={toggleSelectMode}
+              title={lang === 'en' ? 'Cancel selection and exit' : '選択を解除して終了'}
+            >
+              {lang === 'en' ? 'Cancel' : 'キャンセル'}
+            </button>
+
             <div className="bulk-mark-dropdown-container" ref={bulkMarkRef}>
               <button 
                 id="bulk-mark-btn"
@@ -695,16 +885,55 @@ export const Sidebar = () => {
       )}
 
       {dirHandle && isAddMode && (
-        <button 
-          onClick={createNewFolder}
-          style={{
-            margin: '0 10px 10px', padding: '10px', background: 'rgba(59,130,246,0.1)', 
-            border: '1px dashed rgba(59,130,246,0.4)', borderRadius: '0px', 
-            color: '#60A5FA', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer',
-            display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px'
-          }}>
-          {t.main.newRootFolder || "+ 一番上（ルート）に新規フォルダー作成"}
-        </button>
+        <div style={{ margin: '0 10px 10px', display: 'flex', flexDirection: 'row', gap: '6px' }}>
+          <button 
+            onClick={() => openNewFileDialog(explorerCategory || currentFileObj?.category || null)}
+            style={{
+              flex: 1,
+              padding: '7px 4px', 
+              background: 'var(--sb-item-hover)', 
+              border: '1px dashed var(--sb-accent)', 
+              borderRadius: '0px', 
+              color: 'var(--sb-accent)', 
+              fontSize: '11px', 
+              fontWeight: 'bold', 
+              cursor: 'pointer',
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center', 
+              gap: '4px',
+              whiteSpace: 'nowrap',
+              minWidth: 0
+            }}
+            title={lang === 'en' ? 'Create New File' : '新規ファイル作成'}
+          >
+            📄＋ {lang === 'en' ? 'New File' : '新規ファイル'}
+          </button>
+          <button 
+            onClick={() => openNewFolderDialog(null)}
+            style={{
+              flex: 1,
+              padding: '7px 4px', 
+              background: 'var(--sb-item-hover)', 
+              border: '1px dashed var(--sb-border)', 
+              borderRadius: '0px', 
+              color: 'var(--sb-text)', 
+              opacity: 0.9, 
+              fontSize: '11px', 
+              fontWeight: 'bold', 
+              cursor: 'pointer',
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center', 
+              gap: '4px',
+              whiteSpace: 'nowrap',
+              minWidth: 0
+            }}
+            title={lang === 'en' ? 'Create New Folder' : '新規フォルダー作成'}
+          >
+            📁＋ {lang === 'en' ? 'New Folder' : '新規フォルダー'}
+          </button>
+        </div>
       )}
 
       <div id="file-list">
@@ -712,11 +941,31 @@ export const Sidebar = () => {
         {dirHandle && renderList()}
       </div>
 
-      <div id="sidebar-footer">
+      <div id="sidebar-footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
         <button id="settings-btn" onClick={(e) => { e.stopPropagation(); toggleSettings(); }}>
           <SettingsIcon />
           {t.app.settings}
         </button>
+
+        {isBackgroundLoading && backgroundProgress.total > 0 && (
+          <div 
+            style={{ 
+              fontSize: '10px', 
+              color: 'var(--sb-muted, #8FAFCF)', 
+              opacity: 0.75, 
+              display: 'inline-flex', 
+              alignItems: 'center', 
+              gap: '5px',
+              fontFamily: 'monospace',
+              letterSpacing: '0.4px',
+              userSelect: 'none'
+            }}
+            title={lang === 'en' ? 'Syncing file contents in background' : '裏で本文データを高速同期中'}
+          >
+            <span style={{ display: 'inline-block', width: '5px', height: '5px', borderRadius: '50%', background: 'var(--sb-accent, #3b82f6)', animation: 'pulse-soft 1.8s infinite ease-in-out' }} />
+            <span>SYNC {backgroundProgress.loaded}/{backgroundProgress.total}</span>
+          </div>
+        )}
       </div>
     </div>
   );

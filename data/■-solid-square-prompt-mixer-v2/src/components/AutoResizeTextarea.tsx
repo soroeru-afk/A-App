@@ -1,15 +1,13 @@
 import React, { useEffect, useRef } from 'react';
 
 interface AutoResizeTextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
-  value: string;
   minHeight?: number;
-  maxHeight?: number;
+  value: string;
 }
 
 export const AutoResizeTextarea: React.FC<AutoResizeTextareaProps> = ({
   value,
-  minHeight = 40,
-  maxHeight = 400,
+  minHeight = 44,
   className = '',
   onChange,
   onWheel,
@@ -20,39 +18,41 @@ export const AutoResizeTextarea: React.FC<AutoResizeTextareaProps> = ({
   const adjustHeight = () => {
     const el = textareaRef.current;
     if (!el) return;
-    el.style.height = `${minHeight}px`;
-    const scrollHeight = el.scrollHeight;
-    const newHeight = Math.min(Math.max(scrollHeight, minHeight), maxHeight);
-    el.style.height = `${newHeight}px`;
+    // Set to 0 to get the exact unconstrained scrollHeight
+    el.style.height = '0px';
+    const computedHeight = Math.max(minHeight, el.scrollHeight);
+    el.style.height = `${computedHeight}px`;
   };
 
   useEffect(() => {
+    // Run adjustHeight immediately and on the next animation frame to ensure layout is ready
     adjustHeight();
-  }, [value, minHeight, maxHeight]);
+    const frameId = requestAnimationFrame(adjustHeight);
+    return () => cancelAnimationFrame(frameId);
+  }, [value, minHeight]);
 
   const handleWheel = (e: React.WheelEvent<HTMLTextAreaElement>) => {
     const el = textareaRef.current;
-    if (onWheel) {
-      onWheel(e);
+    if (el) {
+      const isAtTop = el.scrollTop <= 0 && e.deltaY < 0;
+      const isAtBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1 && e.deltaY > 0;
+      const cannotScroll = el.scrollHeight <= el.clientHeight + 1;
+
+      // If textarea itself cannot scroll further or is already fully expanded,
+      // propagate the scroll up to the parent scrollable container
+      if (cannotScroll || isAtTop || isAtBottom) {
+        let parent: HTMLElement | null = el.parentElement;
+        while (parent && parent !== document.body) {
+          const overflowY = window.getComputedStyle(parent).overflowY;
+          if ((overflowY === 'auto' || overflowY === 'scroll') && parent.scrollHeight > parent.clientHeight) {
+            parent.scrollTop += e.deltaY;
+            break;
+          }
+          parent = parent.parentElement;
+        }
+      }
     }
-    if (!el) return;
-
-    const { scrollTop, scrollHeight, clientHeight } = el;
-    const delta = e.deltaY;
-    const isScrollable = scrollHeight > clientHeight;
-
-    if (!isScrollable) {
-      // Not scrollable (fully expanded or no overflow), pass scroll through
-      return;
-    }
-
-    const isAtTop = scrollTop <= 0 && delta < 0;
-    const isAtBottom = Math.abs(scrollTop + clientHeight - scrollHeight) <= 1 && delta > 0;
-
-    if (!isAtTop && !isAtBottom) {
-      // Normal inner scroll
-      e.stopPropagation();
-    }
+    if (onWheel) onWheel(e);
   };
 
   return (
@@ -60,8 +60,8 @@ export const AutoResizeTextarea: React.FC<AutoResizeTextareaProps> = ({
       ref={textareaRef}
       value={value}
       onChange={(e) => {
-        onChange?.(e);
         adjustHeight();
+        if (onChange) onChange(e);
       }}
       onWheel={handleWheel}
       className={className}

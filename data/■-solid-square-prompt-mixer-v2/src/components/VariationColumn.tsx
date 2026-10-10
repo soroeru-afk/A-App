@@ -3,12 +3,13 @@ import { VariationPart } from '../types';
 import { Accordion } from './Accordion';
 import { ConfirmModal } from './ConfirmModal';
 import { AddModal } from './AddModal';
-import { AutoResizeTextarea } from './AutoResizeTextarea';
 import { User, Pencil, Trash2, Check, X, Plus, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown, ArrowLeftToLine, ArrowRightToLine, Copy, Pin } from 'lucide-react';
 import { Language, t } from '../i18n';
 import { AttributeMixer } from './AttributeMixer';
 import { DuplicateSearchModal } from './DuplicateSearchModal';
 import { Search, Combine, MoreHorizontal } from 'lucide-react';
+import { AutoResizeTextarea } from './AutoResizeTextarea';
+import { getOrderedCategories, getSectionDisplayName } from '../utils/categoryUtils';
 
 interface VariationColumnProps {
   parts: VariationPart[];
@@ -72,14 +73,16 @@ export const VariationColumn: React.FC<VariationColumnProps> = ({
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<{message: string, action: () => void} | null>(null);
 
+  const [sectionOrder, setSectionOrder] = useState<number[]>(() => {
+    const saved = localStorage.getItem('variation_section_order');
+    let parsed = saved ? JSON.parse(saved) : [1, 2, 3, 4, 5];
+    if (!parsed.includes(5)) parsed.push(5);
+    return parsed;
+  });
+
   const uniqueCategories = useMemo(() => {
-    const cats = new Map<string, number>(); // category -> section
-    parts.forEach(p => cats.set(p.category, p.section));
-    if (customCategories) {
-      customCategories.forEach(c => cats.set(c.name, c.section));
-    }
-    return Array.from(cats.entries());
-  }, [parts, customCategories]);
+    return getOrderedCategories(parts, customCategories, sectionOrder);
+  }, [parts, customCategories, sectionOrder]);
 
   const handleBulkMove = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
@@ -164,6 +167,7 @@ export const VariationColumn: React.FC<VariationColumnProps> = ({
         const [moved] = next.splice(fromIdx, 1);
         next.splice(toIdx, 0, moved);
         localStorage.setItem('variation_section_order', JSON.stringify(next));
+        window.dispatchEvent(new Event('variation_section_order_updated'));
         return next;
       });
     }
@@ -266,12 +270,6 @@ export const VariationColumn: React.FC<VariationColumnProps> = ({
   const [expandId, setExpandId] = useState(0);
   const [collapseId, setCollapseId] = useState(0);
   const [isAllExpanded, setIsAllExpanded] = useState(false);
-  const [sectionOrder, setSectionOrder] = useState<number[]>(() => {
-    const saved = localStorage.getItem('variation_section_order');
-    let parsed = saved ? JSON.parse(saved) : [1, 2, 3, 4, 5];
-    if (!parsed.includes(5)) parsed.push(5);
-    return parsed;
-  });
   
   useEffect(() => {
     const handleImport = () => {
@@ -299,6 +297,7 @@ export const VariationColumn: React.FC<VariationColumnProps> = ({
         [next[idx+1], next[idx]] = [next[idx], next[idx+1]];
       }
       localStorage.setItem('variation_section_order', JSON.stringify(next));
+      window.dispatchEvent(new Event('variation_section_order_updated'));
       return next;
     });
   };
@@ -386,7 +385,7 @@ export const VariationColumn: React.FC<VariationColumnProps> = ({
             <option disabled className="bg-bg-panel text-text-dim">──────────</option>
             {uniqueCategories.map(([cat, sec]) => (
               <option key={`${sec}:${cat}`} value={`${sec}:${cat}`} className="bg-bg-panel text-text-main">
-                {t(cat as any, lang) || cat} ({t(`sec_${sec === 1 ? 'composition' : sec === 2 ? 'pose' : sec === 3 ? 'details' : 'context'}` as any, lang)})
+                {t(cat as any, lang) || cat} ({getSectionDisplayName(sec, customSectionNames, lang)})
               </option>
             ))}
           </select>
@@ -566,20 +565,20 @@ export const VariationColumn: React.FC<VariationColumnProps> = ({
                                   <input 
                                     value={editName}
                                     onChange={e => setEditName(e.target.value)}
-                                    className="bg-bg-base border border-border-main text-[12px] font-mono p-1.5 text-text-main font-bold focus:outline-none focus:border-border-hover w-full"
+                                    className="bg-bg-base border border-border-main text-xs font-mono p-1.5 text-text-main focus:outline-none focus:border-border-hover w-full"
                                     placeholder={t('name', lang)}
                                   />
                                   <input 
                                     value={editCategory}
                                     onChange={e => setEditCategory(e.target.value)}
-                                    className="bg-bg-base border border-border-main text-[12px] font-mono p-1.5 text-text-main focus:outline-none focus:border-border-hover w-full"
+                                    className="bg-bg-base border border-border-main text-xs font-mono p-1.5 text-text-main focus:outline-none focus:border-border-hover w-full"
                                     placeholder={t('category', lang)}
                                   />
                                   <AutoResizeTextarea 
                                     value={editContent}
                                     onChange={e => setEditContent(e.target.value)}
-                                    minHeight={60}
-                                    className="bg-bg-base border border-border-main text-[13px] leading-relaxed font-mono p-1.5 text-text-main focus:outline-none focus:border-border-hover w-full"
+                                    className="bg-bg-base border border-border-main text-[13px] leading-relaxed font-mono p-2 text-text-main focus:outline-none focus:border-border-hover resize-y w-full"
+                                    minHeight={64}
                                     placeholder={t('content', lang)}
                                   />
                                   <div className="flex justify-between items-center mt-1">
@@ -645,7 +644,7 @@ export const VariationColumn: React.FC<VariationColumnProps> = ({
                                       {part.name}
                                     </span>
                                   </div>
-                                  <span className="text-[11px] font-mono truncate mt-0.5 text-text-main opacity-70">{part.content || <span className="opacity-40">----- (No Content) -----</span>}</span>
+                                  <span className="text-[12px] font-mono truncate mt-0.5 text-text-main opacity-80">{part.content || <span className="opacity-40">----- (No Content) -----</span>}</span>
                                 </div>
                                 <div className="absolute right-2 flex items-center gap-1">
                                   {expandedActionId !== part.id && (

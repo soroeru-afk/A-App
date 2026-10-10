@@ -16,6 +16,8 @@ import { ArrowLeftRight, Undo2, Redo2, ChevronLeft, ChevronRight, Check, Maximiz
 import { getFileHandle, setFileHandle, clearFileHandle } from './idb';
 import { calculateCursorPos } from './utils/cursorUtils';
 import { applyThemeColors } from './utils/themeColors';
+import { getOrderedCategories } from './utils/categoryUtils';
+import { DEFAULT_CATEGORIES, CategoryDef } from './components/AttributeMixer';
 
 const STORAGE_KEY = 'prompt_console_data';
 
@@ -202,52 +204,35 @@ export default function App() {
 
   const [mixerCategories, setMixerCategories] = useState<{id: string, label: string}[]>([]);
   useEffect(() => {
-        const loadCats = (isEvent = false) => {
-      let finalCats = [
-        { id: 'genderAndPeople', label: '性別と人数 (Gender & People)' },
-        { id: 'race', label: '人種 (Race)' },
-        { id: 'age', label: '年齢 (Age)' },
-        { id: 'physique', label: '体型 (Physique)' },
-        { id: 'pose', label: '体位・ポーズ (Pose)' },
-        { id: 'characteristics', label: '特徴・個性 (Characteristics)' },
-        { id: 'expression', label: '表情・気持ち (Expression)' },
-        { id: 'clothing', label: '衣類・コスチューム (Clothing)' },
-        { id: 'hair', label: 'ヘア・髪型 (Hair)' },
-        { id: 'bodyHair', label: 'アンダーヘア・脇毛 (Body Hair)' },
-        { id: 'accessories', label: 'アクセサリー (Accessories)' },
-        { id: 'angle', label: 'アングル (Angle)' },
-        { id: 'location', label: '場所・背景 (Location)' },
-        { id: 'situation', label: 'シチュエーション・状況 (Situation)' },
-        { id: 'freeText1', label: '自由・フリー設定 1 (Free Text 1)' },
-        { id: 'freeText2', label: '自由・フリー設定 2 (Free Text 2)' },
-        { id: 'partner', label: '男 (Partner)' },
-        { id: 'weather', label: '天候 (Weather)' },
-        { id: 'emptyLocation', label: '無人の場所 (Empty Location)' },
-        { id: 'bodyWet', label: '濡れ表現 (Wet Body)' },
-        { id: 'lighting', label: '光の表現 (Lighting)' },
-        { id: 'lens', label: 'レンズ・フィルター (Lens/Filter)' },
-        { id: 'background', label: '背景 (Background)' },
-        { id: 'environment', label: '環境・照明 (Environment/Lighting)' },
-        { id: 'artStyle', label: '画風・スタイル (Art Style)' },
-        { id: 'camera', label: 'カメラ・アングル (Camera/Angle)' }
-      ];
-      
+    const loadCats = () => {
       const saved = localStorage.getItem('attribute_mixer_categories_v2') || localStorage.getItem('attribute_mixer_categories_v1') || localStorage.getItem('attribute_mixer_categories');
-        if (saved) {
-          try { 
-            const parsed = JSON.parse(saved); 
-            if (Array.isArray(parsed)) {
-              const existingIds = new Set(parsed.map((c: any) => c.id));
-              const missingDefaults = finalCats.filter(c => !existingIds.has(c.id));
-              finalCats = [...missingDefaults, ...parsed];
-            }
-          } catch(e) {}
-        }
-      
-      setMixerCategories(finalCats);
+      let baseCats: CategoryDef[] = [...DEFAULT_CATEGORIES];
+      if (saved) {
+        try { 
+          const parsed = JSON.parse(saved); 
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const existingIds = new Set(parsed.map((c: any) => c.id));
+            const missingDefaults = DEFAULT_CATEGORIES.filter(c => !existingIds.has(c.id));
+            baseCats = [...parsed, ...missingDefaults];
+          }
+        } catch(e) {}
+      }
+
+      // Group exactly as shown in AttributeMixer:
+      // 1. All non-negative categories in their current order
+      // 2. All negative categories in their current order
+      const nonNeg = baseCats.filter(c => !c.isNegative);
+      const neg = baseCats.filter(c => c.isNegative);
+
+      const ordered = [...nonNeg, ...neg].map(c => ({
+        id: c.id,
+        label: c.isNegative ? `⛔ ${c.label}` : c.label
+      }));
+
+      setMixerCategories(ordered);
     };
     loadCats();
-    const handleCatsUpdate = () => loadCats(true);
+    const handleCatsUpdate = () => loadCats();
     window.addEventListener('attributeMixerDataImported', handleCatsUpdate);
     window.addEventListener('mixer_presets_updated', handleCatsUpdate);
     window.addEventListener('mixer_categories_updated', handleCatsUpdate);
@@ -255,7 +240,7 @@ export default function App() {
       window.removeEventListener('attributeMixerDataImported', handleCatsUpdate);
       window.removeEventListener('mixer_presets_updated', handleCatsUpdate);
       window.removeEventListener('mixer_categories_updated', handleCatsUpdate);
-    }
+    };
   }, []);
 
 
@@ -266,16 +251,12 @@ export default function App() {
     applyThemeColors(theme);
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (metaThemeColor) {
-      const bgPanelMap: Record<string, string> = {
-        light: '#e4e4e7',
-        dark: '#14161A',
-        black: '#050505',
-        red: '#1c0a0a',
-        navy: '#0d1222',
-        mono: '#f4f4f5',
-      };
-      const computedBgPanel = getComputedStyle(document.documentElement).getPropertyValue('--bg-panel').trim();
-      const color = computedBgPanel || bgPanelMap[theme] || '#14161A';
+      let color = '#0A0A0B';
+      if (theme === 'light') color = '#f9fafb';
+      else if (theme === 'black') color = '#000000';
+      else if (theme === 'red') color = '#140505';
+      else if (theme === 'navy') color = '#060913';
+      else if (theme === 'mono') color = '#ffffff';
       metaThemeColor.setAttribute('content', color);
     }
   }, [theme]);
@@ -693,7 +674,6 @@ export default function App() {
     return text
       .split('\n')
       .map(line => {
-        if (!line.trim()) return '';
         let cleanedLine = line
           .replace(/[\u3000]/g, ' ')
           .replace(/[ \t]+/g, ' ')
@@ -922,8 +902,7 @@ export default function App() {
         const end = Math.max(actualPos, endPos);
         const before = safePrev.slice(0, start);
         const after = safePrev.slice(end);
-        const isBeforeEmptyLine = before.length === 0 || before.endsWith('\n');
-        const prefix = autoOptimize && !isBeforeEmptyLine && !before.match(/,\s*$/) ? ', ' : '';
+        const prefix = autoOptimize && before.length > 0 && !before.match(/,\s*$/) && !before.endsWith('\n') ? ', ' : '';
         const suffix = autoOptimize && after.length > 0 && !after.match(/^\s*,/) && !after.startsWith('\n') ? ', ' : '';
         const insertedStr = prefix + text + suffix;
         const cleaned = cleanString(before + insertedStr + after);
@@ -942,8 +921,7 @@ export default function App() {
         const end = Math.max(actualPos, endPos);
         const before = safePrev.slice(0, start);
         const after = safePrev.slice(end);
-        const isBeforeEmptyLine = before.length === 0 || before.endsWith('\n');
-        const prefix = autoOptimize && !isBeforeEmptyLine && !before.match(/,\s*$/) ? ', ' : '';
+        const prefix = autoOptimize && before.length > 0 && !before.match(/,\s*$/) && !before.endsWith('\n') ? ', ' : '';
         const suffix = autoOptimize && after.length > 0 && !after.match(/^\s*,/) && !after.startsWith('\n') ? ', ' : '';
         const insertedStr = prefix + text + suffix;
         const cleaned = cleanString(before + insertedStr + after);
@@ -1061,14 +1039,40 @@ export default function App() {
     showSaveToast("セーブ完了！");
   };
 
+  const [sectionOrder, setSectionOrder] = useState<number[]>(() => {
+    try {
+      const saved = localStorage.getItem('variation_section_order');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch(e) {}
+    return [1, 2, 3, 4, 5];
+  });
+
+  useEffect(() => {
+    const handleSectionOrderUpdate = () => {
+      try {
+        const saved = localStorage.getItem('variation_section_order');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setSectionOrder(parsed);
+          }
+        }
+      } catch(e) {}
+    };
+    window.addEventListener('variation_section_order_updated', handleSectionOrderUpdate);
+    window.addEventListener('attributeMixerDataImported', handleSectionOrderUpdate);
+    return () => {
+      window.removeEventListener('variation_section_order_updated', handleSectionOrderUpdate);
+      window.removeEventListener('attributeMixerDataImported', handleSectionOrderUpdate);
+    };
+  }, []);
+
   const uniqueCategories = useMemo(() => {
-    const cats = new Map<string, number>(); // category -> section
-    data.parts.forEach(p => cats.set(p.category, p.section));
-    if (data.customCategories) {
-      data.customCategories.forEach(c => cats.set(c.name, c.section));
-    }
-    return Array.from(cats.entries());
-  }, [data.parts, data.customCategories]);
+    return getOrderedCategories(data.parts, data.customCategories, sectionOrder);
+  }, [data.parts, data.customCategories, sectionOrder]);
 
 
   const handleCopyToMixer = (categoryId: string, title: string, content: string, items?: {name: string, content: string}[]) => {
@@ -1921,13 +1925,17 @@ export default function App() {
     setData(prev => ({ ...prev, memos: [newMemo, ...(prev.memos || [])] }));
   };
 
-  const handleAddBulkMemo = (items: { name: string; content: string }[]) => {
-    const newMemos = items.map((item, idx) => ({
+  const handleImportMemos = (newItems: { name: string; content: string }[]) => {
+    if (!newItems || newItems.length === 0) return;
+    const newMemos: MasterPrompt[] = newItems.map((item, idx) => ({
       id: `memo_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 6)}`,
       name: item.name,
       content: item.content
     }));
-    setData(prev => ({ ...prev, memos: [...newMemos, ...(prev.memos || [])] }));
+    setData(prev => ({
+      ...prev,
+      memos: [...newMemos, ...(prev.memos || [])]
+    }));
   };
   
   const handleDuplicateMemo = (id: string) => {
@@ -2184,7 +2192,7 @@ export default function App() {
                     selectedId={selectedMemoId}
                     onSelect={handleSelectMemoId}
                     onAdd={handleAddMemo}
-                    onAddBulk={handleAddBulkMemo}
+                    onImportFiles={handleImportMemos}
                     onUpdate={handleUpdateMemo}
                     onDuplicate={handleDuplicateMemo}
                     onDelete={handleDeleteMemo}
@@ -2375,6 +2383,7 @@ export default function App() {
                 selectedMemoId={selectedMemoId}
                 selectedMemoName={data.memos?.find(m => m.id === selectedMemoId)?.name || ''}
                 uniqueCategories={uniqueCategories}
+                customSectionNames={data.customSectionNames}
                 activeMasterTab={activeMasterTab}
                 lang={lang}
                 paperMode={paperMode}
@@ -2415,6 +2424,7 @@ export default function App() {
           defaultName={savePartFromMasterData?.name || ''}
           items={savePartFromMasterData?.items}
           categories={uniqueCategories}
+          customSectionNames={data.customSectionNames}
           onConfirm={(name, category, section, items) => {
             if (items && items.length > 0) {
               items.forEach(item => {

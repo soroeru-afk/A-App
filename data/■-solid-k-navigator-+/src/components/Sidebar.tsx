@@ -3,7 +3,7 @@ import {
   LayoutGrid, Folders, Plus, Folder, FolderOpen, FolderPlus, Download, 
   FileCode, Pencil, Trash2, ArrowUp, ArrowDown, Activity, ChevronDown, 
   ChevronRight, LineChart, ExternalLink, Settings, Compass, 
-  RefreshCw, Maximize2, Sparkles, AlertTriangle, X, Globe, Square, GripVertical
+  RefreshCw, Maximize2, Sparkles, AlertTriangle, X, Globe, Square, GripVertical, FileText
 } from 'lucide-react';
 import { Category, MarketLink, Stock, FolderColor } from '../types';
 import { Language, i18n } from '../i18n';
@@ -14,6 +14,7 @@ import TankenExplorerModal from './TankenExplorerModal';
 import ProxySettingsModal from './ProxySettingsModal';
 import { openExternalWindow } from '../lib/windowUtils';
 import { getFolderColorClass } from '../lib/folderUtils';
+import { enrichedPreset } from '../data/enrichedPreset';
 
 interface Props {
   categories: Category[];
@@ -41,6 +42,7 @@ interface Props {
   onMarketLinksChange: (links: MarketLink[]) => void;
   onLoadEnrichedData?: () => void;
   onDownloadEnrichedData?: () => void;
+  onFillMissingDescriptions?: () => void;
   folderColor?: FolderColor;
 }
 
@@ -70,6 +72,7 @@ export default function Sidebar({
   onMarketLinksChange,
   onLoadEnrichedData,
   onDownloadEnrichedData,
+  onFillMissingDescriptions,
   folderColor = 'theme'
 }: Props) {
   const [newCatName, setNewCatName] = useState('');
@@ -85,6 +88,24 @@ export default function Sidebar({
   const [collapsedCatIds, setCollapsedCatIds] = useState<Set<string>>(new Set());
   const [isRestoreConfirmOpen, setIsRestoreConfirmOpen] = useState(false);
   const [isProxyModalOpen, setIsProxyModalOpen] = useState(false);
+  const [isDataManagementOpen, setIsDataManagementOpen] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('sidebar_data_management_open');
+      return saved === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleDataManagement = () => {
+    setIsDataManagementOpen(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('sidebar_data_management_open', String(next));
+      } catch {}
+      return next;
+    });
+  };
 
   // Drag & drop state for Sidebar
   const [draggingCatId, setDraggingCatId] = useState<string | null>(null);
@@ -98,6 +119,7 @@ export default function Sidebar({
   const sidebarFontSize = Math.min(20, Math.max(12, listFontSize));
 
   const unassignedCount = stocks.filter(s => !s.categoryId).length;
+  const presetStocksCount = enrichedPreset?.stocks?.length || 0;
 
   const handleSaveMarketLinks = (links: MarketLink[]) => {
     onMarketLinksChange(links);
@@ -124,7 +146,8 @@ export default function Sidebar({
     e.stopPropagation();
 
     // Check if dragging a stock or a category
-    const isStockDrag = !draggingCatId;
+    const isCategoryDrag = !!draggingCatId;
+    const isStockDrag = !isCategoryDrag;
     setDragOverIsStock(isStockDrag);
 
     if (isStockDrag) {
@@ -144,10 +167,15 @@ export default function Sidebar({
   };
 
   const handleCatDragLeave = (e: React.DragEvent, c: Category) => {
-    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-    if (dragOverCatId === c.id) {
-      setDragOverCatId(null);
-      setDragOverIsStock(false);
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) {
+      if (dragOverCatId === c.id) {
+        setDragOverCatId(null);
+        setDragOverIsStock(false);
+      }
     }
   };
 
@@ -155,29 +183,49 @@ export default function Sidebar({
     e.preventDefault();
     e.stopPropagation();
 
-    if (dragOverIsStock) {
-      // Dropping stocks into this category
-      let stockIdsToMove: string[] = [];
+    let stockIdsToMove: string[] = [];
+
+    // 1. Check window global storage (most robust across browsers)
+    if ((window as any).__knav_dragging_stock_ids && Array.isArray((window as any).__knav_dragging_stock_ids)) {
+      stockIdsToMove = [...(window as any).__knav_dragging_stock_ids];
+    }
+
+    // 2. Check application/json
+    if (stockIdsToMove.length === 0) {
       try {
         const raw = e.dataTransfer.getData('application/json');
         if (raw) {
           const data = JSON.parse(raw);
-          if (data.stockIds) stockIdsToMove = data.stockIds;
+          if (data.stockIds && Array.isArray(data.stockIds)) stockIdsToMove = data.stockIds;
         }
       } catch {}
-      if (stockIdsToMove.length === 0) {
-        const singleId = e.dataTransfer.getData('text/stock-id');
-        if (singleId) stockIdsToMove = [singleId];
-      }
+    }
 
-      if (stockIdsToMove.length > 0) {
-        onMoveStocksToCategory?.(stockIdsToMove, c.id);
-      }
+    // 3. Check text/plain (JSON format fallback)
+    if (stockIdsToMove.length === 0) {
+      try {
+        const rawText = e.dataTransfer.getData('text/plain');
+        if (rawText && rawText.startsWith('{')) {
+          const data = JSON.parse(rawText);
+          if (data.stockIds && Array.isArray(data.stockIds)) stockIdsToMove = data.stockIds;
+        }
+      } catch {}
+    }
+
+    // 4. Check text/stock-id
+    if (stockIdsToMove.length === 0) {
+      const singleId = e.dataTransfer.getData('text/stock-id');
+      if (singleId) stockIdsToMove = [singleId];
+    }
+
+    if (stockIdsToMove.length > 0) {
+      onMoveStocksToCategory?.(stockIdsToMove, c.id);
     } else if (draggingCatId && draggingCatId !== c.id) {
       // Reordering categories
       onReorderCategory?.(draggingCatId, c.id, dragCatInsertPos);
     }
 
+    (window as any).__knav_dragging_stock_ids = null;
     setDraggingCatId(null);
     setDragOverCatId(null);
     setDragOverIsStock(false);
@@ -185,32 +233,64 @@ export default function Sidebar({
 
   const handleUnassignedDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     e.dataTransfer.dropEffect = 'move';
     setDragOverUnassigned(true);
   };
 
   const handleUnassignedDragLeave = (e: React.DragEvent) => {
-    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-    setDragOverUnassigned(false);
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) {
+      setDragOverUnassigned(false);
+    }
   };
 
   const handleUnassignedDrop = (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     let stockIdsToMove: string[] = [];
-    try {
-      const raw = e.dataTransfer.getData('application/json');
-      if (raw) {
-        const data = JSON.parse(raw);
-        if (data.stockIds) stockIdsToMove = data.stockIds;
-      }
-    } catch {}
+
+    // 1. Check window global storage
+    if ((window as any).__knav_dragging_stock_ids && Array.isArray((window as any).__knav_dragging_stock_ids)) {
+      stockIdsToMove = [...(window as any).__knav_dragging_stock_ids];
+    }
+
+    // 2. Check application/json
+    if (stockIdsToMove.length === 0) {
+      try {
+        const raw = e.dataTransfer.getData('application/json');
+        if (raw) {
+          const data = JSON.parse(raw);
+          if (data.stockIds && Array.isArray(data.stockIds)) stockIdsToMove = data.stockIds;
+        }
+      } catch {}
+    }
+
+    // 3. Check text/plain (JSON format fallback)
+    if (stockIdsToMove.length === 0) {
+      try {
+        const rawText = e.dataTransfer.getData('text/plain');
+        if (rawText && rawText.startsWith('{')) {
+          const data = JSON.parse(rawText);
+          if (data.stockIds && Array.isArray(data.stockIds)) stockIdsToMove = data.stockIds;
+        }
+      } catch {}
+    }
+
+    // 4. Check text/stock-id
     if (stockIdsToMove.length === 0) {
       const singleId = e.dataTransfer.getData('text/stock-id');
       if (singleId) stockIdsToMove = [singleId];
     }
+
     if (stockIdsToMove.length > 0) {
       onMoveStocksToCategory?.(stockIdsToMove, '');
     }
+
+    (window as any).__knav_dragging_stock_ids = null;
     setDragOverUnassigned(false);
   };
 
@@ -325,7 +405,7 @@ export default function Sidebar({
               } ${
                 isDragOverThisCat
                   ? (dragOverIsStock 
-                      ? 'border-border-light bg-border-main/60 text-text-bright ring-1 ring-border-light' 
+                      ? 'border-[#58a6ff] bg-[#58a6ff]/20 text-text-bright ring-2 ring-[#58a6ff]/60 font-bold shadow-sm' 
                       : (dragCatInsertPos === 'before' ? 'border-t-2 border-t-border-light bg-border-main/30' : 'border-b-2 border-b-border-light bg-border-main/30'))
                   : (isSelected 
                       ? 'border-border-light bg-border-main text-text-bright' 
@@ -355,24 +435,30 @@ export default function Sidebar({
                 )}
 
                 {/* Folder icon */}
-                {isSelected ? (
-                  <FolderOpen size={13} className={`shrink-0 transition-colors ${getFolderColorClass(folderColor, true, level === 0)}`} />
+                {isSelected || (isDragOverThisCat && dragOverIsStock) ? (
+                  <FolderOpen size={13} className={`shrink-0 transition-colors ${isDragOverThisCat && dragOverIsStock ? 'text-[#58a6ff]' : getFolderColorClass(folderColor, true, level === 0)}`} />
                 ) : (
                   <Folder size={13} className={`shrink-0 transition-colors ${getFolderColorClass(folderColor, false, level === 0)}`} />
                 )}
 
                 {/* Category name */}
-                <span className="truncate font-bold text-left" style={{ fontSize: sidebarFontSize }}>
+                <span className="truncate font-bold text-left min-w-0 flex-1" style={{ fontSize: sidebarFontSize }}>
                   {c.name}
                 </span>
               </div>
 
               {/* Right side: Count badge & Action icons */}
               <div className="flex items-center gap-1 shrink-0 ml-2">
-                {/* Count badge (SOLID style: [ 13 ]) */}
-                <span className="text-[10px] font-mono tabular-nums px-1.5 py-0.2 bg-base-bg border border-border-main text-text-normal font-bold">
-                  {displayCount}
-                </span>
+                {isDragOverThisCat && dragOverIsStock ? (
+                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 bg-[#58a6ff] text-black rounded-xs animate-pulse">
+                    {language === 'EN' ? '+ MOVE' : '+ 移動'}
+                  </span>
+                ) : (
+                  <>
+                    {/* Count badge (SOLID style: [ 13 ]) */}
+                    <span className="text-[10px] font-mono tabular-nums px-1.5 py-0.2 bg-base-bg border border-border-main text-text-normal font-bold">
+                      {displayCount}
+                    </span>
 
                 {/* Hover actions */}
                 <div className="hidden group-hover/cat:flex items-center gap-1">
@@ -433,9 +519,11 @@ export default function Sidebar({
                     <Trash2 size={11} />
                   </span>
                 </div>
-              </div>
-            </div>
-          )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
         </div>
 
         {/* Render child categories if not collapsed */}
@@ -453,7 +541,7 @@ export default function Sidebar({
 
   return (
     <>
-      <aside className="w-full h-full md:h-screen border-b md:border-b-0 md:border-r border-border-main bg-base-bg flex flex-col p-4 gap-4 overflow-y-auto z-10">
+      <aside className="w-full h-full md:h-screen border-b md:border-b-0 md:border-r border-border-main bg-base-bg flex flex-col p-4 gap-4 overflow-y-auto overflow-x-hidden z-10">
         
         {/* Header Branding */}
         <div className="flex items-center gap-3">
@@ -517,7 +605,7 @@ export default function Sidebar({
           </div>
           
           {/* Scrollable Explorer List: Holds + New Dir, Market Data, All Data, Categories, and Unassigned */}
-          <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2 pr-1 scrollbar-thin mt-1">
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col gap-2 pr-1 scrollbar-thin mt-1">
             {!isAdding ? (
               <button 
                 onClick={() => {
@@ -572,9 +660,9 @@ export default function Sidebar({
                     : 'border-transparent text-text-normal hover:text-text-bright hover:bg-border-main/20'
                 }`}
               >
-                <div className="flex-1 flex items-center gap-2 text-left">
+                <div className="flex-1 flex items-center gap-2 text-left min-w-0">
                   <LineChart size={13} className={`shrink-0 ${isMarketDataOpen ? 'text-text-bright' : 'text-text-normal'}`} />
-                  <span className="font-bold truncate" style={{ fontSize: sidebarFontSize }}>[ STOCK MARKET DATA ]</span>
+                  <span className="font-bold truncate min-w-0 flex-1" style={{ fontSize: sidebarFontSize }}>[ STOCK MARKET DATA ]</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <button 
@@ -634,7 +722,7 @@ export default function Sidebar({
 
                   {/* Tab 1: 市場リンク */}
                   {marketTab === 'links' && (
-                    <div className="flex flex-col gap-1 max-h-[280px] overflow-y-auto pr-1 scrollbar-thin">
+                    <div className="flex flex-col gap-1 max-h-[280px] overflow-y-auto overflow-x-hidden pr-1 scrollbar-thin">
                       <div className="flex items-center justify-between px-1 pb-1 text-[9px] text-text-normal border-b border-border-main/30">
                         <span>クイックリンク ({marketLinks.length})</span>
                         <button
@@ -655,11 +743,11 @@ export default function Sidebar({
                             e.preventDefault();
                             openExternalWindow(link.url);
                           }}
-                          className="flex items-center justify-between text-text-normal hover:text-text-bright hover:bg-border-main/50 px-2 py-1 rounded transition-colors group"
+                          className="flex items-center justify-between text-text-normal hover:text-text-bright hover:bg-border-main/50 px-2 py-1 rounded transition-colors group min-w-0 w-full"
                           title={`${link.title}（別ウィンドウで開く）`}
                         >
-                          <span className="truncate pr-1 font-medium" style={{ fontSize: Math.max(11, sidebarFontSize - 1) }}>{link.title}</span>
-                          <ExternalLink size={10} className="shrink-0 opacity-60 group-hover:opacity-100 group-hover:text-text-bright" />
+                          <span className="truncate pr-1 font-medium min-w-0 flex-1" style={{ fontSize: Math.max(11, sidebarFontSize - 1) }}>{link.title}</span>
+                          <ExternalLink size={10} className="shrink-0 opacity-60 group-hover:opacity-100 group-hover:text-text-bright ml-1" />
                         </a>
                       ))}
                     </div>
@@ -703,13 +791,11 @@ export default function Sidebar({
                       </div>
 
                       {/* Links list */}
-                      <div className="flex flex-col gap-2 max-h-[280px] overflow-y-auto pr-1 scrollbar-thin pt-1">
+                      <div className="flex flex-col gap-2 max-h-[280px] overflow-y-auto overflow-x-hidden pr-1 scrollbar-thin pt-1">
                         {(tankenCategories.find(c => c.id === tankenSubTab)?.groups || []).map((group, gIdx) => (
                           <div key={gIdx} className="space-y-0.5">
-                            <div className={`text-[10px] font-bold px-1 py-0.5 flex items-center gap-1 border-b ${
-                              tankenSubTab === 'fundamentals' ? 'text-[#f59e0b] border-[#d97706]/30' : 'text-[#4ade80] border-[#16a34a]/30'
-                            }`}>
-                              <span className={`w-1 h-2 rounded-xs ${tankenSubTab === 'fundamentals' ? 'bg-[#f59e0b]' : 'bg-[#4ade80]'}`} />
+                            <div className="text-[10px] font-bold px-1 py-0.5 flex items-center gap-1 border-b border-border-main/50 text-text-bright">
+                              <span className="w-1 h-2 rounded-xs bg-border-light" />
                               <span className="truncate">{group.groupName}</span>
                             </div>
                             {group.items.map((item, itemIdx) => (
@@ -722,10 +808,10 @@ export default function Sidebar({
                                   e.preventDefault();
                                   openExternalWindow(item.url);
                                 }}
-                                className="group flex items-center justify-between px-2 py-0.5 text-text-normal hover:text-text-bright hover:bg-border-main/50 rounded transition-colors"
+                                className="group flex items-center justify-between px-2 py-0.5 text-text-normal hover:text-text-bright hover:bg-border-main/50 rounded transition-colors min-w-0 w-full"
                                 title={`${item.title}（別ウィンドウで開く）`}
                               >
-                                <span className="truncate group-hover:underline font-medium" style={{ fontSize: Math.max(11, sidebarFontSize - 1) }}>{item.title}</span>
+                                <span className="truncate group-hover:underline font-medium min-w-0 flex-1" style={{ fontSize: Math.max(11, sidebarFontSize - 1) }}>{item.title}</span>
                                 <ExternalLink size={9} className="shrink-0 opacity-0 group-hover:opacity-100 text-text-bright ml-1" />
                               </a>
                             ))}
@@ -747,17 +833,17 @@ export default function Sidebar({
                   : 'border-transparent text-text-normal hover:text-text-bright'
               }`}
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 min-w-0 flex-1 text-left">
                 <Folders size={13} className={`shrink-0 transition-colors ${getFolderColorClass(folderColor, activeCategory === null, true)}`} />
-                <span className="font-bold" style={{ fontSize: sidebarFontSize }}>[ {t.allData} ]</span>
+                <span className="font-bold truncate min-w-0 flex-1" style={{ fontSize: sidebarFontSize }}>[ {t.allData} ]</span>
               </div>
-              <span className="text-[10px] font-mono tabular-nums px-1.5 py-0.2 bg-base-bg border border-border-main text-text-normal font-bold">
+              <span className="text-[10px] font-mono tabular-nums px-1.5 py-0.2 bg-base-bg border border-border-main text-text-normal font-bold shrink-0 ml-1">
                 {stocksLength}
               </span>
             </button>
             
             {/* Hierarchical Categories Tree */}
-            <div className="flex flex-col gap-0.5 mt-1">
+            <div className="flex flex-col gap-0.5 mt-1 min-w-0">
               {rootCategories.map(c => renderCategoryItem(c, 0))}
 
               {/* UNASSIGNED item */}
@@ -766,84 +852,123 @@ export default function Sidebar({
                 onDragOver={handleUnassignedDragOver}
                 onDragLeave={handleUnassignedDragLeave}
                 onDrop={handleUnassignedDrop}
-                className={`w-full flex items-center justify-between px-2.5 py-1.5 border transition-colors group/unassigned mt-1 ${
+                className={`w-full flex items-center justify-between px-2.5 py-1.5 border transition-colors group/unassigned mt-1 shrink-0 ${
                   dragOverUnassigned
-                    ? 'border-border-light bg-border-main/60 text-text-bright ring-1 ring-border-light'
+                    ? 'border-[#58a6ff] bg-[#58a6ff]/20 text-text-bright ring-2 ring-[#58a6ff]/60 font-bold shadow-sm'
                     : (activeCategory === 'UNASSIGNED' 
                         ? 'border-border-light bg-border-main text-text-bright' 
                         : 'border-transparent text-text-normal hover:text-text-bright')
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <FolderOpen size={13} className={`shrink-0 transition-colors ${getFolderColorClass(folderColor, activeCategory === 'UNASSIGNED', false)}`} />
-                  <span className="truncate flex-1 text-left font-bold" style={{ fontSize: sidebarFontSize }}>{t.unassigned}</span>
+                <div className="flex items-center gap-2 min-w-0 flex-1 text-left">
+                  <FolderOpen size={13} className={`shrink-0 transition-colors ${dragOverUnassigned ? 'text-[#58a6ff]' : getFolderColorClass(folderColor, activeCategory === 'UNASSIGNED', false)}`} />
+                  <span className="truncate flex-1 text-left font-bold min-w-0" style={{ fontSize: sidebarFontSize }}>{t.unassigned}</span>
                 </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] font-mono tabular-nums px-1.5 py-0.2 bg-base-bg border border-border-main text-text-normal font-bold">
-                    {unassignedCount}
-                  </span>
-                  {onFetchCategory && (
-                    <span 
-                      onClick={(e) => { e.stopPropagation(); onFetchCategory('UNASSIGNED'); }} 
-                      className="opacity-0 group-hover/unassigned:opacity-100 text-text-dim hover:text-text-bright p-0.5 ml-1"
-                      title={t.reacquire}
-                    >
-                      <Activity size={11} />
+                <div className="flex items-center gap-1 shrink-0 ml-1">
+                  {dragOverUnassigned ? (
+                    <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 bg-[#58a6ff] text-black rounded-xs animate-pulse">
+                      {language === 'EN' ? '+ MOVE' : '+ 移動'}
                     </span>
+                  ) : (
+                    <>
+                      <span className="text-[10px] font-mono tabular-nums px-1.5 py-0.2 bg-base-bg border border-border-main text-text-normal font-bold">
+                        {unassignedCount}
+                      </span>
+                      {onFetchCategory && (
+                        <span 
+                          onClick={(e) => { e.stopPropagation(); onFetchCategory('UNASSIGNED'); }} 
+                          className="opacity-0 group-hover/unassigned:opacity-100 text-text-dim hover:text-text-bright p-0.5 ml-1"
+                          title={t.reacquire}
+                        >
+                          <Activity size={11} />
+                        </span>
+                      )}
+                    </>
                   )}
                 </div>
               </button>
             </div>
           </div>
 
-          {/* Data Management Footer - Pinned at bottom inside card */}
-          <div className="shrink-0 pt-2.5 mt-2 border-t border-border-main flex flex-col gap-1.5 bg-panel-bg z-10">
-            <div className="text-[10px] text-text-dim mb-0.5 font-bold flex items-center justify-between">
-              <span>{t.dataManagement}</span>
-              <span className="text-[9px] text-text-dim font-mono">228 STOCKS</span>
-            </div>
+          {/* Data Management Footer - Collapsible pinned at bottom inside card */}
+          <div className="shrink-0 pt-2 mt-2 border-t border-border-main flex flex-col bg-panel-bg z-10">
+            <button 
+              type="button"
+              onClick={toggleDataManagement}
+              className="w-full py-1 px-1 flex items-center justify-between text-[10px] font-bold text-text-dim hover:text-text-bright hover:bg-base-bg/60 rounded-xs transition-colors cursor-pointer group"
+              title={isDataManagementOpen ? '折りたたむ' : '展開する'}
+            >
+              <div className="flex items-center gap-1.5">
+                <ChevronDown 
+                  size={12} 
+                  className={`text-text-dim group-hover:text-text-bright transition-transform duration-200 shrink-0 ${
+                    isDataManagementOpen ? 'rotate-0' : '-rotate-90'
+                  }`} 
+                />
+                <span className="tracking-wide">{t.dataManagement}</span>
+              </div>
+              <span className="text-[9px] text-text-dim font-mono">
+                {stocksLength} STOCKS
+              </span>
+            </button>
             
-            <button onClick={onExportJson} className="w-full h-7 flex items-center justify-start px-2.5 gap-2 border border-border-main text-text-dim bg-base-bg hover:text-text-bright hover:border-border-light transition-colors text-xs group">
-              <Download size={11} className="shrink-0 text-text-dim group-hover:text-text-bright transition-colors" /> {t.exportJson}
-            </button>
-            <button onClick={() => jsonInputRef.current?.click()} className="w-full h-7 flex items-center justify-start px-2.5 gap-2 border border-border-main text-text-dim bg-base-bg hover:text-text-bright hover:border-border-light transition-colors text-xs group">
-              <FileCode size={11} className="shrink-0 text-text-dim group-hover:text-text-bright transition-colors" /> {t.importJson}
-            </button>
+            {isDataManagementOpen && (
+              <div className="flex flex-col gap-1.5 pt-2 animate-in fade-in slide-in-from-top-1 duration-150">
+                <button onClick={onExportJson} className="w-full h-7 flex items-center justify-start px-2.5 gap-2 border border-border-main text-text-dim bg-base-bg hover:text-text-bright hover:border-border-light transition-colors text-xs group">
+                  <Download size={11} className="shrink-0 text-text-dim group-hover:text-text-bright transition-colors" /> {t.exportJson}
+                </button>
+                <button onClick={() => jsonInputRef.current?.click()} className="w-full h-7 flex items-center justify-start px-2.5 gap-2 border border-border-main text-text-dim bg-base-bg hover:text-text-bright hover:border-border-light transition-colors text-xs group">
+                  <FileCode size={11} className="shrink-0 text-text-dim group-hover:text-text-bright transition-colors" /> {t.importJson}
+                </button>
 
-            <button 
-              type="button"
-              onClick={onDownloadEnrichedData} 
-              className="w-full h-7 flex items-center justify-start px-2.5 gap-2 border border-border-main text-text-dim bg-base-bg hover:text-text-bright hover:border-border-light transition-colors text-xs mt-1 cursor-pointer group"
-              title="228銘柄の概要付きJSONファイルを保存"
-            >
-              <Download size={11} className="shrink-0 text-text-dim group-hover:text-text-bright transition-colors" />
-              <span>概要付JSONをダウンロード</span>
-            </button>
+                <button 
+                  type="button"
+                  onClick={onDownloadEnrichedData} 
+                  className="w-full h-7 flex items-center justify-start px-2.5 gap-2 border border-border-main text-text-dim bg-base-bg hover:text-text-bright hover:border-border-light transition-colors text-xs mt-1 cursor-pointer group"
+                  title={`最新プリセット（全${presetStocksCount}銘柄・概要付き）のJSONファイルを保存`}
+                >
+                  <Download size={11} className="shrink-0 text-text-dim group-hover:text-text-bright transition-colors" />
+                  <span>最新概要付JSONをダウンロード</span>
+                </button>
 
-            <button 
-              type="button"
-              onClick={() => setIsProxyModalOpen(true)} 
-              className="w-full h-7 flex items-center justify-start px-2.5 gap-2 border border-border-main text-text-dim bg-base-bg hover:text-text-bright hover:border-border-light transition-colors text-xs cursor-pointer group"
-              title="GitHub Pagesや外部環境用の株価取得API / プロキシURL設定"
-            >
-              <Globe size={11} className="shrink-0 text-text-dim group-hover:text-text-bright transition-colors" />
-              <span>外部株価API設定 (GitHub Pages用)</span>
-            </button>
+                <button 
+                  type="button"
+                  onClick={() => setIsProxyModalOpen(true)} 
+                  className="w-full h-7 flex items-center justify-start px-2.5 gap-2 border border-border-main text-text-dim bg-base-bg hover:text-text-bright hover:border-border-light transition-colors text-xs cursor-pointer group"
+                  title="GitHub Pagesや外部環境用の株価取得API / プロキシURL設定"
+                >
+                  <Globe size={11} className="shrink-0 text-text-dim group-hover:text-text-bright transition-colors" />
+                  <span>外部株価API設定 (GitHub Pages用)</span>
+                </button>
 
-            {onLoadEnrichedData && (
-              <button 
-                onClick={() => setIsRestoreConfirmOpen(true)} 
-                className="w-full h-7 flex items-center justify-start px-2.5 gap-2 border border-border-main text-text-dim bg-base-bg hover:text-text-bright hover:border-border-light transition-colors text-xs font-bold group"
-                title="全228銘柄と各社の企業概要（事業内容・強み）を初期プリセットから復元します（確認画面が開きます）"
-              >
-                <Sparkles size={11} className="shrink-0 text-text-dim group-hover:text-text-bright transition-colors" />
-                <span>228銘柄（概要付）を復元</span>
-              </button>
+                {onFillMissingDescriptions && (
+                  <button 
+                    type="button"
+                    onClick={onFillMissingDescriptions} 
+                    className="w-full h-7 flex items-center justify-start px-2.5 gap-2 border border-border-main text-text-dim bg-base-bg hover:text-text-bright hover:border-border-light transition-colors text-xs font-bold group cursor-pointer"
+                    title="現在登録されている銘柄の中で詳細情報（企業概要）が未登録のものに、プリセットから自動補完・登録します"
+                  >
+                    <FileText size={11} className="shrink-0 text-text-dim group-hover:text-text-bright transition-colors" />
+                    <span>詳細情報を一括補完 (未登録分)</span>
+                  </button>
+                )}
+
+                {onLoadEnrichedData && (
+                  <button 
+                    onClick={() => setIsRestoreConfirmOpen(true)} 
+                    className="w-full h-7 flex items-center justify-start px-2.5 gap-2 border border-border-main text-text-dim bg-base-bg hover:text-text-bright hover:border-border-light transition-colors text-xs font-bold group"
+                    title={`最新プリセット（全${presetStocksCount}銘柄・概要付き）へ復元します（確認画面が開きます）`}
+                  >
+                    <Sparkles size={11} className="shrink-0 text-text-dim group-hover:text-text-bright transition-colors" />
+                    <span>最新データ（{presetStocksCount}銘柄・概要付）を復元</span>
+                  </button>
+                )}
+
+                <button onClick={onResetData} className="w-full h-7 flex items-center justify-start px-2.5 gap-2 border border-border-main text-text-dim bg-base-bg hover:text-text-bright hover:border-border-light transition-colors text-xs mt-1 group">
+                  <Trash2 size={11} className="shrink-0 text-text-dim group-hover:text-text-bright transition-colors" /> {t.resetData}
+                </button>
+              </div>
             )}
-
-            <button onClick={onResetData} className="w-full h-7 flex items-center justify-start px-2.5 gap-2 border border-border-main text-text-dim bg-base-bg hover:text-text-bright hover:border-border-light transition-colors text-xs mt-1 group">
-              <Trash2 size={11} className="shrink-0 text-text-dim group-hover:text-text-bright transition-colors" /> {t.resetData}
-            </button>
             <input type="file" accept=".json" className="hidden" ref={jsonInputRef} onChange={e => handleFileChange(e)} />
           </div>
         </div>
@@ -867,7 +992,7 @@ export default function Sidebar({
         />
       )}
 
-      {/* 228銘柄復元 確認ダイアログ */}
+      {/* プリセット復元 確認ダイアログ */}
       {isRestoreConfirmOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4 animate-in fade-in duration-150">
           <div className="w-full max-w-md bg-panel-bg border border-border-light shadow-2xl rounded-xs overflow-hidden flex flex-col">
@@ -875,7 +1000,7 @@ export default function Sidebar({
             <div className="flex items-center justify-between px-4 py-3 border-b border-border-main bg-base-bg">
               <div className="flex items-center gap-2 text-[#f59e0b] font-bold text-xs md:text-sm">
                 <AlertTriangle size={16} className="shrink-0 text-[#f59e0b]" />
-                <span>228銘柄プリセット復元の確認</span>
+                <span>最新データ（{presetStocksCount}銘柄）復元の確認</span>
               </div>
               <button 
                 onClick={() => setIsRestoreConfirmOpen(false)}
@@ -891,20 +1016,20 @@ export default function Sidebar({
               <div className="p-3 bg-[#f85149]/10 border border-[#f85149]/30 rounded-xs text-[#ff7b72] font-bold flex items-start gap-2">
                 <AlertTriangle size={16} className="shrink-0 mt-0.5 text-[#ff7b72]" />
                 <div>
-                  【注意】現在のデータはすべて上書きされます
+                  【注意】現在のデータ（{stocksLength}銘柄）は最新プリセットで上書きされます
                 </div>
               </div>
 
               <div className="text-text-bright font-medium">
-                この操作を実行すると、現在登録されている銘柄データ・新しく作成したカテゴリー・編集したメモなどは<span className="text-[#ff7b72] font-bold">差分ではなくすべて初期状態に上書きリセット</span>されます。
+                この操作を実行すると、サイバーセキュリティやドローン等を含む<span className="text-[#3fb950] font-bold">全{presetStocksCount}銘柄（最新概要・詳細情報付き）</span>の最新プリセットデータに復元されます。
               </div>
 
               <div className="p-2.5 bg-base-bg border border-border-main text-[11px] text-text-dim rounded-xs leading-normal">
-                💡 現在のデータを残しておきたい場合は、一旦「キャンセル」し、事前に「<span className="text-text-bright font-bold">JSONエクスポート</span>」で現在のバックアップファイルを保存してください。
+                💡 現在のデータを残しておきたい場合は、一旦「キャンセル」し、事前に「<span className="text-text-bright font-bold">JSONエクスポート</span>」でバックアップを保存してください。
               </div>
 
               <div className="text-text-bright text-xs pt-1 font-bold">
-                本当に初期プリセット（228銘柄・概要付き）へ復元しますか？
+                最新プリセット（全{presetStocksCount}銘柄・概要付き）へ復元しますか？
               </div>
             </div>
 

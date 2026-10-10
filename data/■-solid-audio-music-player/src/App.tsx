@@ -6,8 +6,9 @@ import {
   Minimize2, Maximize2, Layers, Minus, PanelTop, GripVertical, Type, Eye, EyeOff
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
-import { get, set } from 'idb-keyval';
+import { get, set, del } from 'idb-keyval';
 import * as mm from 'music-metadata-browser';
+import { AlbumArt3D } from './components/AlbumArt3D';
 
 // --- Types ---
 interface Track {
@@ -35,6 +36,7 @@ interface Playlist {
 const THEMES = [
   { 
     id: 'NAVY', 
+    dotColor: '#2563eb',
     bg: '#0d1117', 
     surface: '#121822',
     surfaceLighter: '#1a2332',
@@ -45,10 +47,13 @@ const THEMES = [
     textDim: '#415370',
     accent: '#5da0ea',
     accentDark: '#4a648c',
-    accentMuted: '#1d2738'
+    accentMuted: '#1d2738',
+    sliderTrackBg: '#080b10',
+    sliderTrackBorder: '#2c3b53'
   },
   { 
     id: 'BLACK', 
+    dotColor: '#252932',
     bg: '#0B0C0D', 
     surface: '#14161A',
     surfaceLighter: '#1C2026',
@@ -59,10 +64,47 @@ const THEMES = [
     textDim: '#4A5260',
     accent: '#8EA1BD',
     accentDark: '#5D6B80',
-    accentMuted: '#161C26'
+    accentMuted: '#161C26',
+    sliderTrackBg: '#040506',
+    sliderTrackBorder: '#353c48'
+  },
+  { 
+    id: 'GRAY', 
+    dotColor: '#64748b',
+    bg: '#363d47', 
+    surface: '#434b57',
+    surfaceLighter: '#4e5765',
+    border: '#576272', 
+    borderActive: '#727e91',
+    textMain: '#f0f3f7',
+    textMuted: '#a2afbf',
+    textDim: '#707d8e',
+    accent: '#94a7c1',
+    accentDark: '#6a7e99',
+    accentMuted: '#2b313a',
+    sliderTrackBg: '#252a32',
+    sliderTrackBorder: '#454e5c',
+    // 04 & 05 ヘッダーバー (#363D47)
+    listHeaderBg: '#363d47',
+    listHeaderBorder: '#576272',
+    listHeaderText: '#f0f3f7',
+    listHeaderTextMuted: '#a2afbf',
+    // 04 & 05 LIST AREA (プレイリスト一覧 & トラックリスト: 白背景 & 濃いめグレー文字)
+    listBg: '#ffffff',
+    listSurface: '#f4f6f8',
+    listSurfaceLighter: '#edf1f5',
+    listBorder: '#b8c5ce',
+    listBorderActive: '#727e91',
+    listTextMain: '#111a24',
+    listTextMuted: '#3a4d5e',
+    listTextDim: '#637b8f',
+    listAccent: '#213040',
+    listAccentMuted: '#dbe3eb',
+    listIconColor: '#1a2530',
   },
   { 
     id: 'LIGHT', 
+    dotColor: '#0284c7',
     bg: '#e8ecef', 
     surface: '#f4f6f8',
     surfaceLighter: '#ffffff',
@@ -73,10 +115,13 @@ const THEMES = [
     textDim: '#637b8f',
     accent: '#213040',
     accentDark: '#121c26',
-    accentMuted: '#b8c5ce'
+    accentMuted: '#b8c5ce',
+    sliderTrackBg: '#ffffff',
+    sliderTrackBorder: '#9ba9b5'
   },
   { 
     id: 'BROWN', 
+    dotColor: '#b45309',
     bg: '#1a1614', 
     surface: '#241e1b',
     surfaceLighter: '#2e2723',
@@ -87,10 +132,48 @@ const THEMES = [
     textDim: '#6b5f58',
     accent: '#d6a076',
     accentDark: '#b58560',
-    accentMuted: '#3d2e24'
+    accentMuted: '#3d2e24',
+    sliderTrackBg: '#0d0b0a',
+    sliderTrackBorder: '#61534b'
+  },
+  { 
+    id: 'MOCHA', 
+    dotColor: '#c4a48b',
+    bg: '#46382c', 
+    surface: '#59483a',
+    surfaceLighter: '#685646',
+    border: '#78685a', 
+    borderActive: '#c4a48b',
+    textMain: '#f7ece1',
+    textMuted: '#d4bfae',
+    textDim: '#a39081',
+    accent: '#c4a48b',
+    accentDark: '#947864',
+    accentMuted: '#3d3025',
+    sliderTrackBg: '#382c22',
+    sliderTrackBorder: '#78685a',
+    controlBoxBg: '#46382c',
+    // 04 & 05 ヘッダーバー (#59483A / #78685A)
+    listHeaderBg: '#59483a',
+    listHeaderBorder: '#78685a',
+    listHeaderText: '#f7ece1',
+    listHeaderTextMuted: '#c4a48b',
+    // 04 & 05 LIST AREA (プレイリスト一覧 & トラックリスト: #F7ECE1 クリーム背景 & 濃いめモカ文字)
+    listBg: '#f7ece1',
+    listSurface: '#efe2d5',
+    listSurfaceLighter: '#e5d6c7',
+    listBorder: '#dec8b7',
+    listBorderActive: '#78685a',
+    listTextMain: '#2b2018',
+    listTextMuted: '#59483a',
+    listTextDim: '#78685a',
+    listAccent: '#59483a',
+    listAccentMuted: '#dfcdbd',
+    listIconColor: '#2b2018',
   },
   { 
     id: 'OLIVE', 
+    dotColor: '#84cc16',
     bg: '#161a15', 
     surface: '#1e241c',
     surfaceLighter: '#283025',
@@ -101,10 +184,13 @@ const THEMES = [
     textDim: '#5b7053',
     accent: '#92c27c',
     accentDark: '#759e62',
-    accentMuted: '#2d3d25'
+    accentMuted: '#2d3d25',
+    sliderTrackBg: '#0a0d09',
+    sliderTrackBorder: '#51664a'
   },
   { 
     id: 'RED', 
+    dotColor: '#ef4444',
     bg: '#140808', 
     surface: '#1f0d0d',
     surfaceLighter: '#2b1212',
@@ -115,7 +201,9 @@ const THEMES = [
     textDim: '#946262',
     accent: '#e65c5c',
     accentDark: '#b34747',
-    accentMuted: '#421a1a'
+    accentMuted: '#421a1a',
+    sliderTrackBg: '#0a0303',
+    sliderTrackBorder: '#8a2727'
   }
 ];
 
@@ -192,14 +280,44 @@ export default function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(1);
-  const [isMuted, setIsMuted] = useState(false);
+  const [volume, setVolume] = useState<number>(() => {
+    try {
+      const savedVol = localStorage.getItem('v2_solidVolume');
+      if (savedVol !== null) {
+        const parsed = parseFloat(savedVol);
+        if (!isNaN(parsed) && parsed >= 0 && parsed <= 1) return parsed;
+      }
+    } catch(e) {}
+    return 1;
+  });
+  const [isMuted, setIsMuted] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('v2_solidIsMuted') === 'true';
+    } catch(e) {}
+    return false;
+  });
   const [isShuffle, setIsShuffle] = useState(false);
-  const [repeatMode, setRepeatMode] = useState<0|1|2>(0); // 0: off, 1: all, 2: one
+  const [repeatMode, setRepeatMode] = useState<0|1|2|3>(0); // 0: off, 1: all, 2: one, 3: set (selected lists)
   const [selectedTrackIds, setSelectedTrackIds] = useState<Set<string>>(new Set());
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [themeIndex, setThemeIndex] = useState(0);
+  const [themeIndex, setThemeIndex] = useState<number>(() => {
+    try {
+      const savedThemeId = localStorage.getItem('v2_solidThemeId');
+      if (savedThemeId) {
+        const foundIdx = THEMES.findIndex(t => t.id === savedThemeId);
+        if (foundIdx !== -1) return foundIdx;
+      }
+      const savedThemeIdx = localStorage.getItem('v2_solidThemeIndex');
+      if (savedThemeIdx !== null) {
+        const parsed = parseInt(savedThemeIdx);
+        if (!isNaN(parsed) && parsed >= 0 && parsed < THEMES.length) return parsed;
+      }
+    } catch(e) {}
+    return 0;
+  });
+  const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false);
+  const themeMenuRef = useRef<HTMLDivElement | null>(null);
   const [listFontSize, setListFontSize] = useState<number>(11);
   const [colWidths, setColWidths] = useState({
     index: 96,
@@ -287,6 +405,7 @@ export default function App() {
   const [dragOverPlaylistId, setDragOverPlaylistId] = useState<string | null>(null);
   const [confirmDeletePlaylistId, setConfirmDeletePlaylistId] = useState<string | null>(null);
   const [selectedPlaylistIds, setSelectedPlaylistIds] = useState<Set<string>>(new Set());
+  const [isPlaylistSelectionMode, setIsPlaylistSelectionMode] = useState(false);
   const lastSelectedPlaylistIdRef = useRef<string | null>(null);
   const [confirmDeleteSelectedPlaylists, setConfirmDeleteSelectedPlaylists] = useState(false);
 
@@ -388,6 +507,17 @@ export default function App() {
         const savedListFontSize = await get('v2_solidListFontSize');
         const savedColVisibility = await get('v2_solidColVisibility');
         const savedColOrder = await get('v2_solidColOrder');
+        const savedVolume = await get('v2_solidVolume');
+        const savedIsMuted = await get('v2_solidIsMuted');
+        const savedEqLow = await get('v2_solidEqLow');
+        const savedEqMid = await get('v2_solidEqMid');
+        const savedEqHigh = await get('v2_solidEqHigh');
+        
+        if (savedVolume !== undefined && !isNaN(savedVolume) && savedVolume >= 0 && savedVolume <= 1) setVolume(savedVolume);
+        if (savedIsMuted !== undefined) setIsMuted(!!savedIsMuted);
+        if (savedEqLow !== undefined && !isNaN(savedEqLow)) setEqLow(savedEqLow);
+        if (savedEqMid !== undefined && !isNaN(savedEqMid)) setEqMid(savedEqMid);
+        if (savedEqHigh !== undefined && !isNaN(savedEqHigh)) setEqHigh(savedEqHigh);
         
         if (savedSidebarWidth && !isNaN(savedSidebarWidth)) setSidebarWidth(savedSidebarWidth);
         if (savedColWidths) {
@@ -407,7 +537,13 @@ export default function App() {
         }
         if (savedListFontSize !== undefined) setListFontSize(savedListFontSize);
         if (savedActivePlaylistId) setActivePlaylistId(savedActivePlaylistId);
-        if (savedThemeIndex !== undefined) setThemeIndex(savedThemeIndex);
+        const savedThemeId = await get('v2_solidThemeId');
+        if (savedThemeId) {
+          const foundIdx = THEMES.findIndex(t => t.id === savedThemeId);
+          if (foundIdx !== -1) setThemeIndex(foundIdx);
+        } else if (savedThemeIndex !== undefined && savedThemeIndex < THEMES.length) {
+          setThemeIndex(savedThemeIndex);
+        }
         
         if (savedLibrary && savedPlaylists) {
           const libraryMap = new Map<string, Track>();
@@ -480,11 +616,90 @@ export default function App() {
     }
   }, [library, playlists, sidebarWidth, colWidths, colVisibility, colOrder, themeIndex, listFontSize, activePlaylistId, playingPlaylistId, playbackQueue, currentTrackIndex, isInitialized]);
 
+  // Close theme menu on outside click or Escape key
+  useEffect(() => {
+    if (!isThemeMenuOpen) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (themeMenuRef.current && !themeMenuRef.current.contains(e.target as Node)) {
+        setIsThemeMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsThemeMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isThemeMenuOpen]);
+
 
   // (Moved player state)
-  const [eqLow, setEqLow] = useState(60);
-  const [eqMid, setEqMid] = useState(50);
-  const [eqHigh, setEqHigh] = useState(40);
+  const [eqLow, setEqLow] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('v2_solidEqLow');
+      if (saved !== null) {
+        const parsed = parseInt(saved);
+        if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) return parsed;
+      }
+    } catch(e) {}
+    return 60;
+  });
+  const [eqMid, setEqMid] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('v2_solidEqMid');
+      if (saved !== null) {
+        const parsed = parseInt(saved);
+        if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) return parsed;
+      }
+    } catch(e) {}
+    return 50;
+  });
+  const [eqHigh, setEqHigh] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('v2_solidEqHigh');
+      if (saved !== null) {
+        const parsed = parseInt(saved);
+        if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) return parsed;
+      }
+    } catch(e) {}
+    return 40;
+  });
+
+  // Persist volume, mute, and EQ settings immediately to localStorage & IndexedDB
+  useEffect(() => {
+    try {
+      localStorage.setItem('v2_solidVolume', volume.toString());
+      localStorage.setItem('v2_solidIsMuted', isMuted ? 'true' : 'false');
+      set('v2_solidVolume', volume).catch(() => {});
+      set('v2_solidIsMuted', isMuted).catch(() => {});
+    } catch(e) {}
+  }, [volume, isMuted]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('v2_solidEqLow', eqLow.toString());
+      localStorage.setItem('v2_solidEqMid', eqMid.toString());
+      localStorage.setItem('v2_solidEqHigh', eqHigh.toString());
+      set('v2_solidEqLow', eqLow).catch(() => {});
+      set('v2_solidEqMid', eqMid).catch(() => {});
+      set('v2_solidEqHigh', eqHigh).catch(() => {});
+    } catch(e) {}
+  }, [eqLow, eqMid, eqHigh]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('v2_solidThemeIndex', themeIndex.toString());
+      const curTheme = THEMES[themeIndex];
+      if (curTheme) {
+        localStorage.setItem('v2_solidThemeId', curTheme.id);
+        set('v2_solidThemeId', curTheme.id).catch(() => {});
+      }
+      set('v2_solidThemeIndex', themeIndex).catch(() => {});
+    } catch(e) {}
+  }, [themeIndex]);
 
   // --- Refs ---
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -571,6 +786,7 @@ export default function App() {
   const theme = THEMES[themeIndex];
   const isLightTheme = theme.id === 'LIGHT';
   const iconColor = isLightTheme ? '#1a2530' : '#ffffff';
+  const listIconColor = (theme as any).listIconColor || iconColor;
   
   // Refs for visualizer to prevent loop restarts
   const visualizerActive = useRef(isPlaying);
@@ -757,6 +973,165 @@ export default function App() {
     })));
   };
 
+  const getArtworkTargetTracks = (track: Track): Track[] => {
+    const idSet = new Set<string>();
+    idSet.add(track.id);
+
+    // 1. If currently playing a specific playlist
+    if (playingPlaylistId !== 'all-tracks' && playingPlaylist) {
+      playingPlaylist.tracks.forEach(t => idSet.add(t.id));
+    } else {
+      // 2. If in all-tracks or playback queue:
+      playbackQueue.forEach(t => idSet.add(t.id));
+
+      // Also if track has a designated album, include all tracks with that album
+      const hasAlbum = track.album && track.album !== 'Unknown Album' && track.album.trim() !== '';
+      if (hasAlbum) {
+        library.forEach(t => {
+          if (t.album && t.album.toLowerCase() === track.album.toLowerCase()) {
+            idSet.add(t.id);
+          }
+        });
+      }
+    }
+
+    // Collect full track references
+    const targetMap = new Map<string, Track>();
+    library.forEach(t => { if (idSet.has(t.id)) targetMap.set(t.id, t); });
+    playbackQueue.forEach(t => { if (idSet.has(t.id)) targetMap.set(t.id, t); });
+    if (playingPlaylist) {
+      playingPlaylist.tracks.forEach(t => { if (idSet.has(t.id)) targetMap.set(t.id, t); });
+    }
+    return Array.from(targetMap.values());
+  };
+
+  const handleUpdateArtwork = async (file: File): Promise<number> => {
+    if (!currentTrack) return 0;
+    try {
+      const targetTracks = getArtworkTargetTracks(currentTrack);
+      const buffer = await file.arrayBuffer();
+      const mimeType = file.type || 'image/jpeg';
+      const sharedCoverUrl = URL.createObjectURL(new Blob([buffer], { type: mimeType }));
+
+      // 1. For all target tracks, ensure original cover is backed up, then set new cover
+      await Promise.all(targetTracks.map(async (t) => {
+        try {
+          const existingOrig = await get(`v2_track_original_cover_${t.id}`);
+          if (!existingOrig) {
+            const currentCoverData = await get(`v2_track_cover_${t.id}`);
+            if (currentCoverData && currentCoverData.buffer) {
+              await set(`v2_track_original_cover_${t.id}`, currentCoverData);
+            } else {
+              let audioBlob: Blob | null = t.file || null;
+              if (!audioBlob) {
+                const audioData = await get(`v2_track_audio_${t.id}`);
+                if (audioData && audioData.buffer) {
+                  audioBlob = new Blob([audioData.buffer], { type: audioData.type });
+                }
+              }
+              if (audioBlob) {
+                try {
+                  const meta = await mm.parseBlob(audioBlob, { skipCovers: false });
+                  const pic = meta.common.picture?.[0];
+                  if (pic) {
+                    let mime = pic.format;
+                    if (!mime.startsWith('image/')) mime = `image/${mime}`;
+                    const origBuf = pic.data.buffer.slice(pic.data.byteOffset, pic.data.byteOffset + pic.data.byteLength);
+                    await set(`v2_track_original_cover_${t.id}`, { buffer: origBuf, type: mime });
+                  }
+                } catch (e) {
+                  // Ignore parse error on backup
+                }
+              }
+            }
+          }
+          // Set new custom cover for this track
+          await set(`v2_track_cover_${t.id}`, { buffer, type: mimeType });
+        } catch (e) {
+          console.error(`Failed to update cover for track ${t.id}`, e);
+        }
+      }));
+
+      // 2. Update React states atomically across library, playlists, and queue
+      const targetIds = new Set(targetTracks.map(t => t.id));
+      const updateCover = (t: Track) => targetIds.has(t.id) ? { ...t, coverUrl: sharedCoverUrl } : t;
+      setLibrary(prev => prev.map(updateCover));
+      setPlaylists(prev => prev.map(p => ({ ...p, tracks: p.tracks.map(updateCover) })));
+      setPlaybackQueue(prev => prev.map(updateCover));
+
+      return targetTracks.length;
+    } catch (err) {
+      console.error('Failed to update cover artwork for list:', err);
+      return 0;
+    }
+  };
+
+  const handleResetArtwork = async (): Promise<number | boolean> => {
+    if (!currentTrack) return false;
+    try {
+      const targetTracks = getArtworkTargetTracks(currentTrack);
+      const restoredUrlMap = new Map<string, string | undefined>();
+
+      // Restore each track's own original embedded cover
+      await Promise.all(targetTracks.map(async (t) => {
+        try {
+          let originalCover = await get(`v2_track_original_cover_${t.id}`);
+          if (!originalCover || !originalCover.buffer) {
+            let audioBlob: Blob | null = t.file || null;
+            if (!audioBlob) {
+              const audioData = await get(`v2_track_audio_${t.id}`);
+              if (audioData && audioData.buffer) {
+                audioBlob = new Blob([audioData.buffer], { type: audioData.type });
+              }
+            }
+            if (audioBlob) {
+              try {
+                const meta = await mm.parseBlob(audioBlob, { skipCovers: false });
+                const pic = meta.common.picture?.[0];
+                if (pic) {
+                  let mime = pic.format;
+                  if (!mime.startsWith('image/')) mime = `image/${mime}`;
+                  const origBuf = pic.data.buffer.slice(pic.data.byteOffset, pic.data.byteOffset + pic.data.byteLength);
+                  originalCover = { buffer: origBuf, type: mime };
+                  await set(`v2_track_original_cover_${t.id}`, originalCover);
+                }
+              } catch (e) {
+                // Ignore
+              }
+            }
+          }
+
+          if (originalCover && originalCover.buffer) {
+            await set(`v2_track_cover_${t.id}`, originalCover);
+            const restoredUrl = URL.createObjectURL(new Blob([originalCover.buffer], { type: originalCover.type }));
+            restoredUrlMap.set(t.id, restoredUrl);
+          } else {
+            await del(`v2_track_cover_${t.id}`);
+            restoredUrlMap.set(t.id, undefined);
+          }
+        } catch (e) {
+          console.error(`Failed to restore cover for track ${t.id}`, e);
+        }
+      }));
+
+      // Update React state for all target tracks
+      const updateCover = (t: Track) => {
+        if (restoredUrlMap.has(t.id)) {
+          return { ...t, coverUrl: restoredUrlMap.get(t.id) };
+        }
+        return t;
+      };
+      setLibrary(prev => prev.map(updateCover));
+      setPlaylists(prev => prev.map(p => ({ ...p, tracks: p.tracks.map(updateCover) })));
+      setPlaybackQueue(prev => prev.map(updateCover));
+
+      return targetTracks.length;
+    } catch (err) {
+      console.error('Failed to restore original artwork for list:', err);
+      return false;
+    }
+  };
+
   const startEditTrack = (e: React.MouseEvent, track: Track) => {
     e.stopPropagation();
     setEditingTrackId(track.id);
@@ -850,6 +1225,7 @@ export default function App() {
         if (!mimeType.startsWith('image/')) mimeType = `image/${mimeType}`;
         const coverBuffer = picture.data.buffer.slice(picture.data.byteOffset, picture.data.byteOffset + picture.data.byteLength);
         await set(`v2_track_cover_${trackId}`, { buffer: coverBuffer, type: mimeType });
+        await set(`v2_track_original_cover_${trackId}`, { buffer: coverBuffer, type: mimeType });
         coverUrl = URL.createObjectURL(new Blob([coverBuffer], { type: mimeType }));
       }
     } catch (err) {
@@ -1255,6 +1631,64 @@ export default function App() {
   };
 
   const handleNext = () => {
+    // Mode 3: SET repeat across selected playlists
+    if (repeatMode === 3 && selectedPlaylistIds.size > 0) {
+      // Gather all selected playlists that actually exist
+      const chosenPlaylists = playlists.filter(p => p.id !== 'all-tracks' && selectedPlaylistIds.has(p.id));
+      if (chosenPlaylists.length > 0) {
+        // If shuffle is active, pick random playlist and random track from it
+        if (isShuffle) {
+          const validPlaylists = chosenPlaylists.filter(p => p.tracks.length > 0);
+          if (validPlaylists.length > 0) {
+            const randomPl = validPlaylists[Math.floor(Math.random() * validPlaylists.length)];
+            const randomTrackIdx = Math.floor(Math.random() * randomPl.tracks.length);
+            setPlaybackQueue(randomPl.tracks);
+            setPlayingPlaylistId(randomPl.id);
+            setCurrentTrackIndex(randomTrackIdx);
+            setIsPlaying(true);
+            return;
+          }
+        }
+
+        // Sequential: if within current playing playlist and has next track
+        const currentPlIdx = chosenPlaylists.findIndex(p => p.id === playingPlaylistId);
+        if (currentPlIdx !== -1) {
+          const currentPl = chosenPlaylists[currentPlIdx];
+          if (currentTrackIndex + 1 < playbackQueue.length) {
+            setCurrentTrackIndex(currentTrackIndex + 1);
+            setIsPlaying(true);
+            return;
+          } else {
+            // Move to next selected playlist with tracks
+            let nextPlIdx = (currentPlIdx + 1) % chosenPlaylists.length;
+            let attempts = 0;
+            while (chosenPlaylists[nextPlIdx].tracks.length === 0 && attempts < chosenPlaylists.length) {
+              nextPlIdx = (nextPlIdx + 1) % chosenPlaylists.length;
+              attempts++;
+            }
+            const nextPl = chosenPlaylists[nextPlIdx];
+            if (nextPl.tracks.length > 0) {
+              setPlaybackQueue(nextPl.tracks);
+              setPlayingPlaylistId(nextPl.id);
+              setCurrentTrackIndex(0);
+              setIsPlaying(true);
+              return;
+            }
+          }
+        } else {
+          // Current playing playlist is not in selected set, start from first selected playlist with tracks
+          const firstWithTracks = chosenPlaylists.find(p => p.tracks.length > 0);
+          if (firstWithTracks) {
+            setPlaybackQueue(firstWithTracks.tracks);
+            setPlayingPlaylistId(firstWithTracks.id);
+            setCurrentTrackIndex(0);
+            setIsPlaying(true);
+            return;
+          }
+        }
+      }
+    }
+
     if (playbackQueue.length === 0) return;
     
     if (repeatMode === 2) {
@@ -1300,11 +1734,34 @@ export default function App() {
       setIsPlaying(true);
       return;
     }
+
+    // Mode 3: SET repeat across selected playlists for prev track
+    if (repeatMode === 3 && selectedPlaylistIds.size > 0 && currentTrackIndex <= 0) {
+      const chosenPlaylists = playlists.filter(p => p.id !== 'all-tracks' && selectedPlaylistIds.has(p.id));
+      const currentPlIdx = chosenPlaylists.findIndex(p => p.id === playingPlaylistId);
+      if (currentPlIdx !== -1) {
+        let prevPlIdx = (currentPlIdx - 1 + chosenPlaylists.length) % chosenPlaylists.length;
+        let attempts = 0;
+        while (chosenPlaylists[prevPlIdx].tracks.length === 0 && attempts < chosenPlaylists.length) {
+          prevPlIdx = (prevPlIdx - 1 + chosenPlaylists.length) % chosenPlaylists.length;
+          attempts++;
+        }
+        const prevPl = chosenPlaylists[prevPlIdx];
+        if (prevPl.tracks.length > 0) {
+          setPlaybackQueue(prevPl.tracks);
+          setPlayingPlaylistId(prevPl.id);
+          setCurrentTrackIndex(prevPl.tracks.length - 1);
+          setIsPlaying(true);
+          return;
+        }
+      }
+    }
+
     if (playbackQueue.length === 0 || currentTrackIndex === -1) return;
     
     let prevIndex = currentTrackIndex - 1;
     if (prevIndex < 0) {
-      prevIndex = repeatMode === 1 ? playbackQueue.length - 1 : 0;
+      prevIndex = (repeatMode === 1 || repeatMode === 3) ? playbackQueue.length - 1 : 0;
     }
     setCurrentTrackIndex(prevIndex);
     setIsPlaying(true);
@@ -1345,8 +1802,15 @@ export default function App() {
     setNewPlaylistName('');
   };
 
-  const cycleTheme = () => {
-    setThemeIndex((prev) => (prev + 1) % THEMES.length);
+  const cycleTheme = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setThemeIndex((prev) => {
+      const next = (prev + 1) % THEMES.length;
+      try {
+        localStorage.setItem('v2_solidThemeId', THEMES[next].id);
+      } catch {}
+      return next;
+    });
   };
 
   // --- Playlist Drag and Drop ---
@@ -1672,6 +2136,25 @@ export default function App() {
     '--theme-accent': theme.accent,
     '--theme-accentDark': theme.accentDark,
     '--theme-accentMuted': theme.accentMuted,
+    '--theme-sliderTrackBg': theme.sliderTrackBg,
+    '--theme-sliderTrackBorder': theme.sliderTrackBorder,
+    // Accent dark boxes & list headers (#363D47 in GRAY theme)
+    '--theme-controlBox-bg': (theme as any).controlBoxBg || theme.surface,
+    '--theme-listHeader-bg': (theme as any).listHeaderBg || (theme as any).listSurface || theme.surfaceLighter,
+    '--theme-listHeader-border': (theme as any).listHeaderBorder || (theme as any).listBorder || theme.border,
+    '--theme-listHeader-text': (theme as any).listHeaderText || (theme as any).listTextMain || theme.textMain,
+    '--theme-listHeader-textMuted': (theme as any).listHeaderTextMuted || (theme as any).listTextMuted || theme.textMuted,
+    // List Area variables
+    '--theme-list-bg': (theme as any).listBg || theme.bg,
+    '--theme-list-surface': (theme as any).listSurface || theme.surfaceLighter,
+    '--theme-list-surfaceLighter': (theme as any).listSurfaceLighter || theme.surface,
+    '--theme-list-border': (theme as any).listBorder || theme.border,
+    '--theme-list-borderActive': (theme as any).listBorderActive || theme.borderActive,
+    '--theme-list-textMain': (theme as any).listTextMain || theme.textMain,
+    '--theme-list-textMuted': (theme as any).listTextMuted || theme.textMuted,
+    '--theme-list-textDim': (theme as any).listTextDim || theme.textDim,
+    '--theme-list-accent': (theme as any).listAccent || theme.accent,
+    '--theme-list-accentMuted': (theme as any).listAccentMuted || theme.accentMuted,
     '--list-font-size': `${listFontSize}px`,
     '--list-font-size-sm': `${Math.max(8, listFontSize - 1)}px`,
     '--list-font-size-xs': `${Math.max(8, listFontSize - 2)}px`,
@@ -1700,14 +2183,14 @@ export default function App() {
           title={track.missing ? `このPCにファイルがありません: ${track.fileName}\nファイルをドラッグ&ドロップするか、フォルダを読み込んでください` : undefined}
           className="group flex items-center h-10 px-2 border-b transition-colors shrink-0 select-none w-full"
           style={{ 
-              backgroundColor: isActive ? 'var(--theme-accentMuted)' : (isSelected ? 'var(--theme-surfaceLighter)' : 'transparent'), 
-              borderColor: isActive ? 'var(--theme-borderActive)' : 'var(--theme-surface)', 
-              color: isActive ? 'var(--theme-textMain)' : 'var(--theme-textMuted)',
+              backgroundColor: isActive ? 'var(--theme-list-accentMuted)' : (isSelected ? 'var(--theme-list-surfaceLighter)' : 'transparent'), 
+              borderColor: isActive ? 'var(--theme-list-borderActive)' : 'var(--theme-list-border)', 
+              color: isActive ? 'var(--theme-list-textMain)' : 'var(--theme-list-textMuted)',
               cursor: track.missing ? 'not-allowed' : 'pointer',
               opacity: track.missing ? 0.55 : 1,
               fontSize: 'var(--list-font-size)',
           }}
-          onMouseEnter={e => { if (!isActive && !isSelected) e.currentTarget.style.backgroundColor = 'var(--theme-surface)'; }}
+          onMouseEnter={e => { if (!isActive && !isSelected) e.currentTarget.style.backgroundColor = 'var(--theme-list-surfaceLighter)'; }}
           onMouseLeave={e => { if (!isActive && !isSelected) e.currentTarget.style.backgroundColor = 'transparent'; }}
         >
           <div className="flex items-center h-full flex-shrink-0" style={{ width: colWidths.index }}>
@@ -1715,16 +2198,16 @@ export default function App() {
                 <div 
                     className="w-3 h-3 flex items-center justify-center border transition-colors"
                     style={{ 
-                        backgroundColor: isSelected ? 'var(--theme-accent)' : 'transparent',
-                        borderColor: isSelected ? 'var(--theme-accent)' : 'var(--theme-border)'
+                        backgroundColor: isSelected ? 'var(--theme-list-accent)' : 'transparent',
+                        borderColor: isSelected ? 'var(--theme-list-accent)' : 'var(--theme-list-border)'
                     }}
                 >
                     {isSelected && <Check size={8} className="text-white" />}
                 </div>
             </div>
-            <div className="w-8 flex-shrink-0 flex items-center justify-center relative" style={{ color: 'var(--theme-textDim)' }}>
+            <div className="w-8 flex-shrink-0 flex items-center justify-center relative" style={{ color: 'var(--theme-list-textDim)' }}>
               {isActive ? (
-                 <div className="absolute w-[6px] h-[6px] rounded-full" style={{ backgroundColor: 'var(--theme-accent)', boxShadow: `0 0 8px var(--theme-accent)` }}></div>
+                 <div className="absolute w-[6px] h-[6px] rounded-full" style={{ backgroundColor: 'var(--theme-list-accent)', boxShadow: `0 0 8px var(--theme-list-accent)` }}></div>
               ) : (
                 <span style={{ fontSize: '11px' }}>{(idx + 1).toString().padStart(2, '0')}</span>
               )}
@@ -1732,10 +2215,10 @@ export default function App() {
             {colVisibility.art && (
               <div className="w-8 flex-shrink-0 flex items-center relative overflow-hidden" style={{ opacity: track.missing ? 0.5 : 1 }}>
                 {track.coverUrl ? (
-                   <img src={track.coverUrl} className="w-[28px] h-[28px] object-cover border" style={{ borderColor: 'var(--theme-border)' }} alt="" />
+                   <img src={track.coverUrl} className="w-[28px] h-[28px] object-cover border" style={{ borderColor: 'var(--theme-list-border)' }} alt="" />
                 ) : (
-                   <div className="w-[28px] h-[28px] border flex items-center justify-center" style={{ borderColor: track.missing ? 'var(--theme-accent)' : 'var(--theme-border)', backgroundColor: 'var(--theme-bg)' }}>
-                     <Activity size={8} style={{ color: 'var(--theme-textDim)' }} />
+                   <div className="w-[28px] h-[28px] border flex items-center justify-center" style={{ borderColor: track.missing ? 'var(--theme-list-accent)' : 'var(--theme-list-border)', backgroundColor: 'var(--theme-list-bg)' }}>
+                     <Activity size={8} style={{ color: 'var(--theme-list-textDim)' }} />
                    </div>
                 )}
               </div>
@@ -1749,7 +2232,7 @@ export default function App() {
                  value={editTitle}
                  onChange={e => setEditTitle(e.target.value)}
                  className="flex-1 bg-transparent border-b outline-none font-mono"
-                 style={{ borderColor: 'var(--theme-borderActive)', color: 'var(--theme-textMain)', fontSize: 'var(--list-font-size)' }}
+                 style={{ borderColor: 'var(--theme-list-borderActive)', color: 'var(--theme-list-textMain)', fontSize: 'var(--list-font-size)' }}
                  autoFocus
                  onKeyDown={e => { if (e.key === 'Enter') saveTrackEdit(track.id); }}
               />
@@ -1758,12 +2241,12 @@ export default function App() {
                  value={editArtist}
                  onChange={e => setEditArtist(e.target.value)}
                  className="w-1/4 bg-transparent border-b outline-none font-mono"
-                 style={{ borderColor: 'var(--theme-borderActive)', color: 'var(--theme-textMain)', fontSize: 'var(--list-font-size)' }}
+                 style={{ borderColor: 'var(--theme-list-borderActive)', color: 'var(--theme-list-textMain)', fontSize: 'var(--list-font-size)' }}
                  onKeyDown={e => { if (e.key === 'Enter') saveTrackEdit(track.id); }}
               />
-              <button onClick={() => saveTrackEdit(track.id)} className="px-1" title="Save" style={{ color: 'var(--theme-accent)' }}><Check size={12} /></button>
-              <button title="Remove Artwork" onClick={(e) => removeArtwork(e, track.id)} className="px-1" style={{ color: 'var(--theme-textDim)' }}><Trash2 size={12} /></button>
-              <button onClick={() => setEditingTrackId(null)} className="px-1" title="Cancel" style={{ color: 'var(--theme-textDim)' }}><X size={12} /></button>
+              <button onClick={() => saveTrackEdit(track.id)} className="px-1" title="Save" style={{ color: 'var(--theme-list-accent)' }}><Check size={12} /></button>
+              <button title="Remove Artwork" onClick={(e) => removeArtwork(e, track.id)} className="px-1" style={{ color: 'var(--theme-list-textDim)' }}><Trash2 size={12} /></button>
+              <button onClick={() => setEditingTrackId(null)} className="px-1" title="Cancel" style={{ color: 'var(--theme-list-textDim)' }}><X size={12} /></button>
             </div>
           ) : (
             <div className="flex-1 min-w-0 flex items-center gap-3 pl-3 h-full">
@@ -1772,35 +2255,35 @@ export default function App() {
 
                 if (col === 'fileName') {
                   return (
-                    <div key="fileName" className="min-w-0 pr-2 truncate font-mono tracking-wide" style={{ flex: `${weight} 0 0%`, minWidth: 40, color: 'var(--theme-textMuted)', fontSize: 'var(--list-font-size-sm)' }} title={track.fileName}>
+                    <div key="fileName" className="min-w-0 pr-2 truncate font-mono tracking-wide" style={{ flex: `${weight} 0 0%`, minWidth: 40, color: 'var(--theme-list-textMuted)', fontSize: 'var(--list-font-size-sm)' }} title={track.fileName}>
                       {track.fileName}
                     </div>
                   );
                 }
                 if (col === 'trackNumber') {
                   return (
-                    <div key="trackNumber" className="min-w-0 text-center font-mono opacity-80 truncate pr-1" style={{ flex: `${weight} 0 0%`, minWidth: 30, fontSize: 'var(--list-font-size-sm)' }}>
+                    <div key="trackNumber" className="min-w-0 text-center font-mono opacity-80 truncate pr-1" style={{ flex: `${weight} 0 0%`, minWidth: 30, color: 'var(--theme-list-textDim)', fontSize: 'var(--list-font-size-sm)' }}>
                       {track.trackNumber ? track.trackNumber.toString().padStart(2, '0') : '-'}
                     </div>
                   );
                 }
                 if (col === 'title') {
                   return (
-                    <div key="title" className="min-w-0 pr-2 truncate font-bold font-mono tracking-wide" style={{ flex: `${weight} 0 0%`, minWidth: 40, color: 'var(--theme-textMain)', fontSize: 'var(--list-font-size)' }} title={track.title}>
+                    <div key="title" className="min-w-0 pr-2 truncate font-bold font-mono tracking-wide" style={{ flex: `${weight} 0 0%`, minWidth: 40, color: 'var(--theme-list-textMain)', fontSize: 'var(--list-font-size)' }} title={track.title}>
                       {track.title}
                     </div>
                   );
                 }
                 if (col === 'artist') {
                   return (
-                    <div key="artist" className="min-w-0 pr-2 truncate font-mono tracking-wide" style={{ flex: `${weight} 0 0%`, minWidth: 40, color: 'var(--theme-textMuted)', fontSize: 'var(--list-font-size-sm)' }} title={track.artist}>
+                    <div key="artist" className="min-w-0 pr-2 truncate font-mono tracking-wide" style={{ flex: `${weight} 0 0%`, minWidth: 40, color: 'var(--theme-list-textMuted)', fontSize: 'var(--list-font-size-sm)' }} title={track.artist}>
                       {track.artist}
                     </div>
                   );
                 }
                 if (col === 'album') {
                   return (
-                    <div key="album" className="min-w-0 pr-2 truncate font-mono tracking-wide" style={{ flex: `${weight} 0 0%`, minWidth: 40, color: 'var(--theme-textDim)', fontSize: 'var(--list-font-size-sm)' }} title={track.album}>
+                    <div key="album" className="min-w-0 pr-2 truncate font-mono tracking-wide" style={{ flex: `${weight} 0 0%`, minWidth: 40, color: 'var(--theme-list-textDim)', fontSize: 'var(--list-font-size-sm)' }} title={track.album}>
                       {track.album}
                     </div>
                   );
@@ -1813,7 +2296,7 @@ export default function App() {
           {colVisibility.actions && (
             <div className="w-24 flex-shrink-0 flex items-center justify-end gap-1 transition-opacity pr-2">
               {editingTrackId !== track.id && (
-                  <button onClick={(e) => startEditTrack(e, track)} title="Edit Info" className="w-5 h-5 flex items-center justify-center border rounded-[2px] transition-colors hover:opacity-80 active:scale-95" style={{ backgroundColor: 'var(--theme-accentMuted)', borderColor: 'var(--theme-borderActive)', color: iconColor }}>
+                  <button onClick={(e) => startEditTrack(e, track)} title="Edit Info" className="w-5 h-5 flex items-center justify-center border rounded-[2px] transition-colors hover:opacity-80 active:scale-95" style={{ backgroundColor: 'var(--theme-list-accentMuted)', borderColor: 'var(--theme-list-borderActive)', color: listIconColor }}>
                     <Palette size={10} />
                   </button>
               )}
@@ -1822,7 +2305,7 @@ export default function App() {
               title={activeSortConfig.key !== 'none' ? 'ソートを解除すると並べ替えできます' : '先頭へ移動'} 
               className="w-5 h-5 flex items-center justify-center border rounded-[2px] transition-colors hover:opacity-80 active:scale-95 disabled:opacity-20" 
               disabled={idx === 0 || activeSortConfig.key !== 'none'} 
-              style={{ backgroundColor: 'var(--theme-surfaceLighter)', borderColor: 'var(--theme-border)', color: iconColor }}
+              style={{ backgroundColor: 'var(--theme-list-surfaceLighter)', borderColor: 'var(--theme-list-border)', color: listIconColor }}
             >
               <ChevronsUp size={10} />
             </button>
@@ -1831,7 +2314,7 @@ export default function App() {
               title={activeSortConfig.key !== 'none' ? 'ソートを解除すると並べ替えできます' : '一つ上へ移動'} 
               className="w-5 h-5 flex items-center justify-center border rounded-[2px] transition-colors hover:opacity-80 active:scale-95 disabled:opacity-20" 
               disabled={idx === 0 || activeSortConfig.key !== 'none'} 
-              style={{ backgroundColor: 'var(--theme-surfaceLighter)', borderColor: 'var(--theme-border)', color: iconColor }}
+              style={{ backgroundColor: 'var(--theme-list-surfaceLighter)', borderColor: 'var(--theme-list-border)', color: listIconColor }}
             >
               <ChevronUp size={10} />
             </button>
@@ -1840,7 +2323,7 @@ export default function App() {
               title={activeSortConfig.key !== 'none' ? 'ソートを解除すると並べ替えできます' : '一つ下へ移動'} 
               className="w-5 h-5 flex items-center justify-center border rounded-[2px] transition-colors hover:opacity-80 active:scale-95 disabled:opacity-20" 
               disabled={idx === displayTracks.length - 1 || activeSortConfig.key !== 'none'} 
-              style={{ backgroundColor: 'var(--theme-surfaceLighter)', borderColor: 'var(--theme-border)', color: iconColor }}
+              style={{ backgroundColor: 'var(--theme-list-surfaceLighter)', borderColor: 'var(--theme-list-border)', color: listIconColor }}
             >
               <ChevronDown size={10} />
             </button>
@@ -1849,7 +2332,7 @@ export default function App() {
               title={activeSortConfig.key !== 'none' ? 'ソートを解除すると並べ替えできます' : '末尾へ移動'} 
               className="w-5 h-5 flex items-center justify-center border rounded-[2px] transition-colors hover:opacity-80 active:scale-95 disabled:opacity-20" 
               disabled={idx === displayTracks.length - 1 || activeSortConfig.key !== 'none'} 
-              style={{ backgroundColor: 'var(--theme-surfaceLighter)', borderColor: 'var(--theme-border)', color: iconColor }}
+              style={{ backgroundColor: 'var(--theme-list-surfaceLighter)', borderColor: 'var(--theme-list-border)', color: listIconColor }}
             >
               <ChevronsDown size={10} />
             </button>
@@ -1858,7 +2341,7 @@ export default function App() {
         </div>
       );
     });
-  }, [displayTracks, activePlaylistId, playingPlaylistId, currentTrackIndex, currentTrack?.id, selectedTrackIds, editingTrackId, editTitle, editArtist, iconColor, activeSortConfig.key, colWidths, colVisibility]);
+  }, [displayTracks, activePlaylistId, playingPlaylistId, currentTrackIndex, currentTrack?.id, selectedTrackIds, editingTrackId, editTitle, editArtist, listIconColor, activeSortConfig.key, colWidths, colVisibility]);
 
   // Replace old PanelBlock definition location
   return (
@@ -1999,12 +2482,14 @@ export default function App() {
                              </div>
 
                              <button 
-                               onClick={() => setRepeatMode((prev) => (prev + 1) % 3 as 0|1|2)}
+                               onClick={() => setRepeatMode((prev) => (prev + 1) % 4 as 0|1|2|3)}
                                className="w-8 h-8 flex items-center justify-center rounded transition-colors relative hover:opacity-80"
                                style={{ color: repeatMode > 0 ? 'var(--theme-accent)' : 'var(--theme-textMuted)' }}
+                               title={repeatMode === 1 ? "Repeat All" : repeatMode === 2 ? "Repeat One" : repeatMode === 3 ? "Repeat Set" : "Repeat Off"}
                              >
                                 <Repeat size={14} />
-                                {repeatMode === 2 && <span className="absolute top-0 right-0 text-[8px]" style={{ color: 'var(--theme-accent)' }}>1</span>}
+                                {repeatMode === 2 && <span className="absolute top-0 right-0 text-[8px] font-bold" style={{ color: 'var(--theme-accent)' }}>1</span>}
+                                {repeatMode === 3 && <span className="absolute -top-1 -right-1 text-[7px] font-bold px-0.5 rounded leading-none" style={{ backgroundColor: 'var(--theme-accentDark)', color: '#fff' }}>SET</span>}
                              </button>
                           </div>
                        </div>
@@ -2088,12 +2573,14 @@ export default function App() {
                              <Shuffle size={12} />
                           </button>
                           <button 
-                            onClick={() => setRepeatMode((prev) => (prev + 1) % 3 as 0|1|2)}
+                            onClick={() => setRepeatMode((prev) => (prev + 1) % 4 as 0|1|2|3)}
                             className="w-6 h-6 flex items-center justify-center rounded transition-colors relative hover:opacity-80"
                             style={{ color: repeatMode > 0 ? 'var(--theme-accent)' : 'var(--theme-textMuted)', backgroundColor: repeatMode > 0 ? 'var(--theme-accentMuted)' : 'transparent' }}
+                            title={repeatMode === 1 ? "Repeat All" : repeatMode === 2 ? "Repeat One" : repeatMode === 3 ? "Repeat Set" : "Repeat Off"}
                           >
                              <Repeat size={12} />
-                             {repeatMode === 2 && <span className="absolute -top-1 -right-1 text-[8px]" style={{ color: 'var(--theme-accent)' }}>1</span>}
+                             {repeatMode === 2 && <span className="absolute -top-1 -right-1 text-[8px] font-bold" style={{ color: 'var(--theme-accent)' }}>1</span>}
+                             {repeatMode === 3 && <span className="absolute -top-1.5 -right-2 text-[6px] font-bold px-0.5 rounded leading-none" style={{ backgroundColor: 'var(--theme-accentDark)', color: '#fff' }}>SET</span>}
                           </button>
                       </div>
                       
@@ -2161,17 +2648,130 @@ export default function App() {
             <span className="text-[9px] uppercase tracking-wider font-mono" style={{ color: 'var(--theme-accent)', width: '24px', textAlign: 'right' }}>{listFontSize}PX</span>
           </div>
 
-          <button 
-            onClick={cycleTheme}
-            className="flex items-center justify-center gap-2 border h-6 px-2 transition-colors hover:opacity-80"
-            style={{ borderColor: 'var(--theme-border)', backgroundColor: 'var(--theme-surface)', color: 'var(--theme-textMuted)' }}
-            onMouseEnter={e => e.currentTarget.style.color = 'var(--theme-textMain)'}
-            onMouseLeave={e => e.currentTarget.style.color = 'var(--theme-textMuted)'}
-          >
-            <Palette size={12} />
-            <span className="text-[9px] uppercase tracking-wider" style={{ color: 'var(--theme-accent)' }}>THEME: {theme.id}</span>
-          </button>
-          <div className="text-xs tracking-widest font-mono" style={{ color: 'var(--theme-textMuted)' }}>v2.0.8 OS</div>
+          {/* Theme Control: Split Button (Click name = Cycle next theme, Click arrow = Dropdown list) */}
+          <div className="relative flex items-center" ref={themeMenuRef}>
+            <div 
+              className="flex items-center h-6 border rounded-[1px] select-none overflow-hidden"
+              style={{
+                borderColor: isThemeMenuOpen ? 'var(--theme-accent)' : 'var(--theme-border)',
+                backgroundColor: 'var(--theme-surface)',
+              }}
+            >
+              {/* Left Button: Click name to cycle to next theme in sequence (Fixed width prevents layout shift) */}
+              <button
+                onClick={cycleTheme}
+                className="flex items-center h-full pl-2 pr-1.5 transition-colors hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer w-[78px] justify-start"
+                title={`クリックで次のテーマへ順送り (${theme.id})`}
+                style={{ color: 'var(--theme-textMain)' }}
+              >
+                {/* Current Theme Dot */}
+                <span 
+                  className="w-2.5 h-2.5 rounded-full mr-1.5 shrink-0 border"
+                  style={{
+                    backgroundColor: theme.dotColor || theme.accent,
+                    borderColor: 'rgba(0,0,0,0.3)',
+                    boxShadow: '0 0 2px rgba(0,0,0,0.3)',
+                  }}
+                />
+                {/* Current Theme Name */}
+                <span className="text-[10px] font-mono font-bold tracking-wider truncate">
+                  {theme.id}
+                </span>
+              </button>
+
+              {/* Right Button: Click arrow to toggle dropdown list */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsThemeMenuOpen(prev => !prev);
+                }}
+                className="flex items-center justify-center h-full w-5 border-l transition-colors hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                style={{
+                  borderColor: 'var(--theme-border)',
+                  color: isThemeMenuOpen ? 'var(--theme-accent)' : 'var(--theme-textMuted)',
+                  backgroundColor: isThemeMenuOpen ? 'var(--theme-surfaceLighter)' : 'transparent',
+                }}
+                title="テーマ一覧メニューを開く"
+              >
+                <span className="text-[7px]">▼</span>
+              </button>
+            </div>
+
+            {/* Dropdown Menu Popup */}
+            {isThemeMenuOpen && (
+              <div 
+                className="absolute right-0 top-full mt-1 z-50 w-44 border shadow-2xl rounded-[1px] py-1 select-none animate-fade-in"
+                style={{
+                  backgroundColor: 'var(--theme-surfaceLighter)',
+                  borderColor: 'var(--theme-borderActive)',
+                  color: 'var(--theme-textMain)',
+                }}
+              >
+                {/* Header: 🎨 テーマ切り替え */}
+                <div 
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold border-b tracking-wider select-none"
+                  style={{
+                    borderColor: 'var(--theme-border)',
+                    color: 'var(--theme-textMain)',
+                  }}
+                >
+                  <span className="text-[11px]">🎨</span>
+                  <span>テーマ切り替え</span>
+                </div>
+
+                {/* Theme List */}
+                <div className="py-1">
+                  {THEMES.map((t, idx) => {
+                    const isSelected = idx === themeIndex;
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => {
+                          setThemeIndex(idx);
+                          try {
+                            localStorage.setItem('v2_solidThemeId', t.id);
+                          } catch {}
+                          setIsThemeMenuOpen(false);
+                        }}
+                        className="w-full flex items-center justify-between px-3 py-1.5 text-[10.5px] font-mono font-bold tracking-wider text-left transition-colors cursor-pointer"
+                        style={{
+                          backgroundColor: isSelected ? 'var(--theme-surface)' : 'transparent',
+                          color: isSelected ? 'var(--theme-accent)' : 'var(--theme-textMain)',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isSelected) {
+                            e.currentTarget.style.backgroundColor = 'var(--theme-surface)';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isSelected) {
+                            e.currentTarget.style.backgroundColor = 'transparent';
+                          }
+                        }}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {/* Theme Color Dot */}
+                          <span 
+                            className="w-3 h-3 rounded-full shrink-0 border"
+                            style={{
+                              backgroundColor: t.dotColor || t.accent,
+                              borderColor: 'rgba(0,0,0,0.3)',
+                              boxShadow: isSelected ? `0 0 4px ${t.dotColor || t.accent}` : 'none',
+                            }}
+                          />
+                          <span className="truncate">{t.id}</span>
+                        </div>
+                        {isSelected && (
+                          <Check size={12} style={{ color: 'var(--theme-accent)' }} />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="text-xs tracking-widest font-mono" style={{ color: 'var(--theme-textMuted)' }}>v2.0.9 OS</div>
         </div>
       </header>
 
@@ -2183,13 +2783,17 @@ export default function App() {
           {currentTrack ? (
             <div className="flex h-full gap-4 overflow-hidden relative">
               <div className="h-full aspect-square shrink-0 relative border shadow-inner" style={{ borderColor: 'var(--theme-border)', backgroundColor: 'var(--theme-bg)' }}>
-                {currentTrack.coverUrl ? (
-                  <img src={currentTrack.coverUrl} className="absolute inset-0 w-full h-full object-cover" alt="Album Art" />
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                     <Activity size={24} style={{ color: 'var(--theme-textDim)' }} />
-                  </div>
-                )}
+                <AlbumArt3D
+                  coverUrl={currentTrack.coverUrl}
+                  title={currentTrack.title}
+                  artist={currentTrack.artist}
+                  album={currentTrack.album}
+                  duration={currentTrack.duration}
+                  fileName={currentTrack.fileName}
+                  isPlaying={isPlaying}
+                  onDropImage={handleUpdateArtwork}
+                  onResetArtwork={handleResetArtwork}
+                />
               </div>
               <div className="flex flex-col h-full justify-between pb-1 min-w-0 flex-1">
                 <div className="min-w-0">
@@ -2205,7 +2809,7 @@ export default function App() {
                    <div className="text-[9px] truncate tracking-wider" style={{ color: 'var(--theme-textDim)' }}>
                      FILE: {currentTrack.fileName}
                    </div>
-                   <div className="border p-1 rounded-[1px] h-8 w-full flex items-center justify-center" style={{ borderColor: 'var(--theme-border)', backgroundColor: 'var(--theme-surfaceLighter)' }}>
+                   <div className="border p-1 rounded-[1px] h-8 w-full flex items-center justify-center" style={{ borderColor: 'var(--theme-border)', backgroundColor: 'var(--theme-bg)' }}>
                       <canvas 
                         ref={canvasRef} 
                         width={200} 
@@ -2235,7 +2839,7 @@ export default function App() {
             <div 
               ref={progressBarRef}
               className="h-[6px] border cursor-pointer relative"
-              style={{ backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-border)', touchAction: 'none' }}
+              style={{ backgroundColor: 'var(--theme-sliderTrackBg, var(--theme-bg))', borderColor: 'var(--theme-sliderTrackBorder, var(--theme-border))', touchAction: 'none' }}
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
@@ -2248,75 +2852,118 @@ export default function App() {
             </div>
           </div>
 
-          {/* Controls Route */}
-          <div className="flex items-center justify-between">
-            {/* Play modes */}
-            <div className="flex gap-2">
+          {/* Controls & EQ - 6 Unified Panels (3 columns x 2 rows, matching width and height) */}
+          {/* Row 1: Top 3 Panels (Play modes, Transport, Volume) */}
+          <div className="grid grid-cols-3 gap-4 items-center">
+            {/* Panel 1: Play modes (Shuffle / Repeat) - Centered in panel with dark buttons */}
+            <div 
+              className="border h-14 flex items-center justify-center gap-3 px-2 w-full"
+              style={{ borderColor: 'var(--theme-border)', backgroundColor: 'var(--theme-surface)' }}
+            >
               <button 
                 onClick={() => setIsShuffle(!isShuffle)}
-                className="w-8 h-8 flex items-center justify-center border transition-colors hover:opacity-80 active:scale-95"
-                style={isShuffle ? { backgroundColor: 'var(--theme-accentMuted)', color: 'var(--theme-accent)', borderColor: 'var(--theme-borderActive)' } : { backgroundColor: 'var(--theme-bg)', color: 'var(--theme-textMuted)', borderColor: 'var(--theme-border)' }}
+                className="w-12 h-9 flex items-center justify-center border transition-all hover:opacity-80 active:scale-95"
+                style={isShuffle 
+                  ? { backgroundColor: 'var(--theme-accentMuted)', color: 'var(--theme-accent)', borderColor: 'var(--theme-borderActive)' } 
+                  : { backgroundColor: 'var(--theme-bg)', color: 'var(--theme-textMain)', borderColor: 'var(--theme-border)' }
+                }
+                title="Shuffle"
               >
-                <Shuffle size={14} />
+                <Shuffle size={15} />
               </button>
               <button 
-                onClick={() => setRepeatMode((prev) => (prev + 1) % 3 as 0|1|2)}
-                className="w-8 h-8 flex items-center justify-center border transition-colors relative hover:opacity-80 active:scale-95"
-                style={repeatMode > 0 ? { backgroundColor: 'var(--theme-accentMuted)', color: 'var(--theme-accent)', borderColor: 'var(--theme-borderActive)' } : { backgroundColor: 'var(--theme-bg)', color: 'var(--theme-textMuted)', borderColor: 'var(--theme-border)' }}
+                onClick={() => setRepeatMode((prev) => (prev + 1) % 4 as 0|1|2|3)}
+                className="w-12 h-9 flex items-center justify-center border transition-all relative hover:opacity-80 active:scale-95"
+                style={repeatMode > 0 
+                  ? { backgroundColor: 'var(--theme-accentMuted)', color: 'var(--theme-accent)', borderColor: 'var(--theme-borderActive)' } 
+                  : { backgroundColor: 'var(--theme-bg)', color: 'var(--theme-textMain)', borderColor: 'var(--theme-border)' }
+                }
+                title={repeatMode === 1 ? "Repeat All" : repeatMode === 2 ? "Repeat One" : repeatMode === 3 ? "Repeat Set (Selected Lists)" : "Repeat Off"}
               >
-                <Repeat size={14} />
-                {repeatMode === 2 && <span className="absolute -top-1.5 -right-1.5 text-[8px] rounded-sm px-1 flex items-center justify-center z-10" style={{ backgroundColor: 'var(--theme-accentDark)', color: '#fff' }}>1</span>}
+                <Repeat size={15} />
+                {repeatMode === 2 && (
+                  <span className="absolute -top-1.5 -right-1.5 text-[8px] rounded-sm px-1 flex items-center justify-center z-10 font-bold" style={{ backgroundColor: 'var(--theme-accentDark)', color: '#fff' }}>1</span>
+                )}
+                {repeatMode === 3 && (
+                  <span className="absolute -top-1.5 -right-1.5 text-[7px] font-bold rounded-sm px-1 py-0.2 flex items-center justify-center z-10 leading-none tracking-tighter" style={{ backgroundColor: 'var(--theme-accentDark)', color: '#fff' }}>SET</span>
+                )}
               </button>
             </div>
 
-            {/* Transport Core */}
-            <div className="flex gap-1 justify-center">
+            {/* Panel 2: Transport Core - Centered in panel with dark buttons */}
+            <div 
+              className="border h-14 flex items-center justify-center gap-1.5 px-2 w-full"
+              style={{ borderColor: 'var(--theme-border)', backgroundColor: 'var(--theme-surface)' }}
+            >
               <button 
                 onClick={handlePrev} 
-                className="w-12 h-10 flex items-center justify-center border transition-colors hover:opacity-80 active:scale-95"
+                className="w-11 h-9 flex items-center justify-center border transition-all hover:opacity-80 active:scale-95"
                 style={{ backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-textMain)' }}
+                title="Previous Track"
               >
                 <SkipBack size={16} />
               </button>
               <button 
                 onClick={togglePlay} 
-                className="w-16 h-10 flex items-center justify-center transition-colors border hover:opacity-90 active:scale-95"
-                style={isPlaying ? { backgroundColor: 'var(--theme-accentMuted)', borderColor: 'var(--theme-accentDark)', color: 'var(--theme-accent)' } : { backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-textMain)' }}
+                className="w-14 h-9 flex items-center justify-center transition-all border hover:opacity-90 active:scale-95"
+                style={isPlaying 
+                  ? { backgroundColor: 'var(--theme-accentMuted)', borderColor: 'var(--theme-accentDark)', color: 'var(--theme-accent)' } 
+                  : { backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-textMain)' }
+                }
+                title={isPlaying ? "Pause" : "Play"}
               >
-                {isPlaying ? <Pause size={16} /> : <Play size={16} className="ml-1" />}
+                {isPlaying ? <Pause size={16} /> : <Play size={16} className="ml-0.5" />}
               </button>
               <button 
                 onClick={handleNext} 
-                className="w-12 h-10 flex items-center justify-center border transition-colors hover:opacity-80 active:scale-95"
+                className="w-11 h-9 flex items-center justify-center border transition-all hover:opacity-80 active:scale-95"
                 style={{ backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-textMain)' }}
+                title="Next Track"
               >
                 <SkipForward size={16} />
               </button>
             </div>
 
-            {/* Volume */}
-            <div className="flex items-center gap-2 w-24">
-              <button onClick={() => setIsMuted(!isMuted)} className="hover:opacity-80" style={{ color: 'var(--theme-textMuted)' }}>
-                {isMuted || volume === 0 ? <VolumeX size={14} /> : <Volume2 size={14} />}
+            {/* Panel 3: Volume Box - matching the panel's background color */}
+            <div 
+              className="border h-14 flex items-center gap-2 px-3 w-full"
+              style={{ borderColor: 'var(--theme-border)', backgroundColor: 'var(--theme-surface)' }}
+            >
+              <button 
+                onClick={() => setIsMuted(!isMuted)} 
+                className="hover:opacity-80 p-1 shrink-0 flex items-center transition-colors" 
+                style={{ color: isMuted ? 'var(--theme-textDim)' : 'var(--theme-textMain)' }}
+                title={isMuted ? "Unmute" : "Mute"}
+              >
+                {isMuted || volume === 0 ? <VolumeX size={15} /> : <Volume2 size={15} />}
               </button>
               <input 
                 type="range" 
                 min="0" max="1" step="0.01" 
                 value={isMuted ? 0 : volume}
-                onChange={(e) => setVolume(parseFloat(e.target.value))}
-                className="w-full appearance-none cursor-pointer sq-slider"
-                style={{ backgroundColor: 'transparent', accentColor: 'var(--theme-accent)' }}
+                onChange={(e) => {
+                  setVolume(parseFloat(e.target.value));
+                  if (isMuted) setIsMuted(false);
+                }}
+                className="flex-1 min-w-0 appearance-none vol-slider"
+                title={`Volume: ${Math.round((isMuted ? 0 : volume) * 100)}%`}
               />
+              <span 
+                className="text-[10px] font-mono tracking-wider text-right shrink-0 select-none font-bold" 
+                style={{ color: 'var(--theme-accent)', width: '32px' }}
+              >
+                {Math.round((isMuted ? 0 : volume) * 100)}%
+              </span>
             </div>
           </div>
 
-          {/* EQ Section */}
-          <div className="grid grid-cols-3 gap-4 mt-4">
-            {/* LOW EQ */}
-            <div className="border p-2 flex flex-col justify-between" style={{ backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-border)' }}>
-              <div className="flex justify-between items-center text-[10px] font-mono tracking-widest mb-4" style={{ color: 'var(--theme-textMuted)' }}>
+          {/* Row 2: Bottom 3 Panels (EQ Section) - Restored to theme-bg */}
+          <div className="grid grid-cols-3 gap-4 mt-3">
+            {/* Panel 4: LOW EQ */}
+            <div className="border h-14 p-2.5 flex flex-col justify-between" style={{ backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-border)' }}>
+              <div className="flex justify-between items-center text-[10px] font-mono tracking-widest" style={{ color: 'var(--theme-textMuted)' }}>
                 <span>01 LOW</span>
-                <span>{eqLow}</span>
+                <span className="font-bold" style={{ color: 'var(--theme-textMain)' }}>{eqLow}</span>
               </div>
               <input 
                 type="range" 
@@ -2328,11 +2975,11 @@ export default function App() {
               />
             </div>
 
-            {/* MID EQ */}
-            <div className="border p-2 flex flex-col justify-between" style={{ backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-border)' }}>
-              <div className="flex justify-between items-center text-[10px] font-mono tracking-widest mb-4" style={{ color: 'var(--theme-textMuted)' }}>
+            {/* Panel 5: MID EQ */}
+            <div className="border h-14 p-2.5 flex flex-col justify-between" style={{ backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-border)' }}>
+              <div className="flex justify-between items-center text-[10px] font-mono tracking-widest" style={{ color: 'var(--theme-textMuted)' }}>
                 <span>02 MID</span>
-                <span>{eqMid}</span>
+                <span className="font-bold" style={{ color: 'var(--theme-textMain)' }}>{eqMid}</span>
               </div>
               <input 
                 type="range" 
@@ -2344,11 +2991,11 @@ export default function App() {
               />
             </div>
 
-            {/* HIGH EQ */}
-            <div className="border p-2 flex flex-col justify-between" style={{ backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-border)' }}>
-              <div className="flex justify-between items-center text-[10px] font-mono tracking-widest mb-4" style={{ color: 'var(--theme-textMuted)' }}>
+            {/* Panel 6: HIGH EQ */}
+            <div className="border h-14 p-2.5 flex flex-col justify-between" style={{ backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-border)' }}>
+              <div className="flex justify-between items-center text-[10px] font-mono tracking-widest" style={{ color: 'var(--theme-textMuted)' }}>
                 <span>03 HIGH</span>
-                <span>{eqHigh}</span>
+                <span className="font-bold" style={{ color: 'var(--theme-textMain)' }}>{eqHigh}</span>
               </div>
               <input 
                 type="range" 
@@ -2431,7 +3078,7 @@ export default function App() {
             width: sidebarWidth, 
             minWidth: 120, 
             maxWidth: 800, 
-            backgroundColor: isDragOver ? 'var(--theme-accentMuted)' : 'var(--theme-bg)', 
+            backgroundColor: isDragOver ? 'var(--theme-accentMuted)' : 'var(--theme-list-bg)', 
             borderColor: isDragOver ? 'var(--theme-accent)' : 'var(--theme-border)',
             boxShadow: isDragOver ? 'inset 0 0 0 2px var(--theme-accent)' : 'none'
           }}
@@ -2439,9 +3086,9 @@ export default function App() {
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
-          <div className="border-b px-2 py-1 flex items-center justify-between h-8 shrink-0 gap-1 overflow-hidden" style={{ backgroundColor: 'var(--theme-surfaceLighter)', borderColor: 'var(--theme-border)' }}>
+          <div className="border-b px-2 py-1 flex items-center justify-between h-8 shrink-0 gap-1 overflow-hidden" style={{ backgroundColor: 'var(--theme-listHeader-bg)', borderColor: 'var(--theme-listHeader-border)' }}>
             <div className="flex items-center gap-1 min-w-0">
-              <span className="uppercase tracking-wider text-[11px] truncate" style={{ color: 'var(--theme-textMuted)' }}>INDEX MAP</span>
+              <span className="uppercase tracking-wider text-[11px] truncate font-medium" style={{ color: 'var(--theme-listHeader-textMuted)' }}>INDEX MAP</span>
               {selectedPlaylistIds.size > 0 && (
                 <span className="text-[9px] font-mono px-1 border rounded-[2px] shrink-0" style={{ borderColor: 'var(--theme-accent)', color: 'var(--theme-accent)', backgroundColor: 'var(--theme-accentMuted)' }}>
                   {selectedPlaylistIds.size}
@@ -2450,28 +3097,47 @@ export default function App() {
             </div>
             
             <div className="flex items-center gap-1 shrink-0">
+              {/* SELECT button to toggle selection mode */}
+              <button 
+                onClick={() => {
+                  const nextMode = !isPlaylistSelectionMode;
+                  setIsPlaylistSelectionMode(nextMode);
+                  if (!nextMode && selectedPlaylistIds.size === 0) {
+                    setConfirmDeleteSelectedPlaylists(false);
+                  }
+                }}
+                className="flex items-center justify-center border rounded-[2px] px-1.5 h-5 text-[9px] font-mono tracking-wider transition-colors hover:opacity-80 active:scale-95"
+                style={isPlaylistSelectionMode 
+                  ? { backgroundColor: 'var(--theme-accentMuted)', borderColor: 'var(--theme-accent)', color: 'var(--theme-accent)' } 
+                  : { backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-listHeader-border)', color: 'var(--theme-listHeader-text)' }
+                }
+                title={isPlaylistSelectionMode ? "選択モード終了" : "プレイリスト選択モード (SETリピート・一括操作)"}
+              >
+                SELECT
+              </button>
+
               {selectedPlaylistIds.size > 0 && (
                 <>
                   <button 
                     onClick={() => moveSelectedPlaylists('up')}
                     className="flex items-center justify-center border rounded-[2px] w-5 h-5 transition-colors hover:opacity-80 active:scale-95"
-                    style={{ backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-border)' }}
+                    style={{ backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-listHeader-border)' }}
                     title="選択したリストを上に移動"
                   >
-                    <ChevronUp size={11} style={{ color: 'var(--theme-textMain)' }} />
+                    <ChevronUp size={11} style={{ color: 'var(--theme-listHeader-text)' }} />
                   </button>
 
                   <button 
                     onClick={() => moveSelectedPlaylists('down')}
                     className="flex items-center justify-center border rounded-[2px] w-5 h-5 transition-colors hover:opacity-80 active:scale-95"
-                    style={{ backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-border)' }}
+                    style={{ backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-listHeader-border)' }}
                     title="選択したリストを下に移動"
                   >
-                    <ChevronDown size={11} style={{ color: 'var(--theme-textMain)' }} />
+                    <ChevronDown size={11} style={{ color: 'var(--theme-listHeader-text)' }} />
                   </button>
 
                   {confirmDeleteSelectedPlaylists ? (
-                    <div className="flex items-center gap-0.5 bg-[var(--theme-surface)] px-1 py-0.5 border border-[var(--theme-borderActive)] rounded-[2px]" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center gap-0.5 px-1 py-0.5 border rounded-[2px]" style={{ backgroundColor: 'var(--theme-surface)', borderColor: 'var(--theme-borderActive)' }} onClick={e => e.stopPropagation()}>
                       <span className="text-[8px] uppercase tracking-tighter" style={{ color: 'var(--theme-accent)' }}>DEL?</span>
                       <button
                         onClick={deleteSelectedPlaylists}
@@ -2494,7 +3160,7 @@ export default function App() {
                     <button 
                       onClick={() => setConfirmDeleteSelectedPlaylists(true)}
                       className="flex items-center justify-center border rounded-[2px] w-5 h-5 transition-colors hover:opacity-80 active:scale-95"
-                      style={{ backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-border)' }}
+                      style={{ backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-listHeader-border)' }}
                       title="選択したリストを削除"
                     >
                       <Trash2 size={10} style={{ color: 'var(--theme-accent)' }} />
@@ -2504,10 +3170,10 @@ export default function App() {
                   <button 
                     onClick={() => { setSelectedPlaylistIds(new Set()); setConfirmDeleteSelectedPlaylists(false); }}
                     className="flex items-center justify-center border rounded-[2px] w-5 h-5 transition-colors hover:opacity-80 active:scale-95"
-                    style={{ backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-border)' }}
+                    style={{ backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-listHeader-border)' }}
                     title="選択を解除"
                   >
-                    <X size={10} style={{ color: 'var(--theme-textDim)' }} />
+                    <X size={10} style={{ color: 'var(--theme-listHeader-textMuted)' }} />
                   </button>
                 </>
               )}
@@ -2515,14 +3181,14 @@ export default function App() {
               <button 
                 onClick={() => { setIsCreatingPlaylist(true); setNewPlaylistName(''); }}
                 className="flex items-center justify-center border rounded-[2px] w-5 h-5 transition-colors hover:opacity-80 active:scale-95"
-                style={{ backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-border)' }}
+                style={{ backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-listHeader-border)' }}
                 title="CREATE LIST"
               >
-                <Plus size={10} style={{ color: 'var(--theme-textMuted)' }} />
+                <Plus size={10} style={{ color: 'var(--theme-listHeader-text)' }} />
               </button>
             </div>
           </div>
-          <div className="flex flex-col h-full overflow-y-auto w-full">
+          <div className="flex flex-col h-full overflow-y-auto w-full" style={{ backgroundColor: 'var(--theme-list-bg)' }}>
             {playlists.map((pl, plIdx) => {
               const isSelected = pl.id !== 'all-tracks' && selectedPlaylistIds.has(pl.id);
               const isActive = activePlaylistId === pl.id;
@@ -2542,6 +3208,11 @@ export default function App() {
                     lastSelectedPlaylistIdRef.current = null;
                     return;
                   }
+                  if (isPlaylistSelectionMode) {
+                    togglePlaylistSelection(e, pl.id);
+                    setActivePlaylistId(pl.id);
+                    return;
+                  }
                   if (e.shiftKey || e.ctrlKey || e.metaKey) {
                     togglePlaylistSelection(e, pl.id);
                   } else {
@@ -2559,13 +3230,23 @@ export default function App() {
                 className={`text-left px-3 py-2 tracking-widest flex items-center justify-between border-b transition-colors cursor-pointer group select-none ${pl.id !== 'all-tracks' && renamingPlaylistId !== pl.id ? 'cursor-grab active:cursor-grabbing' : ''}`}
                 style={{
                   backgroundColor: isSelected 
-                    ? 'var(--theme-accentMuted)' 
-                    : (isActive ? 'var(--theme-accentMuted)' : (dragOverPlaylistId === pl.id ? 'var(--theme-surfaceLighter)' : 'transparent')),
-                  borderBottomColor: dragOverPlaylistId === pl.id ? 'var(--theme-accent)' : 'var(--theme-border)',
-                  borderLeft: `2px solid ${isSelected || isActive ? 'var(--theme-accent)' : 'transparent'}`,
-                  color: isSelected || isActive ? 'var(--theme-textMain)' : 'var(--theme-textMuted)',
+                    ? 'var(--theme-list-accentMuted)' 
+                    : (isActive ? 'var(--theme-list-accentMuted)' : (dragOverPlaylistId === pl.id ? 'var(--theme-list-surfaceLighter)' : 'transparent')),
+                  borderBottomColor: dragOverPlaylistId === pl.id ? 'var(--theme-list-accent)' : 'var(--theme-list-border)',
+                  borderLeft: `2px solid ${isSelected || isActive ? 'var(--theme-list-accent)' : 'transparent'}`,
+                  color: isSelected || isActive ? 'var(--theme-list-textMain)' : 'var(--theme-list-textMuted)',
                   opacity: draggedPlaylistId === pl.id ? 0.5 : 1,
                   fontSize: 'var(--list-font-size)'
+                }}
+                onMouseEnter={e => {
+                  if (!isSelected && !isActive && dragOverPlaylistId !== pl.id) {
+                    e.currentTarget.style.backgroundColor = 'var(--theme-list-surfaceLighter)';
+                  }
+                }}
+                onMouseLeave={e => {
+                  if (!isSelected && !isActive && dragOverPlaylistId !== pl.id) {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }
                 }}
               >
                 {renamingPlaylistId === pl.id ? (
@@ -2574,7 +3255,7 @@ export default function App() {
                       autoFocus
                       type="text"
                       className="w-full bg-transparent border-b outline-none font-mono"
-                      style={{ borderColor: 'var(--theme-accent)', color: 'var(--theme-textMain)' }}
+                      style={{ borderColor: 'var(--theme-list-accent)', color: 'var(--theme-list-textMain)' }}
                       value={renamingPlaylistName}
                       onChange={(e) => setRenamingPlaylistName(e.target.value)}
                       onBlur={() => {
@@ -2597,23 +3278,43 @@ export default function App() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 truncate">
-                    {isSelected ? (
-                      <Check size={12} style={{ color: 'var(--theme-accent)' }} />
+                    {isPlaylistSelectionMode && pl.id !== 'all-tracks' ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          togglePlaylistSelection(e, pl.id);
+                        }}
+                        className="w-3.5 h-3.5 border rounded-[2px] flex items-center justify-center shrink-0 transition-colors"
+                        style={{
+                          borderColor: isSelected ? 'var(--theme-list-accent)' : 'var(--theme-list-border)',
+                          backgroundColor: isSelected ? 'var(--theme-list-accent)' : 'var(--theme-list-bg)'
+                        }}
+                        title={isSelected ? "選択解除" : "選択"}
+                      >
+                        {isSelected && <Check size={10} style={{ color: '#fff' }} strokeWidth={3} />}
+                      </button>
                     ) : (
-                      <ListMusic size={12} style={{ color: isActive ? 'var(--theme-accent)' : 'var(--theme-textDim)' }} />
+                      <>
+                        {isSelected ? (
+                          <Check size={12} style={{ color: 'var(--theme-list-accent)' }} />
+                        ) : (
+                          <ListMusic size={12} style={{ color: isActive ? 'var(--theme-list-accent)' : 'var(--theme-list-textDim)' }} />
+                        )}
+                      </>
                     )}
                     <span className="truncate">{pl.name}</span>
                   </div>
                 )}
                 <div className="flex items-center gap-2">
-                  <span className="text-[9px] font-mono" style={{ color: isSelected || isActive ? 'var(--theme-textMain)' : 'var(--theme-textDim)' }}>
+                  <span className="text-[9px] font-mono font-medium" style={{ color: isSelected || isActive ? 'var(--theme-list-textMain)' : 'var(--theme-list-textDim)' }}>
                     {pl.tracks.length.toString().padStart(3, '0')}
                   </span>
                   {pl.id !== 'all-tracks' && (
                     <div className={`flex items-center space-x-1 transition-opacity ${confirmDeletePlaylistId === pl.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                       {confirmDeletePlaylistId === pl.id ? (
-                        <div className="flex items-center gap-1 bg-[var(--theme-surface)] px-1 py-0.5 border border-[var(--theme-borderActive)] rounded-[2px]" onClick={e => e.stopPropagation()}>
-                          <span className="text-[8px] uppercase tracking-tighter" style={{ color: 'var(--theme-accent)' }}>DEL?</span>
+                        <div className="flex items-center gap-1 px-1 py-0.5 border rounded-[2px]" style={{ backgroundColor: 'var(--theme-list-surface)', borderColor: 'var(--theme-list-borderActive)' }} onClick={e => e.stopPropagation()}>
+                          <span className="text-[8px] uppercase tracking-tighter" style={{ color: 'var(--theme-list-accent)' }}>DEL?</span>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -2629,7 +3330,7 @@ export default function App() {
                             }}
                             className="hover:opacity-80 transition-opacity p-0.5"
                             title="削除を確定"
-                            style={{ color: 'var(--theme-accent)' }}
+                            style={{ color: 'var(--theme-list-accent)' }}
                           >
                             <Trash2 size={10} />
                           </button>
@@ -2640,7 +3341,7 @@ export default function App() {
                             }}
                             className="hover:opacity-80 transition-opacity p-0.5"
                             title="キャンセル"
-                            style={{ color: 'var(--theme-textDim)' }}
+                            style={{ color: 'var(--theme-list-textDim)' }}
                           >
                             <X size={10} />
                           </button>
@@ -2654,7 +3355,7 @@ export default function App() {
                           className="hover:opacity-80 transition-opacity ml-1 p-0.5"
                           title="リストを削除（クリックで確認）"
                         >
-                          <X size={10} style={{ color: isSelected || isActive ? 'var(--theme-textMain)' : 'var(--theme-textDim)' }} />
+                          <X size={10} style={{ color: isSelected || isActive ? 'var(--theme-list-textMain)' : 'var(--theme-list-textDim)' }} />
                         </button>
                       )}
                     </div>
@@ -2664,19 +3365,19 @@ export default function App() {
               
               {/* Inline Create Playlist Input right after ALL TRACKS */}
               {plIdx === 0 && isCreatingPlaylist && (
-                 <div className="flex flex-col gap-2 p-2 border-b" style={{ borderColor: 'var(--theme-border)', backgroundColor: 'var(--theme-surface)' }}>
+                 <div className="flex flex-col gap-2 p-2 border-b" style={{ borderColor: 'var(--theme-list-border)', backgroundColor: 'var(--theme-list-surface)' }}>
                     <input 
                        type="text" 
                        value={newPlaylistName}
                        onChange={e => setNewPlaylistName(e.target.value)}
                        placeholder="NAME..."
                        className="w-full text-[10px] outline-none font-mono tracking-widest px-2 py-1"
-                       style={{ backgroundColor: 'var(--theme-bg)', color: 'var(--theme-textMain)', border: '1px solid var(--theme-border)' }}
+                       style={{ backgroundColor: 'var(--theme-list-bg)', color: 'var(--theme-list-textMain)', border: '1px solid var(--theme-list-border)' }}
                        onKeyDown={e => { if (e.key === 'Enter') submitPlaylist(); else if (e.key === 'Escape') setIsCreatingPlaylist(false); }}
                     />
                     <div className="flex gap-1 justify-end">
-                       <button onClick={() => setIsCreatingPlaylist(false)} className="p-1 hover:opacity-80"><X size={12} style={{ color: 'var(--theme-textDim)' }}/></button>
-                       <button onClick={submitPlaylist} className="p-1 hover:opacity-80"><Check size={12} style={{ color: 'var(--theme-accent)' }}/></button>
+                       <button onClick={() => setIsCreatingPlaylist(false)} className="p-1 hover:opacity-80"><X size={12} style={{ color: 'var(--theme-list-textDim)' }}/></button>
+                       <button onClick={submitPlaylist} className="p-1 hover:opacity-80"><Check size={12} style={{ color: 'var(--theme-list-accent)' }}/></button>
                     </div>
                  </div>
               )}
@@ -2689,7 +3390,7 @@ export default function App() {
             onMouseDown={handleSidebarMouseDown}
             className="absolute top-0 right-0 w-1 h-full cursor-col-resize z-20 transition-colors"
             style={{ backgroundColor: 'transparent' }}
-            onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--theme-accent)'}
+            onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--theme-list-accent)'}
             onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
           />
         </div>
@@ -2698,7 +3399,7 @@ export default function App() {
         <div 
            className="flex-1 border flex flex-col relative w-full overflow-hidden transition-colors" 
            style={{ 
-             backgroundColor: isDragOver ? 'var(--theme-accentMuted)' : 'var(--theme-bg)', 
+             backgroundColor: isDragOver ? 'var(--theme-accentMuted)' : 'var(--theme-list-bg)', 
              borderColor: isDragOver ? 'var(--theme-accent)' : 'var(--theme-border)',
              boxShadow: isDragOver ? 'inset 0 0 0 2px var(--theme-accent)' : 'none'
            }}
@@ -2706,15 +3407,15 @@ export default function App() {
            onDragLeave={handleDragLeave}
            onDrop={handleDrop}
         >
-          <div className="border-b px-3 py-1 flex items-center h-8 justify-between shrink-0" style={{ backgroundColor: 'var(--theme-surfaceLighter)', borderColor: 'var(--theme-border)' }}>
+          <div className="border-b px-3 py-1 flex items-center h-8 justify-between shrink-0" style={{ backgroundColor: 'var(--theme-listHeader-bg)', borderColor: 'var(--theme-listHeader-border)' }}>
              <div className="flex items-center gap-4">
                <div className="flex items-center gap-2">
-                 <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--theme-textMain)' }}>VIEW:</span>
-                 <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--theme-accent)' }}>{activePlaylist.name}</span>
+                 <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--theme-listHeader-textMuted)' }}>VIEW:</span>
+                 <span className="text-[10px] uppercase tracking-wider font-bold" style={{ color: 'var(--theme-accent)' }}>{activePlaylist.name}</span>
                </div>
                
                {displayTracks.length > 0 && (
-                 <div className="flex items-center gap-3 border-l pl-3" style={{ borderColor: 'var(--theme-border)' }}>
+                 <div className="flex items-center gap-3 border-l pl-3" style={{ borderColor: 'var(--theme-listHeader-border)' }}>
                    <button 
                      onClick={() => {
                         if (selectedTrackIds.size > 0) {
@@ -2724,7 +3425,7 @@ export default function App() {
                         }
                      }}
                      className="flex items-center gap-1 text-[9px] uppercase tracking-wider transition-colors hover:opacity-80 active:scale-95"
-                     style={{ color: selectedTrackIds.size > 0 ? 'var(--theme-accent)' : 'var(--theme-textMuted)' }}
+                     style={{ color: selectedTrackIds.size > 0 ? 'var(--theme-accent)' : 'var(--theme-listHeader-textMuted)' }}
                    >
                      {selectedTrackIds.size === displayTracks.length ? <Check size={10} /> : selectedTrackIds.size > 0 ? <Minus size={10} /> : <div className="w-[10px] h-[10px] border rounded-[1px]" style={{ borderColor: 'currentcolor' }}></div>}
                      {selectedTrackIds.size > 0 ? 'SELECT CANCEL' : 'SELECT ALL'}
@@ -2735,7 +3436,7 @@ export default function App() {
                          <button 
                             onClick={() => setShowAddToPlaylist(!showAddToPlaylist)}
                             className="flex items-center gap-1 text-[9px] uppercase tracking-wider transition-colors hover:opacity-80 active:scale-95"
-                            style={{ color: 'var(--theme-textMain)' }}
+                            style={{ color: 'var(--theme-listHeader-text)' }}
                             title="選択した曲を別のリストへ移動/追加"
                           >
                             <ListPlus size={10} style={{ color: 'var(--theme-accent)' }} />
@@ -2766,7 +3467,7 @@ export default function App() {
                        <button 
                          onClick={deleteSelectedTracks}
                          className="flex items-center gap-1 text-[9px] uppercase tracking-wider transition-colors hover:opacity-80 active:scale-95"
-                         style={{ color: 'var(--theme-textMain)' }}
+                         style={{ color: 'var(--theme-listHeader-text)' }}
                        >
                          <Trash2 size={10} style={{ color: 'var(--theme-accent)' }} />
                          DELETE SELECTED ({selectedTrackIds.size})
@@ -2781,7 +3482,7 @@ export default function App() {
                  <button
                    onClick={() => setShowColMenu(!showColMenu)}
                    className="flex items-center gap-1 text-[9px] uppercase tracking-wider border px-2 py-0.5 transition-colors hover:opacity-80 active:scale-95"
-                   style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-textMain)', backgroundColor: showColMenu ? 'var(--theme-surfaceLighter)' : 'transparent' }}
+                   style={{ borderColor: 'var(--theme-listHeader-border)', color: 'var(--theme-listHeader-text)', backgroundColor: showColMenu ? 'var(--theme-bg)' : 'transparent' }}
                    title="表示項目の設定"
                  >
                    <Eye size={9} />
@@ -2805,14 +3506,14 @@ export default function App() {
                  <button
                    onClick={() => handleSort(activeSortConfig.key as any)}
                    className="flex items-center gap-1 text-[9px] uppercase tracking-wider border px-2 py-0.5 transition-colors hover:opacity-80 active:scale-95"
-                   style={{ borderColor: 'var(--theme-borderActive)', color: 'var(--theme-accent)', backgroundColor: 'var(--theme-accentMuted)' }}
+                   style={{ borderColor: 'var(--theme-list-borderActive)', color: 'var(--theme-list-accent)', backgroundColor: 'var(--theme-list-accentMuted)' }}
                    title="ソートを解除して手動並べ替えを有効にする"
                  >
                    <X size={9} />
                    SORT: {activeSortConfig.key.toUpperCase()}
                  </button>
                )}
-               <span className="text-[9px] font-mono tracking-widest" style={{ color: 'var(--theme-textDim)' }}>{displayTracks.length} ITEMS</span>
+               <span className="text-[9px] font-mono tracking-widest" style={{ color: 'var(--theme-listHeader-textMuted)' }}>{displayTracks.length} ITEMS</span>
             </div>
           </div>
 
@@ -2820,9 +3521,9 @@ export default function App() {
           {!isLoadingFiles && displayTracks.some(t => t.missing) && (
             <div 
               className="flex items-center gap-3 px-3 py-1.5 text-[10px] tracking-wide shrink-0 border-b"
-              style={{ backgroundColor: 'var(--theme-accentMuted)', borderColor: 'var(--theme-borderActive)', color: 'var(--theme-textMain)' }}
+              style={{ backgroundColor: 'var(--theme-list-accentMuted)', borderColor: 'var(--theme-list-borderActive)', color: 'var(--theme-list-textMain)' }}
             >
-              <AlertCircle size={12} style={{ color: 'var(--theme-accent)', flexShrink: 0 }} />
+              <AlertCircle size={12} style={{ color: 'var(--theme-list-accent)', flexShrink: 0 }} />
               <span>
                 {displayTracks.filter(t => t.missing).length}件のファイルがこのPCで見つかりません。
                 ファイル/フォルダをドラッグ&ドロップするか、「READ DIRECTORY」で読み込んでください。
@@ -2831,47 +3532,47 @@ export default function App() {
           )}
 
           {isLoadingFiles ? (
-            <div className="flex-1 flex flex-col items-center justify-center gap-4" style={{ color: 'var(--theme-textDim)' }}>
+            <div className="flex-1 flex flex-col items-center justify-center gap-4" style={{ color: 'var(--theme-list-textDim)' }}>
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: 'var(--theme-accent)' }}></div>
-                <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: 'var(--theme-accent)', animationDelay: '0.2s' }}></div>
-                <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: 'var(--theme-accent)', animationDelay: '0.4s' }}></div>
+                <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: 'var(--theme-list-accent)' }}></div>
+                <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: 'var(--theme-list-accent)', animationDelay: '0.2s' }}></div>
+                <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: 'var(--theme-list-accent)', animationDelay: '0.4s' }}></div>
               </div>
               <span className="tracking-widest text-[10px] uppercase">READING FILES... {loadingProgress.done}/{loadingProgress.total}</span>
             </div>
           ) : displayTracks.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center gap-4" style={{ color: 'var(--theme-textDim)' }}>
+            <div className="flex-1 flex flex-col items-center justify-center gap-4" style={{ color: 'var(--theme-list-textDim)' }}>
               <span className="tracking-widest text-[10px] uppercase">NO DATA STORES LINKED</span>
-              <span className="tracking-widest text-[9px] uppercase" style={{ color: 'var(--theme-textDim)', opacity: 0.6 }}>DRAG &amp; DROP FILES OR FOLDER HERE</span>
+              <span className="tracking-widest text-[9px] uppercase" style={{ color: 'var(--theme-list-textDim)', opacity: 0.6 }}>DRAG &amp; DROP FILES OR FOLDER HERE</span>
               {activePlaylistId === 'all-tracks' && (
                 <button 
                   onClick={handleSelectFolder}
                   className="h-8 px-6 border transition-colors text-[10px] tracking-widest uppercase hover:opacity-80"
-                  style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-textMuted)', backgroundColor: 'transparent' }}
-                  onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--theme-surfaceLighter)'; e.currentTarget.style.color = 'var(--theme-textMain)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--theme-textMuted)'; }}
+                  style={{ borderColor: 'var(--theme-list-border)', color: 'var(--theme-list-textMuted)', backgroundColor: 'transparent' }}
+                  onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--theme-list-surfaceLighter)'; e.currentTarget.style.color = 'var(--theme-list-textMain)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--theme-list-textMuted)'; }}
                 >
                   INITIALIZE FOLDER READ
                 </button>
               )}
             </div>
           ) : (
-            <div className="flex flex-col h-full overflow-y-auto overflow-x-hidden relative w-full">
+            <div className="flex flex-col h-full overflow-y-auto overflow-x-hidden relative w-full" style={{ backgroundColor: 'var(--theme-list-bg)' }}>
               <div className="w-full flex flex-col min-h-full">
                 {/* List Header */}
-                <div className="flex items-center uppercase tracking-normal px-2 h-8 border-b shrink-0 sticky top-0 z-20 text-[10px] w-full" style={{ backgroundColor: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-textMuted)' }}>
+                <div className="flex items-center uppercase tracking-normal px-2 h-8 border-b shrink-0 sticky top-0 z-20 text-[10px] w-full" style={{ backgroundColor: 'var(--theme-list-bg)', borderColor: 'var(--theme-list-border)', color: 'var(--theme-list-textMuted)' }}>
                   <div className="relative flex-shrink-0 flex items-center h-full" style={{ width: colWidths.index }}>
                     <div className="w-8 flex-shrink-0 flex items-center justify-center"></div>
-                    <div className="w-8 flex-shrink-0 flex items-center justify-center text-[var(--theme-textDim)]">
+                    <div className="w-8 flex-shrink-0 flex items-center justify-center" style={{ color: 'var(--theme-list-textDim)' }}>
                       #
                     </div>
                     {colVisibility.art && (
-                      <div className="w-8 flex-shrink-0 flex items-center pl-1 text-[var(--theme-textDim)]">
+                      <div className="w-8 flex-shrink-0 flex items-center pl-1" style={{ color: 'var(--theme-list-textDim)' }}>
                         ART
                       </div>
                     )}
                     <div onMouseDown={(e) => handleColMouseDown(e, 'index')} className="absolute right-0 top-0 bottom-0 w-[14px] cursor-col-resize flex justify-center z-20 group" style={{ transform: 'translateX(50%)' }}>
-                      <div className="w-[1px] h-full bg-[var(--theme-border)] opacity-40 group-hover:bg-[var(--theme-accent)] group-hover:opacity-100 transition-colors" />
+                      <div className="w-[1px] h-full opacity-40 group-hover:opacity-100 transition-colors" style={{ backgroundColor: 'var(--theme-list-border)' }} />
                     </div>
                   </div>
                   <div ref={columnsContainerRef} className="flex-1 min-w-0 flex items-center gap-3 pl-3 h-full">
@@ -2890,20 +3591,20 @@ export default function App() {
                           className="relative min-w-0 pr-2 flex items-center h-full select-none" 
                           style={{ flex: `${weight} 0 0%`, minWidth: col === 'trackNumber' ? 30 : 40 }}
                         >
-                          <div onClick={() => handleSort(col as 'title' | 'artist' | 'album' | 'fileName' | 'trackNumber')} className="flex-1 min-w-0 flex items-center gap-1 cursor-pointer hover:text-[var(--theme-textMain)]">
+                          <div onClick={() => handleSort(col as 'title' | 'artist' | 'album' | 'fileName' | 'trackNumber')} className="flex-1 min-w-0 flex items-center gap-1 cursor-pointer" style={{ color: 'var(--theme-list-textMuted)' }}>
                             <span className="truncate">{COL_LABELS[col] || col}</span>
                             {activeSortConfig.key === col && (activeSortConfig.direction === 'asc' ? <ChevronUp size={10} className="shrink-0" /> : <ChevronDown size={10} className="shrink-0" />)}
                           </div>
                           {!isLast && nextCol && (
                             <div onMouseDown={(e) => handleColMouseDown(e, col, nextCol)} className="absolute right-0 top-0 bottom-0 w-[14px] cursor-col-resize flex justify-center z-20 group" style={{ transform: 'translateX(50%)' }}>
-                              <div className="w-[1px] h-full bg-[var(--theme-border)] opacity-40 group-hover:bg-[var(--theme-accent)] group-hover:opacity-100 transition-colors" />
+                              <div className="w-[1px] h-full opacity-40 group-hover:opacity-100 transition-colors" style={{ backgroundColor: 'var(--theme-list-border)' }} />
                             </div>
                           )}
                         </div>
                       );
                     })}
                   </div>
-                  {colVisibility.actions && <div className="w-24 flex-shrink-0 text-center">操作</div>}
+                  {colVisibility.actions && <div className="w-24 flex-shrink-0 text-center" style={{ color: 'var(--theme-list-textMuted)' }}>操作</div>}
                 </div>
                 {/* List Items */}
                 <div className="flex flex-col flex-1 pb-4 w-full">

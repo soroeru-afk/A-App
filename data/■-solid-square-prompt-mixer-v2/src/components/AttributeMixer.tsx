@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Check, Settings2, Pencil, Plus, Trash2, Save, ChevronDown, ChevronUp, ChevronsUp, ChevronsDown, Edit2, RotateCcw, GripVertical, ArrowLeftToLine, Copy } from 'lucide-react';
 import { ConfirmModal } from './ConfirmModal';
-import { AutoResizeTextarea } from './AutoResizeTextarea';
 import { Language, t } from '../i18n';
 import { VariationPart } from '../types';
+import { AutoResizeTextarea } from './AutoResizeTextarea';
 
 type PresetItem = { label: string; value: string };
 type Presets = Record<string, PresetItem[]>;
@@ -33,7 +33,7 @@ type Combination = {
   negativePrompt: string;
 };
 
-const DEFAULT_CATEGORIES: CategoryDef[] = [
+export const DEFAULT_CATEGORIES: CategoryDef[] = [
   { id: 'genderAndPeople', label: '性別と人数 (Gender & People)' },
   { id: 'race', label: '人種 (Race)' },
   { id: 'age', label: '年齢 (Age)' },
@@ -275,10 +275,23 @@ export const AttributeMixer: React.FC<AttributeMixerProps> = ({ onApply, onInser
       try {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          // Merge missing defaults (like genderAndPeople) at the beginning if they are missing
           const existingIds = new Set(parsed.map(c => c.id));
           const missingDefaults = DEFAULT_CATEGORIES.filter(c => !existingIds.has(c.id));
-          finalCats = [...missingDefaults, ...parsed];
+          if (missingDefaults.length > 0) {
+            const missingGender = missingDefaults.find(c => c.id === 'genderAndPeople');
+            const otherMissing = missingDefaults.filter(c => c.id !== 'genderAndPeople');
+            const nonNeg = parsed.filter(c => !c.isNegative);
+            const neg = parsed.filter(c => c.isNegative);
+            finalCats = [
+              ...(missingGender ? [missingGender] : []),
+              ...nonNeg,
+              ...otherMissing.filter(c => !c.isNegative),
+              ...neg,
+              ...otherMissing.filter(c => c.isNegative)
+            ];
+          } else {
+            finalCats = parsed;
+          }
         }
       } catch(e) {}
     }
@@ -372,7 +385,21 @@ export const AttributeMixer: React.FC<AttributeMixerProps> = ({ onApply, onInser
           if (Array.isArray(parsed)) {
             const existingIds = new Set(parsed.map((c: any) => c.id));
             const missingDefaults = DEFAULT_CATEGORIES.filter(c => !existingIds.has(c.id));
-            setCategories([...missingDefaults, ...parsed]);
+            if (missingDefaults.length > 0) {
+              const missingGender = missingDefaults.find(c => c.id === 'genderAndPeople');
+              const otherMissing = missingDefaults.filter(c => c.id !== 'genderAndPeople');
+              const nonNeg = parsed.filter((c: any) => !c.isNegative);
+              const neg = parsed.filter((c: any) => c.isNegative);
+              setCategories([
+                ...(missingGender ? [missingGender] : []),
+                ...nonNeg,
+                ...otherMissing.filter(c => !c.isNegative),
+                ...neg,
+                ...otherMissing.filter(c => c.isNegative)
+              ]);
+            } else {
+              setCategories(parsed);
+            }
           }
         } catch(e) {}
       }
@@ -1058,16 +1085,16 @@ const deleteCheckedItems = () => {
                   <input 
                     value={item?.label || ''}
                     onChange={(e) => updatePresetItem(key, idx, 'label', e.target.value)}
-                    className={`w-full bg-bg-input border border-border-main px-2 py-1 text-[12px] font-mono focus:outline-none focus:border-border-hover ${idx === 0 ? 'text-text-dim cursor-not-allowed opacity-70' : 'text-text-main font-bold'}`} 
+                    className={`w-full bg-bg-input border border-border-main px-2.5 py-1.5 text-[12px] font-mono focus:outline-none focus:border-border-hover ${idx === 0 ? 'text-text-dim cursor-not-allowed opacity-70' : 'text-text-main'}`} 
                     disabled={idx === 0}
                     placeholder="項目名 (例: Russian)"
                   />
                   <AutoResizeTextarea 
                     value={item?.value || ''}
                     onChange={(e) => updatePresetItem(key, idx, 'value', e.target.value)}
-                    minHeight={40}
-                    className={`w-full bg-bg-surface border border-border-main px-2 py-1.5 text-[13px] leading-relaxed font-mono focus:outline-none focus:border-border-hover ${idx === 0 ? 'text-text-dim cursor-not-allowed opacity-70' : 'text-text-main'}`} 
+                    className={`w-full bg-bg-surface border border-border-main px-2.5 py-1.5 text-[13px] leading-relaxed font-mono resize-y focus:outline-none focus:border-border-hover ${idx === 0 ? 'text-text-dim cursor-not-allowed opacity-70' : 'text-text-main'}`} 
                     disabled={idx === 0}
+                    minHeight={42}
                     placeholder="プロンプト (例: 1russian girl, )"
                   />
                 </div>

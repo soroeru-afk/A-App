@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Language, t } from '../i18n';
+import { getSectionDisplayName } from '../utils/categoryUtils';
 
 interface SavePartModalProps {
   isOpen: boolean;
@@ -14,9 +15,10 @@ interface SavePartModalProps {
   onConfirm: (name: string, category: string, section: number, items?: {name: string, content: string}[], isUpdate?: boolean) => void;
   onCancel: () => void;
   lang: Language;
+  customSectionNames?: Record<number, string>;
 }
 
-export const SavePartModal: React.FC<SavePartModalProps> = ({ isOpen, content, defaultName, items, categories, selectedId, selectedName, onConfirm, onCancel, lang }) => {
+export const SavePartModal: React.FC<SavePartModalProps> = ({ isOpen, content, defaultName, items, categories, selectedId, selectedName, onConfirm, onCancel, lang, customSectionNames }) => {
   const [name, setName] = useState('');
   const [selectedCat, setSelectedCat] = useState<string>('');
 
@@ -68,7 +70,7 @@ export const SavePartModal: React.FC<SavePartModalProps> = ({ isOpen, content, d
               >
                 {categories.map(([cat, sec]) => (
                   <option key={`${sec}:${cat}`} value={`${sec}:${cat}`}>
-                    {t(cat as any, lang) || cat} (Section {sec})
+                    {t(cat as any, lang) || cat} ({getSectionDisplayName(sec, customSectionNames, lang)})
                   </option>
                 ))}
               </select>

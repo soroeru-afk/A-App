@@ -25,22 +25,22 @@ def register_protocol():
         # Command to run
         command = f'"{py_launcher}" "{launcher_path}" "%1"'
 
-        # Registry key path (Requires admin privileges for HKEY_CLASSES_ROOT)
-        key_path = r"solid-play"
-        
-        # Create and write registry keys
-        key = winreg.CreateKey(winreg.HKEY_CLASSES_ROOT, key_path)
-        winreg.SetValueEx(key, "", 0, winreg.REG_SZ, "URL:Solid Play Protocol")
-        winreg.SetValueEx(key, "URL Protocol", 0, winreg.REG_SZ, "")
-        
-        shell_key = winreg.CreateKey(key, "shell")
-        open_key = winreg.CreateKey(shell_key, "open")
-        command_key = winreg.CreateKey(open_key, "command")
-        winreg.SetValueEx(command_key, "", 0, winreg.REG_SZ, command)
-        
+        # Try registering to HKCU first (no admin required) and HKCR if accessible
+        for root_key, label in [(winreg.HKEY_CURRENT_USER, r"Software\Classes\solid-play"), (winreg.HKEY_CLASSES_ROOT, r"solid-play")]:
+            try:
+                key = winreg.CreateKey(root_key, label)
+                winreg.SetValueEx(key, "", 0, winreg.REG_SZ, "URL:Solid Play Protocol")
+                winreg.SetValueEx(key, "URL Protocol", 0, winreg.REG_SZ, "")
+                shell_key = winreg.CreateKey(key, "shell")
+                open_key = winreg.CreateKey(shell_key, "open")
+                command_key = winreg.CreateKey(open_key, "command")
+                winreg.SetValueEx(command_key, "", 0, winreg.REG_SZ, command)
+                print(f" Registered to {label} (solid-play://)")
+            except Exception as sub_e:
+                print(f" Could not write to {label}: {sub_e}")
+
         print("==========================================================")
-        print(" Solid Play Protocol Handler Registered Successfully!")
-        print(" Registered to HKEY_CLASSES_ROOT")
+        print(" Solid Play Protocol Handler Registration Attempted!")
         print("==========================================================")
     except Exception as e:
         print(f"Error during registry registration: {e}")
@@ -49,3 +49,4 @@ def register_protocol():
 
 if __name__ == "__main__":
     register_protocol()
+    input("\nEnter キーを押すと画面を閉じます...")

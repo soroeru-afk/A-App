@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { CheckCircle2 } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import AddStockForm from './components/AddStockForm';
 import StockList from './components/StockList';
@@ -61,6 +62,10 @@ export default function App() {
     () => parseInt(localStorage.getItem('knav_price_font_size') || '16')
   );
 
+  const [memoFontSize, setMemoFontSize] = useState<number>(
+    () => parseInt(localStorage.getItem('KNAV_DETAIL_FONT_SIZE') || '14')
+  );
+
   const [priceColor, setPriceColor] = useState<string>(
     () => {
       const saved = localStorage.getItem('knav_price_color');
@@ -97,8 +102,23 @@ export default function App() {
   }, [priceFontSize]);
 
   useEffect(() => {
+    localStorage.setItem('KNAV_DETAIL_FONT_SIZE', memoFontSize.toString());
+  }, [memoFontSize]);
+
+  useEffect(() => {
     localStorage.setItem('knav_price_color', priceColor);
   }, [priceColor]);
+
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => {
+        setToastMessage(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
 
   useEffect(() => {
     // Initialize caches from initialData if they don't exist
@@ -130,6 +150,13 @@ export default function App() {
   });
 
   const [stocks, setStocks] = useState<Stock[]>(() => {
+    const descMap = new Map<string, string>();
+    enrichedPreset.stocks.forEach(s => {
+      if (s.description && s.description.trim()) {
+        descMap.set(s.code, s.description);
+      }
+    });
+
     const saved = localStorage.getItem('knav_stocks_v2');
     if (saved) {
         try { 
@@ -138,6 +165,12 @@ export default function App() {
                 const c = localStorage.getItem('KNAV_SX_CLOSE_' + s.code);
                 if (c) {
                     try { const cv = JSON.parse(c); if(cv.price) s.price = cv.price; } catch(e){}
+                }
+                if (!s.description || !s.description.trim()) {
+                  const defaultDesc = descMap.get(s.code);
+                  if (defaultDesc) {
+                    s.description = defaultDesc;
+                  }
                 }
                 return s;
             });
@@ -151,12 +184,44 @@ export default function App() {
           code: s.code,
           name: s.name,
           categoryId: g.id,
+          description: s.description || descMap.get(s.code) || '',
           createdAt: Date.now() + index
         });
       });
     });
     return initialStocks;
   });
+
+  // Auto-fill missing descriptions for all registered stocks from enrichedPreset
+  useEffect(() => {
+    const descMap = new Map<string, string>();
+    enrichedPreset.stocks.forEach(s => {
+      if (s.description && s.description.trim()) {
+        descMap.set(s.code, s.description);
+      }
+    });
+
+    let hasChange = false;
+    const filledStocks = stocks.map(st => {
+      if (!st.description || !st.description.trim()) {
+        const d = descMap.get(st.code);
+        if (d) {
+          hasChange = true;
+          return { ...st, description: d };
+        }
+      }
+      return st;
+    });
+
+    if (hasChange) {
+      setStocks(filledStocks);
+      try {
+        localStorage.setItem('knav_stocks_v2', JSON.stringify(filledStocks));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, []);
   
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
 
@@ -184,6 +249,7 @@ export default function App() {
   const [sidebarWidth, setSidebarWidth] = useState(370);
 
   const defaultMarketLinks: MarketLink[] = [
+    { id: 'm0', title: "市場ニュース（総合）", url: "https://kabutan.jp/news/marketnews/" },
     { id: 'm1', title: "決算速報", url: "https://kabutan.jp/news/" },
     { id: 'm5', title: "今日の上昇率", url: "https://kabutan.jp/warning/?mode=2_1" },
     { id: 'm6', title: "今日の下落率", url: "https://kabutan.jp/warning/?mode=2_2" },
@@ -201,9 +267,24 @@ export default function App() {
   const [marketLinks, setMarketLinks] = useState<MarketLink[]>(() => {
     const saved = localStorage.getItem('knav_market_links');
     if (saved) {
-      try { return JSON.parse(saved); } catch(e) {}
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // If the user's saved list doesn't have 市場ニュース（総合）, insert it at the top
+          const hasM0 = parsed.some((l: MarketLink) => l.id === 'm0' || l.title === '市場ニュース（総合）');
+          if (!hasM0) {
+            return [
+              { id: 'm0', title: '市場ニュース（総合）', url: 'https://kabutan.jp/news/marketnews/' },
+              ...parsed
+            ];
+          }
+          return parsed;
+        }
+      } catch(e) {}
     }
-    return defaultMarketLinks;
+    return (enrichedPreset.marketLinks && enrichedPreset.marketLinks.length > 0)
+      ? enrichedPreset.marketLinks
+      : defaultMarketLinks;
   });
 
   useEffect(() => {
@@ -377,7 +458,7 @@ export default function App() {
                 price: price,
                 date: new Date().toLocaleDateString('ja-JP')
               }));
-              setStocks(prev => prev.map(s => s.id === st.id ? { 
+              setStocks(prev => prev.map(s => s.code === st.code ? { 
                 ...s, 
                 price: price, 
                 priceUpdatedAt: Date.now() 
@@ -492,9 +573,17 @@ export default function App() {
   };
 
   const addStocks = (items: {code: string, name: string, categoryId: string}[]) => {
+    const descMap = new Map<string, string>();
+    enrichedPreset.stocks.forEach(s => {
+      if (s.description && s.description.trim()) {
+        descMap.set(s.code, s.description);
+      }
+    });
+
     const newStocks = items.map((item, index) => ({
       id: Date.now().toString() + index,
       ...item,
+      description: descMap.get(item.code) || '',
       createdAt: Date.now()
     }));
     setStocks([...newStocks, ...stocks]);
@@ -505,11 +594,102 @@ export default function App() {
   };
 
   const moveStocksToCategory = (ids: string[], newCategoryId: string) => {
-    setStocks(prev => prev.map(s => ids.includes(s.id) ? { ...s, categoryId: newCategoryId } : s));
+    setStocks(prev => {
+      const movedStocks = prev.filter(s => ids.includes(s.id));
+      const targetCat = categories.find(c => c.id === newCategoryId);
+      const targetName = targetCat ? targetCat.name : (newCategoryId === '' ? (language === 'EN' ? 'Unassigned' : '未分類') : '');
+      
+      const stockDesc = movedStocks.length === 1 
+        ? `${movedStocks[0].code} ${movedStocks[0].name}` 
+        : `${movedStocks.length} ${language === 'EN' ? 'stocks' : '件の銘柄'}`;
+      
+      setToastMessage(language === 'EN' 
+        ? `Moved ${stockDesc} to "${targetName}"` 
+        : `${stockDesc} を「${targetName}」に移動しました`);
+
+      return prev.map(s => ids.includes(s.id) ? { ...s, categoryId: newCategoryId } : s);
+    });
+  };
+
+  const createStockShortcuts = (sourceStockIds: string[], targetCategoryId: string) => {
+    setStocks(prev => {
+      const sourceStocks = prev.filter(s => sourceStockIds.includes(s.id));
+      if (sourceStocks.length === 0) return prev;
+
+      const targetCat = categories.find(c => c.id === targetCategoryId);
+      const targetName = targetCat ? targetCat.name : (targetCategoryId === '' ? (language === 'EN' ? 'Unassigned' : '未分類') : '');
+
+      const existingCodesInTarget = new Set(
+        prev.filter(s => s.categoryId === targetCategoryId).map(s => s.code)
+      );
+
+      const newlyCreated: Stock[] = [];
+      let skippedCount = 0;
+
+      sourceStocks.forEach((src, idx) => {
+        if (existingCodesInTarget.has(src.code)) {
+          skippedCount++;
+          return;
+        }
+        newlyCreated.push({
+          id: `sc_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 6)}`,
+          code: src.code,
+          name: src.name,
+          categoryId: targetCategoryId,
+          description: src.description || '',
+          price: src.price,
+          priceUpdatedAt: src.priceUpdatedAt,
+          createdAt: Date.now() + idx,
+          isShortcut: true,
+        });
+        existingCodesInTarget.add(src.code);
+      });
+
+      if (newlyCreated.length === 0) {
+        setToastMessage(language === 'EN'
+          ? `Selected stock(s) already exist in "${targetName}"`
+          : `対象の銘柄はすでに「${targetName}」に登録されています`);
+        return prev;
+      }
+
+      const stockDesc = newlyCreated.length === 1 
+        ? `${newlyCreated[0].code} ${newlyCreated[0].name}` 
+        : `${newlyCreated.length} ${language === 'EN' ? 'stocks' : '件の銘柄'}`;
+
+      const skipSuffix = skippedCount > 0 
+        ? (language === 'EN' ? ` (${skippedCount} already existed)` : ` (${skippedCount}件は重複のためスキップ)`)
+        : '';
+
+      setToastMessage(language === 'EN'
+        ? `Created shortcut for ${stockDesc} in "${targetName}"${skipSuffix}`
+        : `${stockDesc} のショートカットを「${targetName}」に作成しました${skipSuffix}`);
+
+      return [...newlyCreated, ...prev];
+    });
   };
 
   const updateStock = (id: string, updates: Partial<Stock>) => {
-    setStocks(stocks.map(st => st.id === id ? { ...st, ...updates } : st));
+    setStocks(prev => {
+      const target = prev.find(st => st.id === id);
+      if (!target) return prev;
+
+      // 同一銘柄コードを持つすべての実体・ショートカットに同期する項目
+      const syncFields: Partial<Stock> = {};
+      if (updates.name !== undefined) syncFields.name = updates.name;
+      if (updates.description !== undefined) syncFields.description = updates.description;
+      if (updates.price !== undefined) syncFields.price = updates.price;
+      if (updates.priceUpdatedAt !== undefined) syncFields.priceUpdatedAt = updates.priceUpdatedAt;
+
+      return prev.map(st => {
+        if (st.id === id) {
+          return { ...st, ...updates };
+        }
+        if (st.code === target.code && Object.keys(syncFields).length > 0) {
+          return { ...st, ...syncFields };
+        }
+        return st;
+      });
+    });
   };
 
   const moveStock = (id: string, direction: 'up' | 'down' | 'top' | 'bottom') => {
@@ -636,11 +816,25 @@ export default function App() {
   };
 
   const handleDownloadEnrichedJson = () => {
-    const blob = new Blob([JSON.stringify(enrichedPreset, null, 2)], { type: 'application/json' });
+    const dataToExport = {
+      groups: enrichedPreset.groups,
+      bbHistory: enrichedPreset.bbHistory || {},
+      closeCache: enrichedPreset.closeCache || {},
+      memoCache: enrichedPreset.memoCache || {},
+      bwpCache: enrichedPreset.bwpCache || {},
+      categories: enrichedPreset.categories,
+      stocks: enrichedPreset.stocks,
+      marketLinks: (enrichedPreset.marketLinks && enrichedPreset.marketLinks.length > 0)
+        ? enrichedPreset.marketLinks
+        : (marketLinks.length > 0 ? marketLinks : defaultMarketLinks),
+      exportedAt: new Date().toLocaleString('ja-JP'),
+      version: 'Simple-X-Web'
+    };
+    const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'k-navigator-enriched.json';
+    a.download = `knav_enriched_latest_${enrichedPreset.stocks.length}stocks.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -657,12 +851,19 @@ export default function App() {
       if (data.memoCache) Object.keys(data.memoCache).forEach(c => localStorage.setItem('KNAV_SX_MEMO_' + c, JSON.stringify(data.memoCache[c])));
       if (data.bwpCache) Object.keys(data.bwpCache).forEach(c => localStorage.setItem('KNAV_SX_BWP_' + c, JSON.stringify(data.bwpCache[c])));
       if (data.manualBwp) Object.keys(data.manualBwp).forEach(c => localStorage.setItem('KNAV_SX_BWP_' + c, JSON.stringify(data.manualBwp[c])));
-      if (data.marketLinks) setMarketLinks(data.marketLinks);
+      if (data.marketLinks && Array.isArray(data.marketLinks) && data.marketLinks.length > 0) {
+        setMarketLinks(data.marketLinks);
+      }
 
       let loadedCategories: Category[] = [];
       let loadedStocks: Stock[] = [];
 
-      if (Array.isArray(data.categories) && Array.isArray(data.stocks) && data.categories.length > 0) {
+      const groupStocksCount = Array.isArray(data.groups) 
+        ? data.groups.reduce((acc: number, g: any) => acc + (Array.isArray(g.stocks) ? g.stocks.length : 0), 0)
+        : 0;
+      const directStocksCount = Array.isArray(data.stocks) ? data.stocks.length : 0;
+
+      if (directStocksCount >= groupStocksCount && directStocksCount > 0 && Array.isArray(data.categories) && data.categories.length > 0) {
         loadedCategories = data.categories;
         loadedStocks = data.stocks.map((s: any) => ({
           ...s,
@@ -670,8 +871,11 @@ export default function App() {
           price: s.price || (data.closeCache && data.closeCache[s.code] ? data.closeCache[s.code]?.price : undefined)
         }));
       } else if (data.groups && Array.isArray(data.groups)) {
+        loadedCategories = Array.isArray(data.categories) && data.categories.length > 0
+          ? data.categories
+          : data.groups.map((g: any) => ({ id: g.id, name: g.name, parentId: g.parentId || undefined }));
+        
         data.groups.forEach((g: any) => {
-          loadedCategories.push({ id: g.id, name: g.name, parentId: g.parentId || undefined });
           if (Array.isArray(g.stocks)) {
             g.stocks.forEach((s: any, index: number) => {
               let priceStr = undefined;
@@ -690,6 +894,9 @@ export default function App() {
             });
           }
         });
+      } else if (Array.isArray(data.stocks) && data.stocks.length > 0) {
+        loadedCategories = Array.isArray(data.categories) ? data.categories : [];
+        loadedStocks = data.stocks;
       }
 
       if (loadedCategories.length > 0 || loadedStocks.length > 0) {
@@ -710,16 +917,78 @@ export default function App() {
     try {
       setCategories(enrichedPreset.categories);
       setStocks(enrichedPreset.stocks);
+      if (enrichedPreset.closeCache) {
+        Object.keys(enrichedPreset.closeCache).forEach(c => {
+          localStorage.setItem('KNAV_SX_CLOSE_' + c, JSON.stringify(enrichedPreset.closeCache![c]));
+        });
+      }
+      if (enrichedPreset.bbHistory) {
+        Object.keys(enrichedPreset.bbHistory).forEach(c => {
+          localStorage.setItem('KNAV_SX_HIST_' + c, JSON.stringify(enrichedPreset.bbHistory![c]));
+        });
+      }
+      if (enrichedPreset.memoCache) {
+        Object.keys(enrichedPreset.memoCache).forEach(c => {
+          localStorage.setItem('KNAV_SX_MEMO_' + c, JSON.stringify(enrichedPreset.memoCache![c]));
+        });
+      }
+      if (enrichedPreset.bwpCache) {
+        Object.keys(enrichedPreset.bwpCache).forEach(c => {
+          localStorage.setItem('KNAV_SX_BWP_' + c, JSON.stringify(enrichedPreset.bwpCache![c]));
+        });
+      }
+      if (enrichedPreset.marketLinks && enrichedPreset.marketLinks.length > 0) {
+        setMarketLinks(enrichedPreset.marketLinks);
+      } else {
+        setMarketLinks(defaultMarketLinks);
+      }
       setActiveCategoryId(null);
-      alert(`初期プリセット（228銘柄・概要付き、${enrichedPreset.categories.length}フォルダー）を正常に復元しました。`);
+      alert(`最新データ（全${enrichedPreset.stocks.length}銘柄・サイバーセキュリティ等概要付き、${enrichedPreset.categories.length}フォルダー）を正常に復元・反映しました。`);
     } catch (e) {
       console.error("Failed to restore preset", e);
-      alert('228銘柄概要付きデータの復元に失敗しました');
+      alert('最新データの復元に失敗しました');
+    }
+  };
+
+  const handleFillMissingDescriptions = () => {
+    const descMap = new Map<string, string>();
+    enrichedPreset.stocks.forEach(s => {
+      if (s.description && s.description.trim()) {
+        descMap.set(s.code, s.description);
+      }
+    });
+
+    let count = 0;
+    const nextStocks = stocks.map(st => {
+      if (!st.description || !st.description.trim()) {
+        const d = descMap.get(st.code);
+        if (d) {
+          count++;
+          return { ...st, description: d };
+        }
+      }
+      return st;
+    });
+
+    if (count > 0) {
+      setStocks(nextStocks);
+      try {
+        localStorage.setItem('knav_stocks_v2', JSON.stringify(nextStocks));
+      } catch (e) {}
+      setToastMessage(`${count}銘柄の詳細情報（企業概要）を自動補完・登録しました。`);
+    } else {
+      setToastMessage('すべての登録銘柄に詳細情報が登録されています。');
     }
   };
 
   const handleResetData = () => {
     if (window.confirm(i18n[language].confirmReset)) {
+      const descMap = new Map<string, string>();
+      enrichedPreset.stocks.forEach(s => {
+        if (s.description && s.description.trim()) {
+          descMap.set(s.code, s.description);
+        }
+      });
       setCategories(initialGroups.map(g => ({ id: g.id, name: g.name })));
       const initialStocks: Stock[] = [];
       initialGroups.forEach(g => {
@@ -729,6 +998,7 @@ export default function App() {
             code: s.code,
             name: s.name,
             categoryId: g.id,
+            description: s.description || descMap.get(s.code) || '',
             createdAt: Date.now() + index
           });
         });
@@ -793,6 +1063,7 @@ export default function App() {
           onMarketLinksChange={setMarketLinks}
           onLoadEnrichedData={handleLoadEnrichedPreset}
           onDownloadEnrichedData={handleDownloadEnrichedJson}
+          onFillMissingDescriptions={handleFillMissingDescriptions}
           folderColor={folderColor}
           onReorderCategory={reorderCategory}
           onMoveStocksToCategory={moveStocksToCategory}
@@ -831,6 +1102,7 @@ export default function App() {
           onMarketLinksChange={setMarketLinks}
           onLoadEnrichedData={handleLoadEnrichedPreset}
           onDownloadEnrichedData={handleDownloadEnrichedJson}
+          onFillMissingDescriptions={handleFillMissingDescriptions}
           folderColor={folderColor}
           onReorderCategory={reorderCategory}
           onMoveStocksToCategory={moveStocksToCategory}
@@ -855,6 +1127,8 @@ export default function App() {
           onStockFontSizeChange={setStockFontSize}
           priceFontSize={priceFontSize}
           onPriceFontSizeChange={setPriceFontSize}
+          memoFontSize={memoFontSize}
+          onMemoFontSizeChange={setMemoFontSize}
           priceColor={priceColor}
           onPriceColorChange={setPriceColor}
           onToggleCompactMode={() => setIsCompactMode(true)}
@@ -882,6 +1156,7 @@ export default function App() {
               onMoveStock={moveStock}
               onReorderStocks={reorderStocks}
               onMoveStocksToCategory={moveStocksToCategory}
+              onCreateStockShortcuts={createStockShortcuts}
               onAddCategory={addCategory}
               onRefreshPrice={fetchSinglePrice}
               refreshingCode={refreshingCode}
@@ -889,6 +1164,8 @@ export default function App() {
               listFontSize={listFontSize}
               stockFontSize={stockFontSize}
               priceFontSize={priceFontSize}
+              memoFontSize={memoFontSize}
+              onMemoFontSizeChange={setMemoFontSize}
               priceColor={priceColor}
               theme={theme}
               folderColor={folderColor}
@@ -896,6 +1173,14 @@ export default function App() {
           </>
         )}
       </main>
+
+      {/* Drag & Drop Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 bg-panel-bg border border-[#58a6ff] text-text-bright px-4 py-2.5 shadow-2xl flex items-center gap-2.5 font-mono text-xs animate-in fade-in slide-in-from-bottom-2 duration-150 rounded-xs">
+          <CheckCircle2 size={16} className="text-[#2ea043] shrink-0" />
+          <span className="font-bold">{toastMessage}</span>
+        </div>
+      )}
     </div>
   );
 }

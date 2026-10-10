@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { MasterPrompt } from '../types';
 import { ConfirmModal } from './ConfirmModal';
 import { AddModal } from './AddModal';
-import { AutoResizeTextarea } from './AutoResizeTextarea';
 import { MoreHorizontal, Pencil, Trash2, Check, X, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown, Plus, List, ArrowRightToLine, ArrowLeftToLine, Copy, Pin, Star, Sparkles, AlertTriangle } from 'lucide-react';
 import { Language, t } from '../i18n';
+import { AutoResizeTextarea } from './AutoResizeTextarea';
+import { getSectionDisplayName } from '../utils/categoryUtils';
 
 interface MasterColumnProps {
   masters: MasterPrompt[];
@@ -359,7 +360,7 @@ export const MasterColumn: React.FC<MasterColumnProps> = ({
                   {uniqueCategories && uniqueCategories.length > 0 && <option disabled className="bg-bg-panel text-text-dim">──────────</option>}
                   {uniqueCategories?.map(([cat, sec]) => (
                     <option key={`${sec}:${cat}`} value={`${sec}:${cat}`} className="bg-bg-panel text-text-main">
-                      {t(cat as any, lang) || cat} ({t(`sec_${sec === 1 ? 'composition' : sec === 2 ? 'pose' : sec === 3 ? 'details' : 'context'}` as any, lang)})
+                      {t(cat as any, lang) || cat} ({getSectionDisplayName(sec, undefined, lang)})
                     </option>
                   ))}
                 </select>
@@ -407,22 +408,22 @@ export const MasterColumn: React.FC<MasterColumnProps> = ({
                 <input 
                   value={editName}
                   onChange={e => setEditName(e.target.value)}
-                  className={`bg-bg-base border border-border-main text-[12px] font-mono p-1.5 text-text-main font-bold focus:outline-none ${isNegative ? 'focus:border-red-500' : 'focus:border-border-hover'}`}
+                  className={`bg-bg-base border border-border-main text-xs font-mono p-1.5 text-text-main focus:outline-none ${isNegative ? 'focus:border-red-500' : 'focus:border-border-hover'}`}
                   placeholder={t('name', lang)}
                 />
                 <AutoResizeTextarea 
                   value={editContent}
                   onChange={e => setEditContent(e.target.value)}
-                  minHeight={60}
-                  className={`bg-bg-base border border-border-main text-[13px] leading-relaxed font-mono p-1.5 text-text-main focus:outline-none ${isNegative ? 'focus:border-red-500' : 'focus:border-border-hover'}`}
+                  className={`bg-bg-base border border-border-main text-[13px] leading-relaxed font-mono p-2 text-text-main focus:outline-none ${isNegative ? 'focus:border-red-500' : 'focus:border-border-hover'} resize-y`}
+                  minHeight={64}
                   placeholder={t('content', lang)}
                 />
                 {!isNegative && (
                   <AutoResizeTextarea 
                     value={editNegativeContent || ''}
                     onChange={e => setEditNegativeContent(e.target.value || undefined)}
-                    minHeight={60}
-                    className={`bg-bg-base border border-border-main text-[13px] leading-relaxed font-mono p-1.5 text-text-main focus:outline-none focus:border-red-500`}
+                    className={`bg-bg-base border border-border-main text-[13px] leading-relaxed font-mono p-2 text-text-main focus:outline-none focus:border-red-500 resize-y`}
+                    minHeight={64}
                     placeholder="NEGATIVE PROMPT"
                   />
                 )}
@@ -498,7 +499,7 @@ export const MasterColumn: React.FC<MasterColumnProps> = ({
                 </div>
                 <div className={`w-2 h-2 shrink-0 ${isSelected ? (isNegative ? 'bg-red-500 shadow-[0_0_5px_rgba(239,68,68,1)]' : 'bg-gray-400') : 'bg-transparent border border-gray-600'}`}></div>
               </div>
-              <div className={`mt-1 text-[10px] font-mono truncate ${isSelected ? 'text-text-dim' : 'text-text-dim'}`}>
+              <div className={`mt-1 text-[11px] font-mono truncate ${isSelected ? 'text-text-main opacity-85' : 'text-text-dim'}`}>
                 {item.content || <span className="opacity-40">----- (No Content) -----</span>}
               </div>
               <div className={`absolute top-2 right-6 flex items-center gap-1`}>

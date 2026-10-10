@@ -1,6 +1,6 @@
 {
-  "name": "■ SOLID MOVIE MAKER",
-  "description": "",
+  "name": "■ SOLID MOVIE MAKER （データシステム）",
+  "description": "MKV映画データ管理・PotPlayer / KMPlayer 外部プレイヤー直接連携システム",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

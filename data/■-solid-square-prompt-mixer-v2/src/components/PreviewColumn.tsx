@@ -56,6 +56,7 @@ interface PreviewColumnProps {
   selectedPartId?: string | null;
   selectedPartName?: string;
   uniqueCategories?: [string, number][];
+  customSectionNames?: Record<number, string>;
   activeMasterTab?: 'master' | 'negative';
   lang: Language;
   paperMode?: boolean;
@@ -92,6 +93,7 @@ export const PreviewColumn: React.FC<PreviewColumnProps> = ({
   selectedPartId,
   selectedPartName,
   uniqueCategories = [],
+  customSectionNames,
   activeMasterTab = 'master',
   lang,
   paperMode = false,
@@ -128,87 +130,6 @@ export const PreviewColumn: React.FC<PreviewColumnProps> = ({
   const tabsScrollRef = useRef<HTMLDivElement>(null);
   const scrollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const tabsRef = useRef(tabs);
-  const activeTabIdRef = useRef(activeTabId);
-  const onTabChangeRef = useRef(onTabChange);
-
-  useEffect(() => {
-    tabsRef.current = tabs;
-    activeTabIdRef.current = activeTabId;
-    onTabChangeRef.current = onTabChange;
-  });
-
-  useEffect(() => {
-    const el = tabsScrollRef.current;
-    if (!el) return;
-
-    let lastWheelTime = 0;
-    const handleWheel = (e: WheelEvent) => {
-      if (e.shiftKey) return;
-
-      const delta = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
-      if (Math.abs(delta) < 25) return;
-
-      const currentTabs = tabsRef.current;
-      const currentActiveId = activeTabIdRef.current;
-
-      if (currentTabs.length <= 1) return;
-
-      e.preventDefault();
-      const now = Date.now();
-
-      if (now - lastWheelTime < 120) return;
-
-      const currentIndex = currentTabs.findIndex(t => t.id === currentActiveId);
-      const direction = delta < 0 ? 1 : -1;
-
-      let nextIndex = 0;
-      if (currentIndex === -1) {
-        nextIndex = 0;
-      } else {
-        nextIndex = currentIndex + direction;
-        if (nextIndex < 0) {
-          nextIndex = 0;
-        } else if (nextIndex >= currentTabs.length) {
-          nextIndex = currentTabs.length - 1;
-        }
-      }
-
-      if (nextIndex === currentIndex) return;
-
-      lastWheelTime = now;
-      const targetTab = currentTabs[nextIndex];
-      if (targetTab && onTabChangeRef.current) {
-        onTabChangeRef.current(targetTab.id);
-
-        if (nextIndex === 0) {
-          el.scrollLeft = 0;
-        } else if (nextIndex === currentTabs.length - 1) {
-          el.scrollLeft = el.scrollWidth - el.clientWidth;
-        } else {
-          const targetEl = el.children[nextIndex] as HTMLElement | undefined;
-          if (targetEl) {
-            const tabLeft = targetEl.offsetLeft;
-            const tabRight = tabLeft + targetEl.offsetWidth;
-            const stripLeft = el.scrollLeft;
-            const stripRight = stripLeft + el.clientWidth;
-
-            if (tabLeft < stripLeft + 60) {
-              el.scrollLeft = Math.max(0, tabLeft - 60);
-            } else if (tabRight > stripRight - 60) {
-              el.scrollLeft = Math.min(el.scrollWidth - el.clientWidth, tabRight - el.clientWidth + 60);
-            }
-          }
-        }
-      }
-    };
-
-    el.addEventListener("wheel", handleWheel, { passive: false });
-    return () => {
-      el.removeEventListener("wheel", handleWheel);
-    };
-  }, []);
-
   const startScroll = (direction: 'left' | 'right') => {
     if (scrollIntervalRef.current) clearInterval(scrollIntervalRef.current);
     const scroll = () => {
@@ -227,9 +148,122 @@ export const PreviewColumn: React.FC<PreviewColumnProps> = ({
     }
   };
 
+  const tabsBarRef = useRef<HTMLDivElement>(null);
+  const lastWheelTimeRef = useRef<number>(0);
+  const activeTabIdRef = useRef(activeTabId);
+  activeTabIdRef.current = activeTabId;
+  const tabsRef = useRef(tabs);
+  tabsRef.current = tabs;
+
   useEffect(() => {
-    return () => stopScroll();
+    return () => {
+      stopScroll();
+    };
   }, []);
+
+  // Mouse wheel tab navigation (like Square Editor)
+  useEffect(() => {
+    const tabsContainer = tabsBarRef.current;
+    if (!tabsContainer || !onTabChange) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      // If Shift key is pressed, allow horizontal scrolling without switching active tab
+      if (e.shiftKey) {
+        if (tabsScrollRef.current) {
+          e.preventDefault();
+          tabsScrollRef.current.scrollLeft += e.deltaY || e.deltaX;
+        }
+        return;
+      }
+
+      // Prevent outer page/panel scrolling while hovering over tabs
+      e.preventDefault();
+
+      const currentTabs = tabsRef.current;
+      const currentActiveId = activeTabIdRef.current;
+      if (!currentTabs || currentTabs.length <= 1) return;
+
+      const now = Date.now();
+      const isHorizontal = Math.abs(e.deltaX) > Math.abs(e.deltaY);
+      // Square Editor behavior:
+      // Wheel UP (deltaY < 0) increases tab number / moves right (+1)
+      // Wheel DOWN (deltaY > 0) decreases tab number / moves left (-1)
+      // Horizontal tilt right (deltaX > 0) moves right (+1), left (deltaX < 0) moves left (-1)
+      const primaryDelta = isHorizontal ? e.deltaX : -e.deltaY;
+
+      // Ignore zero or tiny noise
+      if (Math.abs(primaryDelta) < 1) return;
+
+      const direction = primaryDelta > 0 ? 1 : -1;
+
+      // Ensure minimum delay between tab steps to prevent rapid-fire or bounce
+      if (now - lastWheelTimeRef.current < 200) {
+        return;
+      }
+
+      const currentIndex = currentTabs.findIndex(t => t.id === currentActiveId);
+      if (currentIndex === -1) return;
+
+      const nextIndex = currentIndex + direction;
+
+      // If already at boundary, do nothing
+      if (nextIndex < 0 || nextIndex >= currentTabs.length) {
+        return;
+      }
+
+      lastWheelTimeRef.current = now;
+      onTabChange(currentTabs[nextIndex].id);
+    };
+
+    tabsContainer.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      tabsContainer.removeEventListener('wheel', handleWheel);
+    };
+  }, [onTabChange]);
+
+  // Ensure active tab is scrolled into view smoothly with comfortable margin before edge
+  useEffect(() => {
+    const container = tabsScrollRef.current;
+    if (!container || !activeTabId || !tabs || tabs.length === 0) return;
+
+    const activeIndex = tabs.findIndex(t => t.id === activeTabId);
+    if (activeIndex === -1) return;
+
+    const tabElements = container.querySelectorAll('[data-tab-element]');
+    const targetTab = tabElements[activeIndex] as HTMLElement | undefined;
+    if (!targetTab) return;
+
+    // Special handling for the very first or last tab
+    if (activeIndex === 0) {
+      container.scrollTo({ left: 0, behavior: 'smooth' });
+      return;
+    }
+    if (activeIndex === tabs.length - 1) {
+      container.scrollTo({ left: container.scrollWidth - container.clientWidth, behavior: 'smooth' });
+      return;
+    }
+
+    // Comfortable margin (around 60px) so the switch happens gently before reaching the screen edge
+    const MARGIN = 60;
+    const containerLeft = container.scrollLeft;
+    const containerRight = containerLeft + container.clientWidth;
+
+    const tabLeft = targetTab.offsetLeft;
+    const tabRight = tabLeft + targetTab.offsetWidth;
+
+    if (tabLeft - MARGIN < containerLeft) {
+      container.scrollTo({
+        left: Math.max(0, tabLeft - MARGIN),
+        behavior: 'smooth'
+      });
+    } else if (tabRight + MARGIN > containerRight) {
+      const targetScroll = tabRight + MARGIN - container.clientWidth;
+      container.scrollTo({
+        left: Math.max(0, targetScroll),
+        behavior: 'smooth'
+      });
+    }
+  }, [activeTabId, tabs]);
 
   
   
@@ -523,7 +557,6 @@ export const PreviewColumn: React.FC<PreviewColumnProps> = ({
     return text
       .split('\n')
       .map(line => {
-        if (!line.trim()) return '';
         let cleanedLine = line
           .replace(/[\u3000]/g, ' ')
           .replace(/[ \t]+/g, ' ')
@@ -2151,6 +2184,7 @@ const handleResizeStart = (e: React.MouseEvent) => {
 
       {tabs && onTabChange && (
         <div 
+          ref={tabsBarRef}
           className="group/tabs flex items-center w-full shrink-0 mb-1 gap-1"
           onMouseEnter={() => setShowScrollButtons(true)}
           onMouseLeave={() => {
@@ -2194,6 +2228,7 @@ const handleResizeStart = (e: React.MouseEvent) => {
                 return (
                   <div 
                     key={tab.id}
+                    data-tab-element="true"
                     draggable
                     onDragStart={(e) => {
                       setDraggedTabIndex(index);
@@ -2228,13 +2263,13 @@ const handleResizeStart = (e: React.MouseEvent) => {
                       setDraggedTabIndex(null);
                       setDragOverTabIndex(null);
                     }}
-                    className={`group flex items-center gap-1.5 h-7 px-3 text-[10px] font-mono border box-border cursor-grab active:cursor-grabbing select-none whitespace-nowrap ${
+                    className={`group flex items-center h-7 gap-1.5 px-3 text-[10px] font-mono border cursor-grab active:cursor-grabbing select-none whitespace-nowrap box-border ${
                       isDragging ? 'opacity-40' : ''
                     } ${
                       isDragOver 
                         ? 'border-border-hover bg-bg-surface' 
                         : activeTabId === tab.id 
-                          ? 'bg-bg-surface border-border-hover ring-1 ring-inset ring-border-hover text-text-main font-bold' 
+                          ? 'bg-bg-surface border-border-hover text-text-main font-bold ring-1 ring-inset ring-border-hover' 
                           : 'bg-bg-base border-border-main text-text-dim hover:bg-bg-input hover:text-text-main hover:border-border-hover'
                     }`}
                     onClick={() => {
@@ -2251,10 +2286,10 @@ const handleResizeStart = (e: React.MouseEvent) => {
                           e.stopPropagation(); 
                           if (onTabClose) onTabClose(tab.id);
                         }}
-                        className={`ml-1 w-3.5 h-3.5 flex items-center justify-center transition-colors ${
+                        className={`ml-1 w-3.5 h-3.5 flex items-center justify-center rounded transition-all ${
                           activeTabId === tab.id 
-                            ? 'opacity-80 hover:opacity-100 hover:text-red-400' 
-                            : 'opacity-0 group-hover:opacity-100 hover:text-red-400'
+                            ? 'opacity-60 hover:opacity-100 text-text-main hover:text-red-400 hover:bg-bg-base/40' 
+                            : 'opacity-0 group-hover:opacity-60 hover:opacity-100 text-text-dim hover:text-red-400 hover:bg-bg-base/40'
                         }`}
                       >
                         <X className="w-3 h-3" />
@@ -2583,6 +2618,7 @@ const handleResizeStart = (e: React.MouseEvent) => {
         defaultName={savePartDefaultName}
         items={savePartItems}
         categories={uniqueCategories}
+        customSectionNames={customSectionNames}
         selectedId={selectedPartId}
         selectedName={selectedPartName}
         onConfirm={(name, category, section, items, isUpdate) => {
