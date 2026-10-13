@@ -110,6 +110,11 @@
   ● 状態: 🟢 完了・デプロイ済  ● 完了時期: 2026-06-01    ● パス: SOLID-AUDIO-MUSIC-PLAYER-/
   ● PWA対応: 🟢 完了 (PWA化済み)
   ● 超重要・先祖返り厳禁ルール: AI Studio等から最新データをインポート・更新する際は、必ず「表示モード（v2_solidViewMode）」および「手動リサイズ後のモード別ウィンドウサイズ（v2_solidWindowSizes: FULL/MINI/SLIM）」の永続保存・自動復元ロジック（window.resizeTo）が上書き除去（先祖返り）されないよう最優先で保護・再統合すること。
+  【完了・進捗】(2026-10-13 21:47)
+    [x] カードモード（PanelTop）とスリムバーモード（Minus）の独立ボタン化、フルスクリーン切り替え（Maximize2/Minimize2）、カテゴリークリック時のプルダウン自動クローズ機能の実装。
+    [x] 先祖返り絶対防衛規定（ウィンドウサイズ保持/復元、各モードでのBrowser枠自動連動 window.resizeTo、viewMode永続化、テーマ動的同期、ミニバー幅など）を100%保持・統合。
+    [x] 変更前の直前状態をGitバックアップタグ（backup-before-card-and-slim-button-split）として退避。
+    [x] Service Workerキャッシュ（v2.0.25）繰り上げ更新、本番ビルド＆GitHub（main）同期完了。
   【完了・進捗】(2026-10-13 20:28)
     [x] 事務所最終版（ba6d429）をGitバックアップタグ（backup-office-final-20261013）として完全保護・退避。
     [x] 自宅での拡張アップデート（複数曲一括移動下部フローティングバー、Shift範囲選択、プルダウン横幅800px可動＆境界ハンドグリップ、サイドバーLIST/TREE切替のscrollbar-gutter安定化・段差解消、通常クリック自動選択の排除＆CANCELボタン、OPEN/CLOSE/SELECTボタン幅54px固定、複数アルバムのみ第3階層展開、プルダウンアイコン階層統一、ツリー表示OPEN/CLOSE全階層一括開閉、個別アルバム選択時のモード維持・表示連動）を完全統合。
