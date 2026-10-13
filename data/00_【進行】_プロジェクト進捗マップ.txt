@@ -110,6 +110,31 @@
   ● 状態: 🟢 完了・デプロイ済  ● 完了時期: 2026-06-01    ● パス: SOLID-AUDIO-MUSIC-PLAYER-/
   ● PWA対応: 🟢 完了 (PWA化済み)
   ● 超重要・先祖返り厳禁ルール: AI Studio等から最新データをインポート・更新する際は、必ず「表示モード（v2_solidViewMode）」および「手動リサイズ後のモード別ウィンドウサイズ（v2_solidWindowSizes: FULL/MINI/SLIM）」の永続保存・自動復元ロジック（window.resizeTo）が上書き除去（先祖返り）されないよう最優先で保護・再統合すること。
+  【完了・進捗】(2026-10-13 20:28)
+    [x] 事務所最終版（ba6d429）をGitバックアップタグ（backup-office-final-20261013）として完全保護・退避。
+    [x] 自宅での拡張アップデート（複数曲一括移動下部フローティングバー、Shift範囲選択、プルダウン横幅800px可動＆境界ハンドグリップ、サイドバーLIST/TREE切替のscrollbar-gutter安定化・段差解消、通常クリック自動選択の排除＆CANCELボタン、OPEN/CLOSE/SELECTボタン幅54px固定、複数アルバムのみ第3階層展開、プルダウンアイコン階層統一、ツリー表示OPEN/CLOSE全階層一括開閉、個別アルバム選択時のモード維持・表示連動）を完全統合。
+    [x] 先祖返り絶対防衛規定（ウィンドウサイズ保持/復元、viewMode、テーマ動的同期、ミニバー幅など）を遵守し、Service Workerキャッシュ（v2.0.24）繰り上げ更新、本番ビルド＆GitHub（main）同期完了。
+  【完了・進捗】(2026-10-12 12:02)
+    [x] フォルダ名・アルバム名のタイトル変更機能の実装（メイン画面ALBUM/CARDS/LISTでのペンアイコン/ダブルクリック編集、左サイドバーINDEX MAPでの親フォルダ・サブアルバム直接編集、EDITドリルダウン画面「名前変更」ボタン、folderPath・albumメタデータの完全連動）。
+    [x] 先祖返り絶対防衛規定（ウィンドウサイズ保持/復元、viewMode、テーマ動的同期、多曲MOVE、ミニバー幅）を遵守し、Service Workerキャッシュ（v2.0.18）繰り上げ更新、本番ビルド＆GitHub（main）同期完了。
+  【完了・進捗】(2026-10-12 03:59)
+    [x] アルバム自体の削除機能の実装（メイン画面各モードのゴミ箱/DEL?確認ボタン、左サイドバーフォルダ内各アルバム行の×/DEL?ボタン、EDITドリルダウン画面上部バー「ALBUM削除」ボタン）。
+    [x] 先祖返り絶対防衛規定（ウィンドウサイズ保持/復元、viewMode、テーマ動的同期、多曲MOVE、ミニバー幅）を遵守し、Service Workerキャッシュ（v2.0.17）繰り上げ更新、本番ビルド＆GitHub（main）同期完了。
+  【完了・進捗】(2026-10-12 03:32)
+    [x] アルバム間での曲移動・結合機能の新設（アルバムヘッダー「他アルバムへ移動」ボタン、曲リスト個別「移動」ボタン、TRACKS選択曲移動モーダル）。
+    [x] 上部ヘッダーバーの横スクロール制限（overflow-x-auto）解除によるプルダウン見切れ不具合の完全解消。
+    [x] 左サイドバー最上部（INDEX MAP）へ全フォルダ一括開閉トグル（「OPEN」「CLOSE」ボタン）を新設。
+    [x] 全表示モード（TRACKS/ALBUM/CARDS/LIST）でのアルバムジャケット最上部クリック拡大プレビューの完全連動。
+    [x] 先祖返り絶対防衛規定（ウィンドウサイズ保持/復元、viewMode、テーマ同期、多曲MOVE、ミニバー幅）を遵守し、Service Workerキャッシュ（v2.0.16）繰り上げ更新、本番ビルド＆GitHub（main）同期完了。
+  【完了・進捗】(2026-10-12 01:50)
+    [x] 同一フォルダ内の曲を直近フォルダ名で1つのアルバムに自動集約するロジック（`parseSingleFile` / `getTrackAlbumArtist`）を適用。
+    [x] 既存リストのアルバムをワンクリックで一括統一する「1 ALBUMに統一」ボタン（`handleUnifyPlaylistAlbum`）を追加。
+    [x] メイン画面上部の表示モード切替ボタン順序をご指示通り「[ TRACKS ] [ ALBUM ] [ CARDS ] [ LIST ]」に並び替え。
+    [x] ウィンドウサイズ自動復元（`v2_solidWindowSizes`）等の先祖返り防止ロジックおよびService Workerキャッシュ（`v2.0.15`）への繰り上げ更新を行い、本番ビルド＆GitHub（main）同期完了。
+  【完了・進捗】(2026-10-12 01:00)
+    [x] AI Studioにて改修された「TRACKS / CARDS / ALBUM / LIST」の4モードアルバム表示システム（`AlbumCardView.tsx`）および複数アルバム入り親フォルダの階層認識・サイドバー展開ツリー・アルバム並び替え/曲順個別編集機能を完全統合。
+    [x] 万一に備えて復元用タグ（`backup-before-hierarchical-album-cards`）を生成・退避した上で作業を実施。
+    [x] 先祖返り防止プロトコルに基づき、ウィンドウサイズ自動記憶・復元機能（`v2_solidWindowSizes` / `v2_solidViewMode`）、PWA新アイコンアセット、およびService Workerキャッシュ（`v2.0.14`）への繰り上げ更新を行い、本番ビルド＆GitHub（main）同期完了。
   【完了・進捗】(2026-10-11 00:38)
     [x] 新アイコン画像（`C:\Users\soroe\A-App\data\2026 MUSIC PLAYER V2.jpg`）を読み込み、PWA用各種サイズ（`icon.png`, `pwa-192x192.png`, `pwa-512x512.png`, `apple-touch-icon.png`）および Windows ショートカットプロパティ（「アイコンの変更」）用マルチ解像度 `.ico` ファイル（`2026 MUSIC PLAYER V2.ico` / `icon.ico` / `favicon.ico`）へ一括変換・生成。
     [x] 共有データフォルダ（`data`）および PWA `public` フォルダへ配置し、`manifest.json`, `index.html`, `sw.js` (キャッシュ `v2.0.13`) を更新のうえビルド＆GitHubへ同期完了。
