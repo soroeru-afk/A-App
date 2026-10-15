@@ -110,6 +110,14 @@
   ● 状態: 🟢 完了・デプロイ済  ● 完了時期: 2026-06-01    ● パス: SOLID-AUDIO-MUSIC-PLAYER-/
   ● PWA対応: 🟢 完了 (PWA化済み)
   ● 超重要・先祖返り厳禁ルール: AI Studio等から最新データをインポート・更新する際は、必ず「表示モード（v2_solidViewMode）」および「手動リサイズ後のモード別ウィンドウサイズ（v2_solidWindowSizes: FULL/MINI/SLIM）」の永続保存・自動復元ロジック（window.resizeTo）が上書き除去（先祖返り）されないよう最優先で保護・再統合すること。
+  【完了・進捗】(2026-10-15 23:45)
+    [x] トラック一覧（Tracks）一括上下移動時の選択状態維持・下部バー自動非表示バグの解消：
+        - `moveSelectedTracks`（TOP / UP / DOWN / BOTTOM）実行後に `setSelectedTrackIds(new Set())` を呼び出していた不具合を修正し、選択状態をそのまま維持。目的の位置まで連続して上下ボタンを押して移動可能に改善。
+        - 最下部の一括操作バー（Floating Action Bar）および上下移動ボタン群（ChevronsUp, ChevronUp, ChevronDown, ChevronsDown）に `e.stopPropagation()` を追加し、ボタンクリックやバー内部操作による選択解除を防止。
+        - 選択解除は明示的な「✕ 解除」ボタン押下、または背景クリックで行う設計に整理。
+    [x] 先祖返り絶対防衛規定および枠なしフルスクリーンロジック（リサイズガード、パディング最適化、manifest設定、動的テーマカラー）を完全保持。
+    [x] 変更前の直前状態をGitバックアップタグ（backup-before-track-move-selection-fix）として退避。
+    [x] Service Workerキャッシュ（v2.0.40）繰り上げ更新、本番ビルド＆GitHub（main）同期完了。
   【完了・進捗】(2026-10-15 23:11)
     [x] お気に入りターゲット作成モーダル（NEW FAVORITE TARGET PLAYLIST）の新設（自動連番「お気に入り 1」等、配置先カテゴリーフォルダー一覧選択、推奨フォルダー「お気に入り」自動検出、新規カテゴリー同時作成、未分類選択）。
     [x] 作成後のフォルダー自動展開＆該当リストへの画面ジャンプ＆★ TARGET自動指定＆トースト通知の実装。
