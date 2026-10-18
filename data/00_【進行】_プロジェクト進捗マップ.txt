@@ -1840,6 +1840,18 @@ C:\Users\soroe\Documents\A-App\data\ 内のZIP、解凍フォルダ、素材、P
     - **成果物**:
       - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `cc9b6e4`）
       - GitHub Pagesデプロイ完了（`npm run deploy` 成功、最新JS: `index-C1CZR8xa.js`）
+      - 親リポジトリ submodule link 更新完了（コミット: `7e67042`）
+
+  - **動画モード復帰時の自動再生継続＆動画の帯（背景）カラー黒白切替機能 (2026-10-19 02:57)**:
+    - **動画モード復帰時の自動再生継続（口パク停止バグの解消）**:
+      - 読み上げ中にミニモード ➔ 動画モードに戻した際、再マウントされた動画が停止したままになっていた問題を解決。
+      - `useEffect` および `<video onCanPlay>` により、発声中であれば動画モード復帰の瞬間に自動で口パク動画の再生がスムーズに再開されるよう強化。
+    - **動画の帯（背景）カラー「黒 ↔ 白」切替機能の新設**:
+      - 「🎨 テーマ＆フォント」タブ内に「動画の帯（背景）カラー」選択設定（`⬛ 黒帯` / `⬜ 白帯`）を新設。
+      - 動画右上のクイック操作バーにも「`帯: ⬛黒 / ⬜白`」ワンタッチ切替ボタンを配置し、アバター動画の周囲の余白・帯の色を黒または白へ自由に切り替え・保存可能に。
+    - **成果物**:
+      - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `9304462`）
+      - GitHub Pagesデプロイ完了（`npm run deploy` 成功、最新JS: `index-B4ridlP8.js`）
       - 親リポジトリ submodule link 更新完了
 
 
