@@ -1828,6 +1828,18 @@ C:\Users\soroe\Documents\A-App\data\ 内のZIP、解凍フォルダ、素材、P
     - **成果物**:
       - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `d3463ee`）
       - GitHub Pagesデプロイ完了（`npm run deploy` 成功、最新JS: `index-BjyvYjMR.js`）
+      - 親リポジトリ submodule link 更新完了（コミット: `c163cbf`）
+
+  - **動画モード↔ミニパネルモード2大構成＆手動リサイズ枠の永続保持（Music Player完全互換） (2026-10-19 02:50)**:
+    - **ミニバー撤去と2大モードへの洗練**:
+      - ヘッダーのアイコンを「`[🎬 動画モード]`」と「`[📱 ミニパネルモード]`」の2つにスリム化。
+    - **手動リサイズしたウィンドウサイズの自動記憶・永続復元（Music Player同等機能）**:
+      - 動画モード時に下側を手動で広げた場合、そのカスタム高さ・幅を `window.addEventListener('resize')` で常時自動監視・localStorage永続保存。
+      - 次回動画モードへ切り替えた際や次回アプリ起動時にも、ユーザーが広げた下側の大きさを100%忠実に復元・維持。
+      - ミニパネルモード時も同様にジャストフィットサイズを維持。
+    - **成果物**:
+      - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `cc9b6e4`）
+      - GitHub Pagesデプロイ完了（`npm run deploy` 成功、最新JS: `index-C1CZR8xa.js`）
       - 親リポジトリ submodule link 更新完了
 
 
