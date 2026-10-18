@@ -1782,6 +1782,16 @@ C:\Users\soroe\Documents\A-App\data\ 内のZIP、解凍フォルダ、素材、P
     - **成果物**:
       - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `625b280`）
       - GitHub Pagesデプロイ完了（`npm run deploy` 成功、最新JS: `index-DbI3hiy4.js`）
+      - 親リポジトリ submodule link 更新完了（コミット: `98c9592`）
+
+  - **スロット切り替え後の音声設定Ref一元管理＆ワンフレーズ後の一郎戻りバグ完全解消 (2026-10-19 02:03)**:
+    - **クロージャキャプチャによる旧ボイス先祖返りの根絶**:
+      - 再生中のスロット切り替え（ロボット・一郎 ➔ 女性・遥か）時、1チャンク目の発声後に古いReact State（一郎）へ巻き戻ってしまう現象を徹底調査。
+      - `utter.onend` コールバックが前フレームの関数クロージャを参照していた構造を解消し、`activeVoiceRef`, `activeSpeedRef`, `activePitchRef`, `activeVolumeRef` による一元管理へ刷新。
+      - スロット切り替え直後に即座にRefを同期し、`playNextChunk` 内で常にRefを参照することにより、ワンフレーズ目だけでなく文章の最後まで100%確実に新しいボイス（遥か等）で読み切る動作を確立。
+    - **成果物**:
+      - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `e295d76`）
+      - GitHub Pagesデプロイ完了（`npm run deploy` 成功、最新JS: `index-4LjgHZ6o.js`）
       - 親リポジトリ submodule link 更新完了
 
 
