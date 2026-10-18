@@ -1815,6 +1815,19 @@ C:\Users\soroe\Documents\A-App\data\ 内のZIP、解凍フォルダ、素材、P
     - **成果物**:
       - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `84b6012`）
       - GitHub Pagesデプロイ完了（`npm run deploy` 成功、最新JS: `index-DUB7OpkD.js`）
+      - 親リポジトリ submodule link 更新完了（コミット: `cb6919e`）
+
+  - **ミュージックプレイヤー互換 3大表示モード切替（動画／ミニパネル／ミニバー）＆枠短縮最適化 (2026-10-19 02:43)**:
+    - **ミュージックプレイヤー（SOLID AUDIO）互換の3大モード切替**:
+      - ヘッダー右上に直感的な3大モードアイコン（`[🎬 動画]` `[📱 ミニパネル]` `[➖ ミニバー]`）を新設。
+      - `[🎬 動画・通常モード]`: アバター動画を展開、ウィンドウ高さ（840〜920px）。
+      - `[📱 ミニパネルモード]`: 動画非表示、強制的に「音声コントロール」タブへ直結、不要な下部余白を排除しウィンドウ枠をコンパクト（490px）に短縮。
+      - `[➖ ミニバーモード]`: デスクトップの片隅に常駐できる極小スリムバー（高さ80px）へ一発切り替え。スロット切替、読み上げ、再生・一時停止・全停止を1行で快適操作。
+    - **下部黒帯・巨大余白の完全解消**:
+      - `#root` および `.app-card` の `height: 100vh` 固定を解除し、ミニモードおよびスリムバーモード時にコンテンツの高さにピタッと合致する柔軟なレスポンシブ構造を確立。
+    - **成果物**:
+      - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `d3463ee`）
+      - GitHub Pagesデプロイ完了（`npm run deploy` 成功、最新JS: `index-BjyvYjMR.js`）
       - 親リポジトリ submodule link 更新完了
 
 
