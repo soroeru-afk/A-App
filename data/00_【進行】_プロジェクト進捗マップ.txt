@@ -1672,3 +1672,13 @@ C:\Users\soroe\Documents\A-App\data\ 内のZIP、解凍フォルダ、素材、P
       - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `59b30a0`）
       - GitHub Pagesデプロイ完了（`npm run deploy` 成功）
       - 親リポジトリ submodule link 更新完了（コミット: `ce89564`）
+
+  - **パステルピンク（#B07A76）テーマ新設＆ヘッダー動的連動対応 (2026-10-18 22:56)**:
+    - **パステルピンク（#B07A76）新テーマ**:
+      - ダークテーマと似通っていた旧オーシャンを刷新し、カオルさまご指定の `#B07A76` をメインカラーとした上品なダスティローズ・パステルピンク調の専用パレットを構築・適用。
+    - **ヘッダー色＆ブラウザ/PWA theme-color 動的連動**:
+      - 各テーマ（ダーク `#1b1b2a`、ライト `#f1f3f4`、モノトーン `#111111`、ブラウン `#4c2c19`、パステルピンク `#3a2528`）の選択に合わせて、アプリ内のヘッダー背景色とブラウザ/PWA最上部の `<meta name="theme-color">` がリアルタイムに自動同期・即時切替されるよう実装。
+    - **成果物**:
+      - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `6c9f8cb`）
+      - GitHub Pagesデプロイ完了（`npm run deploy` 成功）
+      - 親リポジトリ submodule link 更新完了（コミット: `9243e89`）
