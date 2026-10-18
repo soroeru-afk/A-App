@@ -1792,6 +1792,19 @@ C:\Users\soroe\Documents\A-App\data\ 内のZIP、解凍フォルダ、素材、P
     - **成果物**:
       - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `e295d76`）
       - GitHub Pagesデプロイ完了（`npm run deploy` 成功、最新JS: `index-4LjgHZ6o.js`）
+      - 親リポジトリ submodule link 更新完了（コミット: `be24273`）
+
+  - **テーマ＆フォント常時展開・パステルピンク(#B07A76)・ブラウザヘッダー色動的同期 (2026-10-19 02:11)**:
+    - **テーマ＆フォントタブの常時展開化（閉じる・展開ボタンの撤廃）**:
+      - 音声コントロールタブと同様に、「テーマ・フォント設定を展開」の折りたたみアコーディオンを完全撤廃。
+      - タブを開いた瞬間から「カラーテーマ」「フォント選択」「文字サイズ」が直接操作できるよう最適化。
+    - **パステルピンク（キーカラー: #B07A76）テーマの新設・再構築**:
+      - 旧オーシャンテーマを刷新し、カオルさまご指定のダスティパステルピンク（`#B07A76`）を基調とした上質で目に優しいカラーパレットを確立。
+    - **ブラウザ・PWA上部ヘッダー色（`<meta name="theme-color">`）の動的同期**:
+      - カラーテーマの切り替えに合わせ、ブラウザ最上部（PWAタイトルバー／モバイルアドレスバー等）のテーマカラーを即座に動的更新。
+    - **成果物**:
+      - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `eaab270`）
+      - GitHub Pagesデプロイ完了（`npm run deploy` 成功、最新JS: `index-dZwXXBuD.js`）
       - 親リポジトリ submodule link 更新完了
 
 
