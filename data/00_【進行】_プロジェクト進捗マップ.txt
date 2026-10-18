@@ -1595,3 +1595,46 @@ C:\Users\soroe\Documents\A-App\data\ 内のZIP、解凍フォルダ、素材、P
         - 直下に 00_AI-SEARCH/、■ SOLID MOVIE MAKER （DATA SYSTEM）/、マニフェスト、進捗マップ、自動仕分けスクリプトのみを美しく維持完了。
 
 
+
+---
+### ■ ChatGPTManager（Tampermonkeyユーザースクリプト）最新ChatGPT仕様改修 (2026-10-18 21:05)
+- **ステータス**: 【完了】v14.6.18fix27 作成完了
+- **作業内容**:
+  1. **Google Drive保存 / ローカル保存ボタン非表示の修復**:
+     - ChatGPTのDOM構造変化に対応し、[data-message-author-role="assistant"] に加え [data-markdown-text-style="assistant-message"]、article（非userターン）、.markdown 等をフォールバック網羅する getAssistantMessages() を新設。
+     - Reactの再レンダリングやDOM更新でボタンバーが消失した場合でも確実に再生成・再挿入されるロジックへ改善。
+  2. **音声読み上げ（TTS）停止・不具合の根本解消**:
+     - getVoices() が初期状態で空配列を返す環境でも確実に日本語音声で発声できるようフォールバック修正。
+     - Microsoft Edge環境でのSSML構文廃止（標準Web Speech API制御へ統一）。
+     - 長文読み上げ時の15秒ブラウザ停止バグを回避するKeep-Aliveタイマー（8秒周期）を実装。
+     - Chromiumのガベージコレクション（GC）による音声途切れを防止するためグローバル保持を実装。
+     - 段落クリック時のテキスト抽出処理にUI要素除外フォールバックを追加。
+  3. **成果物**:
+     - C:\Users\soroe\A-App\data\03_素材・メディア\ChatGPTManager\ChatGPTManager_v14618-14.6.18fix27.txt（最新安定版）
+     - 元の v14.6.18fix26 はバックアップとして保持。
+
+- **追加対応 (2026-10-18 21:15)**:
+  - **アバター動画（口パク動画）の音声読み上げ完全連動化**:
+    - 音声読み上げ（段落クリック / 全文再生 / 口パク再生）が開始された瞬間に、スロットに設定されたアバター動画を自動再生する `playAvatarVideo()` を新設。
+    - 読み上げ終了時（`u.onend`）および停止操作時（`stopSpeech()`）に確実に動画を一時停止する `pauseAvatarVideo()` を同期。
+    - 万一の音声合成終了イベント不達時にも備え、`speechSynthesis.speaking` をリアルタイム監視して動画を停止するセーフティネット監視タイマー（`startVideoWatcher`）を実装。
+    - 成果物: `ChatGPTManager_v14618-14.6.18fix28.txt`
+
+---
+### ■ SOLID-TTS-CLIPBOARD-READER 口パク動画連動機能移植 (2026-10-18 21:40)
+- **ステータス**: 【完了】GitHub個別リポジトリへ最新プッシュ完了（origin main）
+- **作業内容**:
+  1. **IndexedDB動画ストレージ（3スロット）の移植**:
+     - ChatGPTManager同様、最大3スロットの動画（MP4/WebM）をブラウザ内IndexedDB（`solidTtsVideoDB`）に永続保存・切り替え・削除できる機能を実装。
+  2. **音声読み上げ（TTS）と動画の完全同期**:
+     - 「📋 クリップボードを読み上げる」「再生」開始時にアバター動画の自動ループ再生が始動。
+     - 「一時停止」で動画も一時停止、「再開」で動画も再開。
+     - 「全停止」または文章の読み終わりで動画がピタッと自動停止。
+     - 高頻度リアルタイム監視タイマーによるセーフティネット同期を搭載。
+  3. **UIレイアウトの拡張**:
+     - タブ構成: 「音声コントロール」「🎬 アバター動画」「テーマ＆フォント」
+     - 動画登録時は音声コントロール画面の上部にスタイリッシュなアバター動画枠を表示（ヘッダーの目のアイコン、または設定から常時表示/非表示を即座に切替可能）。
+     - 動画速度スライダー（0.5x〜2.5x）、連動ON/OFFトグルを装備。
+  4. **成果物**:
+     - `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: 61bea38）
+     - 本番ビルド検証完了（`npm run build` 成功）
