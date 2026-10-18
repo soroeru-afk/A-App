@@ -1660,3 +1660,15 @@ C:\Users\soroe\Documents\A-App\data\ 内のZIP、解凍フォルダ、素材、P
       - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `9860aa7`）
       - GitHub Pagesデプロイ完了（`npm run deploy` 成功）
       - 親リポジトリ submodule link 更新完了（コミット: `2db59a5`）
+
+  - **上下ノーカット全幅表示（頭〜胴体下部まで全表示）・動画折りたたみバー・細身スクロールバー実装 (2026-10-18 22:35)**:
+    - **上下ノーカット全幅モード（デフォルト）**:
+      - 動画の自然なアスペクト比を100%活かし、`height: auto`・`max-height: none` による「上下ノーカット全幅表示」を標準化。頭のアンテナから胴体下部まで1ドットも切れずにロボット動画が完全表示されるよう改善。
+    - **動画の直下折りたたみバー（アコーディオン）**:
+      - 動画の一番下に、ワンクリックで瞬時に動画枠を開閉（折りたたみ/展開）できるスタイリッシュなトグルバーを配置。動画が大きい時でもサッと折りたたんで下部メニューを広々と操作可能。
+    - **洗練された細身スクロールバー（Thin Scrollbar）**:
+      - アプリ全体および下部メニュー領域に幅5pxの極細カスタムスクロールバーを実装。テーマカラーに自動追従し、長尺時でもスマートにスルスルとスクロール操作が可能。
+    - **成果物**:
+      - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `59b30a0`）
+      - GitHub Pagesデプロイ完了（`npm run deploy` 成功）
+      - 親リポジトリ submodule link 更新完了（コミット: `ce89564`）
