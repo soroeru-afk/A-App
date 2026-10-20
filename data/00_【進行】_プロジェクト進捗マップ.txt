@@ -1,4 +1,4 @@
-進捗マップ／更新日時 2026-10-19 00:35 (月曜日)
+進捗マップ／更新日時 2026-10-21 01:41 (水曜日)
 =======================================================================
    00_【進行】_プロジェクト進捗マップ
 =======================================================================
@@ -677,6 +677,90 @@
 
 ▼ 00. SOLID DESKTOP IMAGE VIEWER (デスクトップ・イメージビューアー)
 ------------------------------------------------------------------------
+  【完了】進捗 (2026-10-21 01:41)
+    [x] AI Studio最新改修データの完全統合・本番デプロイ：
+        1. 【ヘッダーテーマ切り替えボタンのサイズ完全固定（幅・高さの不変性徹底）】
+           - 固定幅コンテナ（w-[116px] h-6）を導入し、どのテーマ名（LIGHT, NAVY, BLACK, PAPER, RED, T-BLACK）に切り替わっても横幅・高さが一切伸縮せず、UIの横ズレ・ガタつきを完全解消。
+           - 左側トグルボタン: 丸いカラードット＋テーマ名を表示し、クリックで従来どおり次テーマへ順番循環切り替え。
+           - 縦セパレータ（w-px h-3.5）を挟み、右側に独立した矢印ボタン（幅20px、オープン時は上向き▲＆アクティブハイライト）を配置。
+        2. 【直下に開くカスタムプルダウンメニュー】
+           - 矢印ボタン押下で直下に「🎨 テーマ切り替え」ヘッダー付きカスタムドロップダウンが展開。
+           - 各テーマ一覧（NAVY, BLACK, TRUE BLACK, LIGHT, PAPER, RED）を専用カラードット付きで表示、現在選択中テーマにチェックマーク（✓）を表示。
+           - テーマ選択時の即時切り替え＆自動クローズ、画面外クリック（外側クリック検知）による自動スムーズクローズを実装。
+        3. 【先祖返り完全防衛】
+           - テンキー「/」（NumpadDivide / "/"）によるブラウザ全画面／ボーダレス切替機能を確実に維持。
+           - IndexedDB: `DB_VERSION = 12` ＆ ブラウザ最上部 `<meta name="theme-color">` 動的更新ロジックを完全維持。
+    [x] Vite本番ビルド検証（6.86s）成功、独立リポジトリ (`SOLID-DESKTOP-IMAGE-VIEWER`) への GitHub (main) プッシュ完了 (commit d051dcd)。
+
+  【完了】進捗 (2026-10-21 01:23)
+    [x] AI Studio最新改修データの完全統合・本番デプロイ：
+        1. 【メイン一覧エリアへの D&D 機能追加（サイドバー連動・チラつき防止）】
+           - メイン一覧エリア全体にファイル・フォルダーを直接ドラッグ＆ドロップできるよう拡張。
+           - ドラッグ時に画面全体が「ADD TO ACTIVE（現在のリストに追加）」と「CREATE BY FOLDER（フォルダー名で新規作成）」の2分割大型ガイド枠へ展開し、直感的な投入が可能。
+           - 内部ポインター判定ロジックの最適化により、オーバーレイ枠上での激しい点滅・チラつきを完全解消。
+           - 一覧コンテナのスタッキング文脈隔離（isolate z-0）とガイド枠の最前面配置（z-[80]）により、選択中画像が枠を突き抜けて手前に残る現象を根本解決。
+        2. 【NAVIGATION HISTORY（閲覧履歴）の独立セクション化】
+           - FORMATION ENGINE 内にあった閲覧履歴セクションを単独の独立パネルへ昇格。
+           - サイドバー内で他のセクションとドラッグ＆ドロップで自由に上下並び替え・個別開閉が可能。
+        3. 【サイドバー「03」セクションの WIDE 展開対応】
+           - 上部セクション折りたたみ時、「WIDE」モード選択でサイドバー最下部の空き領域一杯まで枠が自動拡張。
+        4. 【先祖返り完全防衛】
+           - テンキー「/」（NumpadDivide / "/"）によるブラウザ全画面／ボーダレス切替機能を確実に維持。
+           - IndexedDB: `DB_VERSION = 12` ＆ ブラウザ最上部 `<meta name="theme-color">` 動的更新ロジックを完全維持。
+    [x] Vite本番ビルド検証（6.69s）成功、独立リポジトリ (`SOLID-DESKTOP-IMAGE-VIEWER`) への GitHub (main) プッシュ完了 (commit f258ee0)。
+
+  【完了】進捗 (2026-10-20 09:30)
+    [x] 自宅コミット同期 ＆ AI Studio最新改修データの完全統合・本番デプロイ：
+        1. 【自宅作業コミットの先行同期】 自宅PCで先行実装されていたコミット群（クリーンビュー機能・[SHOW UI]ボタン、テンキーショートカット拡張、SCATTER回転ハンドル等）をgit pullにて完全に同期・保持。
+        2. 【クリーン表示ショートカットのNumLock非依存化】 NumLockのON/OFF状態に関わらず、テンキー `*`（アスタリスク）キーおよび `U` キーでヘッダー・サイドバーの一括非表示／表示（クリーンビュー）が確実に作動するようイベント判定（e.code / e.key）を包括最適化。[03 CMD] パネル表記も「U / テンキー *」へ整理。
+        3. 【閲覧ナビゲーション（戻る / 進む）の完全状態記憶・精密復元】
+           - NavHistoryEntryを拡張し、表示対象（datasetId / categoryId / isCategoryImagesView）に加え、フォーメーション形状（viewMode: SQUARE/MASONRY/SCATTER/LIST）、向きフィルター（ORIENT: ALL/PORTRAIT/LANDSCAPE）、ズーム倍率＆隙間（scales, gaps）、並び順（sortField）、検索キーワード（searchQuery）、スクロール位置（scrollTop: px単位）を履歴ごとに完全保持。
+           - ページ移動直前のスクロール位置を自動退避してから遷移するため、「戻る」押下時に閲覧していた正確なフォーメーション・位置へピタッと高精度復元。メモリ消費は数KB未満で動作も極めて軽量。
+        4. 【安全規格の完全防衛】
+           - IndexedDB: AI Studioエクスポートでv4に戻っていた定義を `DB_VERSION = 12` で厳格防衛（VersionError完全防止）。
+           - Vite/HTML: `vite.config.ts` の `base: './'` および `index.html` の相対パス `./` を完全維持（GitHub Pagesでの404/白画面防止）。
+           - テーマ連動: ブラウザ最上部 `<meta name="theme-color">` 動的同期ロジックを確実に保持。
+    [x] npm run build（Vite 6.4.2 / VitePWA 1.3.0 / 0エラー）＆ npx tsc --noEmit（型チェック0エラー）成功。
+    [x] GitHub個別リポジトリ（origin/main: 2276ed8）および親リポジトリ（A-App: 69c42f4）の双方へプッシュ完了。
+    [x] PlaywrightによるGitHub Pages本番実機診断に成功（エラー0件、約61KBのDOM正常描画確認）。
+
+  【完了】進捗 (2026-10-20 04:35)
+    [x] テンキー「/」キーのフルスクリーン切替機能への再復元：
+        - テンキー「/」（NumpadDivide / "/"）を「ブラウザ全画面／ボーダレス切替（Fキー連動）」へ確実に復元。
+        - UI一括非表示／復元トグル（クリーン表示／拡大時UIトグル）はテンキー「*」、U キー、NumLock、Clear キーに整理。
+    [x] 先祖返り防止マージ：`src/lib/db.ts` (`DB_VERSION = 12`) ＆ `App.tsx` (`theme-color` meta) の保護維持。
+    [x] Vite本番ビルド検証（7.08s）成功、独立リポジトリ (`SOLID-DESKTOP-IMAGE-VIEWER`) への GitHub (main) プッシュ完了 (commit 614432f)。
+
+  【完了】進捗 (2026-10-20 04:25)
+    [x] AI Studio最新改修データの完全統合・同期：
+        1. 【一覧表示時の「クリーン表示（UI一括非表示／復元）」機能】
+           - ヘッダー右上にクリーン表示ボタン（EyeOff）を追加。1クリックでヘッダーとサイドバーを一発で一括非表示。
+           - UI非表示時、画面右上にフローティング復元ボタン（[👁 SHOW UI]）が浮遊表示され、ワンクリックで即座に元のUI表示へ復元可能。
+           - isHeaderVisibleRef / sidebarVisibleRef / toggleCleanViewRef によるステール・クロージャ完全防止と交互トグルの安定化。
+        2. 【キーボードショートカットの整理・割当統一】
+           - UI表示・非表示（共通トグル）: テンキー「/」「*」、U キー、NumLock、Clear キーに集約統合。一覧時はクリーン表示、拡大時はオーバーレイUIトグルが確実に連動。
+           - 全画面表示（HTML5 フルスクリーン）: キー割当を「F」「F11」に限定し、/ や * との重複・誤作動を根本解消。
+        3. 【スケーター（SCATTER）表示時の画像ドラッグ回転機能】
+           - 各画像の右下に回転ハンドル（RotateCw）を新設。ドラッグすることで画像の中心を軸に360度無段階で自由に回転・角度調整が可能。
+           - 回転ハンドルをダブルクリックすると即座に角度が 0°（正位置）に一発リセット。
+    [x] 先祖返り防止マージ：`src/lib/db.ts` (`DB_VERSION = 12`) ＆ `App.tsx` (`theme-color` meta) の保護維持。
+    [x] Vite本番ビルド検証（7.42s）成功、独立リポジトリ (`SOLID-DESKTOP-IMAGE-VIEWER`) への GitHub (main) プッシュ完了 (commit 4facdb3)。
+
+  【完了】進捗 (2026-10-20 02:53)
+    [x] AI Studio最新改修データの完全統合・同期 (v1.2.0 OS)：
+        1. 【閲覧操作＆設定レイアウトの最適化】
+           - 画像を開く操作の初期デフォルトをシングルクリック（SINGLE CLICK）に標準化。
+           - サイドバー下部 [02 GENERAL] パネル内へ「画像を開く操作 (OPEN IMAGE ACTION)」を配置し、シングル／ダブルクリックの切替を常時可能に。
+           - 一覧カード上に表示されていた「SET COVER」ホバーボタンを削除し、カード画面の視認性を向上。
+        2. 【閲覧ナビゲーション履歴 (BACK (戻る) / NEXT (進む)) の追加】
+           - フォルダーやデータセットの切替履歴を自動記録するナビゲーションスタック（navHistory）を実装。
+           - 01 FORMATION ENGINE パネル下部に BACK (戻る) と NEXT (進む) ボタンを設置し、閲覧したフォルダーやデータセット間をシームレスに行き来可能に。
+        3. 【スケーター (SCATTER) モードの操作性・重なり順向上】
+           - ドラッグ後の最前面 (zIndex: 150) 保持強化：画像をドラッグ移動後にマウスカーソルが離れるまで最前面を自動維持し、移動直後に下の画像が繰り上がって潜り込む現象を完全解消。
+           - 個別画像とキャンバス全体のホイール拡大縮小を分離：画像カード上でのホイールは単体サイズ（0.3倍〜4.0倍）を独立調整、背景でのホイールはキャンバス全体を一括調整。
+    [x] 先祖返り防止マージ：`src/lib/db.ts` (`DB_VERSION = 12`) ＆ `App.tsx` (`theme-color` meta) の保護維持。
+    [x] Vite本番ビルド検証（13.13s）成功、独立リポジトリ (`SOLID-DESKTOP-IMAGE-VIEWER`) への GitHub (main) プッシュ完了 (commit 29571c4)。
+
   【完了】進捗 (2026-10-18 05:25)
     [x] AI Studio最新改修データの完全統合・同期：
         1. 【テンキー「/」「*」への機能割り当て＆UI表記拡充】
@@ -1558,6 +1642,23 @@ px tsc --noEmit（型チェック0エラー）の完全通過、ならびにPlay
           - フォルダ画像配置: 939 箇所（エクスプローラーおよびプレイヤー表示用 cover.jpg 配置完了）
           - スクリプトおよびバッチの自動検出候補パスに F:\ を追加、さらに未インストール時のmutagen自動導入ガードを統合完了。
 
+  【事務所PC（1号機） 週末自宅収集分・超高速差分適用完了】(2026-10-19 09:30)
+      [x] 事務所PC（1号機: D:\■ 音楽・ミュージック）への超高速差分適用完了：
+          - 新規アート適用曲数: 4,479 曲（未設定だった楽曲へ最高画質ジャケットおよび自作TV/映画Eアイコンを安全埋め込み完了）
+          - 既存保護スキップ曲数: 7,912 曲（元々アートワークが設定されていた楽曲を100%完全保護・上書きゼロ・非破壊維持）
+          - フォルダ画像配置: 431 箇所（未配置フォルダへエクスプローラー/プレイヤー表示用 cover.jpg 配置完了）
+          - カバー準備完了率: 99.1%（1,284 / 1,295フォルダ準備完了、未設定残りはわずか11フォルダ）
+
+  【外付けHDD（Jドライブ: J:\●音楽・ミュージック）実環境差分適用完了】(2026-10-19 10:41)
+      [x] Jドライブ音楽ライブラリ（1,287フォルダ／約16,000曲）への超高速差分適用完了：
+          - 新規アート適用曲数: 8,526 曲（未設定だった楽曲へ最高画質ジャケットおよび自作TV/映画Eアイコンを安全埋め込み完了）
+          - 既存保護スキップ曲数: 5,398 曲（元々アートワークが設定されていた楽曲を100%完全保護・上書きゼロ・非破壊維持）
+          - フォルダ画像配置: 788 箇所（未配置フォルダへエクスプローラー/プレイヤー表示用 cover.jpg 配置完了）
+          - 記号ゆれ（■ と ● の差異）を自動吸収するスマートインデックス照合機能を `apply_diff_fast.py` へ実装完了。
+          - 1クリック適用ランチャー『3_Jドライブ（●音楽・ミュージック）へ適用.bat』をGoogle Driveへ配備完了。
+
+
+
 ------------------------------------------------------------------------------------------------------------------------
 ● A-App/data フォルダ標準整理・誤操作防止システム（1号機・2号機共通規格）
 ------------------------------------------------------------------------------------------------------------------------
@@ -1647,7 +1748,8 @@ C:\Users\soroe\Documents\A-App\data\ 内のZIP、解凍フォルダ、素材、P
     - **動画サイズ調整機能**: デフォルトを幅フィット（340px）に拡大。動画枠右上のクイック切替（縮小/全幅フィット）および「アバター動画」タブでのプリセット（180/260/340/420px）＆高さ微調整スライダー（140〜480px）を実装。
     - **一時停止の即時化**: Chromiumのpause遅延バグを回避するため、未読テキストのキュー復元＋cancel()による物理即時消音（0ms即時停止）を実装。ボタン押下で音声と動画が瞬時にピタッと停止。
     - **文字サイズ設定の全パネル連動**: CSS変数 `var(--font-size-current)` をボタン、入力欄、ラベル、ヘッダー等の全UIへ適用。選択肢を10px〜19pxまで拡大し、設定変更でパネル全体の文字がしっかり拡大縮小するように改善。
-    - GitHub Pagesデプロイ完了（`npm run deploy` 成功、コミット: 337b710）
+      - GitHub Pagesデプロイ完了（
+pm run deploy 成功、最新JS: index-DOG2qHwt.js、CSS: index-BgOj160E.css）
 
   - **横幅100%全幅フィット（黒帯なし）＆動画速度のスロット別個別保存改修 (2026-10-18 22:25)**:
     - **横幅100%全幅フィット表示（黒帯完全解消）**:
@@ -1658,7 +1760,8 @@ C:\Users\soroe\Documents\A-App\data\ 内のZIP、解凍フォルダ、素材、P
       - 動画再生速度（`vidSpeed`）をスロットごと（スロット1: `solid-tts-vid-speed-slot-0`、スロット2: `slot-1`、スロット3: `slot-2`）に独立してlocalStorageへ自動保存・復元されるよう改修。スロット切り替え時に各スロットの設定速度が即時復元・適用される。
     - **成果物**:
       - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `9860aa7`）
-      - GitHub Pagesデプロイ完了（`npm run deploy` 成功）
+      - GitHub Pagesデプロイ完了（
+pm run deploy 成功、最新JS: index-DOG2qHwt.js、CSS: index-BgOj160E.css）
       - 親リポジトリ submodule link 更新完了（コミット: `2db59a5`）
 
   - **上下ノーカット全幅表示（頭〜胴体下部まで全表示）・動画折りたたみバー・細身スクロールバー実装 (2026-10-18 22:35)**:
@@ -1670,7 +1773,8 @@ C:\Users\soroe\Documents\A-App\data\ 内のZIP、解凍フォルダ、素材、P
       - アプリ全体および下部メニュー領域に幅5pxの極細カスタムスクロールバーを実装。テーマカラーに自動追従し、長尺時でもスマートにスルスルとスクロール操作が可能。
     - **成果物**:
       - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `59b30a0`）
-      - GitHub Pagesデプロイ完了（`npm run deploy` 成功）
+      - GitHub Pagesデプロイ完了（
+pm run deploy 成功、最新JS: index-DOG2qHwt.js、CSS: index-BgOj160E.css）
       - 親リポジトリ submodule link 更新完了（コミット: `ce89564`）
 
   - **パステルピンク（#B07A76）テーマ新設＆ヘッダー動的連動対応 (2026-10-18 22:56)**:
@@ -1680,7 +1784,8 @@ C:\Users\soroe\Documents\A-App\data\ 内のZIP、解凍フォルダ、素材、P
       - 各テーマ（ダーク `#1b1b2a`、ライト `#f1f3f4`、モノトーン `#111111`、ブラウン `#4c2c19`、パステルピンク `#3a2528`）の選択に合わせて、アプリ内のヘッダー背景色とブラウザ/PWA最上部の `<meta name="theme-color">` がリアルタイムに自動同期・即時切替されるよう実装。
     - **成果物**:
       - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `6c9f8cb`）
-      - GitHub Pagesデプロイ完了（`npm run deploy` 成功）
+      - GitHub Pagesデプロイ完了（
+pm run deploy 成功、最新JS: index-DOG2qHwt.js、CSS: index-BgOj160E.css）
       - 親リポジトリ submodule link 更新完了（コミット: `9243e89`）
 
   - **常時表示共通プレイヤーストリップ・動画クリック再生一時停止・パネル追従連動改修 (2026-10-18 23:08)**:
@@ -1692,7 +1797,8 @@ C:\Users\soroe\Documents\A-App\data\ 内のZIP、解凍フォルダ、素材、P
       - 動画を折りたたんだ際に、開いていたテキスト入力欄や詳細設定パネルもスッと自動追従して折りたたまれ、最小限のスリムなプレイヤー状態へスマートにまとまるよう改善。
     - **成果物**:
       - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `a2ab79e`）
-      - GitHub Pagesデプロイ完了（`npm run deploy` 成功）
+      - GitHub Pagesデプロイ完了（
+pm run deploy 成功、最新JS: index-DOG2qHwt.js、CSS: index-BgOj160E.css）
       - 親リポジトリ submodule link 更新完了（コミット: `fa0c99f`）
 
   - **最上部キャラクタースロット切替バー（動画・音声・速度完全統合）＆PWA自動リサイズ連動 (2026-10-18 23:24)**:
@@ -1705,7 +1811,8 @@ C:\Users\soroe\Documents\A-App\data\ 内のZIP、解凍フォルダ、素材、P
       - 余計な黒い空っぽスペースを発生させず、コンテンツに吸い付くようにウィンドウとパネルが一体となって折りたたまれるよう改善。
     - **成果物**:
       - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `821c56d`）
-      - GitHub Pagesデプロイ完了（`npm run deploy` 成功）
+      - GitHub Pagesデプロイ完了（
+pm run deploy 成功、最新JS: index-DOG2qHwt.js、CSS: index-BgOj160E.css）
       - 親リポジトリ submodule link 更新完了（コミット: `fc6c369`）
 
   - **UI階層レイアウト最適化（動画→プレイヤー→タブ→設定）＆精密ウィンドウ連動改修 (2026-10-18 23:53)**:
@@ -1717,7 +1824,8 @@ C:\Users\soroe\Documents\A-App\data\ 内のZIP、解凍フォルダ、素材、P
       - 開いた時は、動画の上下全体（頭〜胴体下部）と再生・一時停止・全停止ボタンが1画面内に丸ごと収まる高さ（840px、動画max-height自動計算）に自動展開。
     - **成果物**:
       - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `bdde2ce`）
-      - GitHub Pagesデプロイ完了（`npm run deploy` 成功）
+      - GitHub Pagesデプロイ完了（
+pm run deploy 成功、最新JS: index-DOG2qHwt.js、CSS: index-BgOj160E.css）
       - 親リポジトリ submodule link 更新完了（コミット: `92ef10f`）
 
   - **動画展開時のウィンドウ高さ＆動画最大高さ最適化（ボタン領域の完全可視化） (2026-10-19 00:15)**:
@@ -1728,7 +1836,8 @@ C:\Users\soroe\Documents\A-App\data\ 内のZIP、解凍フォルダ、素材、P
       - これにより、動画の上下ノーカットを維持しつつ、どんなウィンドウサイズでも下の「クリップボードを読み上げる」「再生・一時停止・全停止」ボタン群が画面外へ突き抜けず、常に1画面内に確実に収まるよう防御策を確立。
     - **成果物**:
       - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `8d9896c`）
-      - GitHub Pagesデプロイ完了（`npm run deploy` 成功）
+      - GitHub Pagesデプロイ完了（
+pm run deploy 成功、最新JS: index-DOG2qHwt.js、CSS: index-BgOj160E.css）
       - 親リポジトリ submodule link 更新完了（コミット: `cbd8b1b`）
 
   - **一郎／遥か ワンタッチボイス選択カード新設＆詳細設定可視化・暗黒化解消改修 (2026-10-19 00:25)**:
@@ -1742,7 +1851,8 @@ C:\Users\soroe\Documents\A-App\data\ 内のZIP、解凍フォルダ、素材、P
       - 動画展開時も動画の上限高さを `min(480px, calc(100vh - 360px))` に制限し、下部の設定パネルが必ず表示・スクロールできる安全領域を確保。
     - **成果物**:
       - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `b6ce9a6`）
-      - GitHub Pagesデプロイ完了（`npm run deploy` 成功）
+      - GitHub Pagesデプロイ完了（
+pm run deploy 成功、最新JS: index-DOG2qHwt.js、CSS: index-BgOj160E.css）
       - 親リポジトリ submodule link 更新完了（コミット: `464688f`）
 
   - **音声コントロールタブの常時直接表示＆動画「横幅いっぱいノーカット」＋「任意高さ調整」実装 (2026-10-19 00:35)**:
@@ -1759,7 +1869,8 @@ C:\Users\soroe\Documents\A-App\data\ 内のZIP、解凍フォルダ、素材、P
       - `.app-card` の `overflow: hidden` を `overflow-y: auto` に変更。動画がどんなに巨大でも、下にスクロールすればプレイヤーや各タブ設定へスムーズにアクセス可能。
     - **成果物**:
       - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `921da88`）
-      - GitHub Pagesデプロイ完了（`npm run deploy` 成功）
+      - GitHub Pagesデプロイ完了（
+pm run deploy 成功、最新JS: index-DOG2qHwt.js、CSS: index-BgOj160E.css）
       - 親リポジトリ submodule link 更新完了（コミット: `784ec00`）
 
   - **最上部スロット切替タブ（動画・音声・速度完全同期）＆パネル内機能サブタブ配置 (2026-10-19 01:44)**:
@@ -1771,7 +1882,8 @@ C:\Users\soroe\Documents\A-App\data\ 内のZIP、解凍フォルダ、素材、P
       - レイアウト階層・スクロール構造は完全安定版のまま維持し、画面崩れリスクを100%排除。
     - **成果物**:
       - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `07ce08e`）
-      - GitHub Pagesデプロイ完了（`npm run deploy` 成功、最新JS: `index-Bk5l1W4X.js`）
+      - GitHub Pagesデプロイ完了（
+pm run deploy 成功、最新JS: index-DOG2qHwt.js、CSS: index-BgOj160E.css）
       - 親リポジトリ submodule link 更新完了（コミット: `cb6fa06`）
 
   - **再生中スロット切り替え時のシームレス・バトンタッチ方式（文章継続＆ボイス・動画即時交代） (2026-10-19 01:55)**:
@@ -1781,7 +1893,8 @@ C:\Users\soroe\Documents\A-App\data\ 内のZIP、解凍フォルダ、素材、P
       - 停止中・一時停止中のスロット切り替え時は通常通り動画を停止させたまま設定のみが同期される安全設計を両立。
     - **成果物**:
       - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `625b280`）
-      - GitHub Pagesデプロイ完了（`npm run deploy` 成功、最新JS: `index-DbI3hiy4.js`）
+      - GitHub Pagesデプロイ完了（
+pm run deploy 成功、最新JS: index-DOG2qHwt.js、CSS: index-BgOj160E.css）
       - 親リポジトリ submodule link 更新完了（コミット: `98c9592`）
 
   - **スロット切り替え後の音声設定Ref一元管理＆ワンフレーズ後の一郎戻りバグ完全解消 (2026-10-19 02:03)**:
@@ -1791,7 +1904,8 @@ C:\Users\soroe\Documents\A-App\data\ 内のZIP、解凍フォルダ、素材、P
       - スロット切り替え直後に即座にRefを同期し、`playNextChunk` 内で常にRefを参照することにより、ワンフレーズ目だけでなく文章の最後まで100%確実に新しいボイス（遥か等）で読み切る動作を確立。
     - **成果物**:
       - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `e295d76`）
-      - GitHub Pagesデプロイ完了（`npm run deploy` 成功、最新JS: `index-4LjgHZ6o.js`）
+      - GitHub Pagesデプロイ完了（
+pm run deploy 成功、最新JS: index-DOG2qHwt.js、CSS: index-BgOj160E.css）
       - 親リポジトリ submodule link 更新完了（コミット: `be24273`）
 
   - **テーマ＆フォント常時展開・パステルピンク(#B07A76)・ブラウザヘッダー色動的同期 (2026-10-19 02:11)**:
@@ -1804,7 +1918,8 @@ C:\Users\soroe\Documents\A-App\data\ 内のZIP、解凍フォルダ、素材、P
       - カラーテーマの切り替えに合わせ、ブラウザ最上部（PWAタイトルバー／モバイルアドレスバー等）のテーマカラーを即座に動的更新。
     - **成果物**:
       - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `eaab270`）
-      - GitHub Pagesデプロイ完了（`npm run deploy` 成功、最新JS: `index-dZwXXBuD.js`）
+      - GitHub Pagesデプロイ完了（
+pm run deploy 成功、最新JS: index-DOG2qHwt.js、CSS: index-BgOj160E.css）
       - 親リポジトリ submodule link 更新完了（コミット: `7417e50`）
 
   - **スロットごとのテーマ記憶＆切り替え機能（動画・音声・テーマ・ヘッダー完全連動） (2026-10-19 02:20)**:
@@ -1814,7 +1929,8 @@ C:\Users\soroe\Documents\A-App\data\ 内のZIP、解凍フォルダ、素材、P
       - 各スロットで「テーマ＆フォント」タブからテーマを選択するだけで、そのスロット専用テーマとして自動永続保存。
     - **成果物**:
       - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `84b6012`）
-      - GitHub Pagesデプロイ完了（`npm run deploy` 成功、最新JS: `index-DUB7OpkD.js`）
+      - GitHub Pagesデプロイ完了（
+pm run deploy 成功、最新JS: index-DOG2qHwt.js、CSS: index-BgOj160E.css）
       - 親リポジトリ submodule link 更新完了（コミット: `cb6919e`）
 
   - **ミュージックプレイヤー互換 3大表示モード切替（動画／ミニパネル／ミニバー）＆枠短縮最適化 (2026-10-19 02:43)**:
@@ -1827,7 +1943,8 @@ C:\Users\soroe\Documents\A-App\data\ 内のZIP、解凍フォルダ、素材、P
       - `#root` および `.app-card` の `height: 100vh` 固定を解除し、ミニモードおよびスリムバーモード時にコンテンツの高さにピタッと合致する柔軟なレスポンシブ構造を確立。
     - **成果物**:
       - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `d3463ee`）
-      - GitHub Pagesデプロイ完了（`npm run deploy` 成功、最新JS: `index-BjyvYjMR.js`）
+      - GitHub Pagesデプロイ完了（
+pm run deploy 成功、最新JS: index-DOG2qHwt.js、CSS: index-BgOj160E.css）
       - 親リポジトリ submodule link 更新完了（コミット: `c163cbf`）
 
   - **動画モード↔ミニパネルモード2大構成＆手動リサイズ枠の永続保持（Music Player完全互換） (2026-10-19 02:50)**:
@@ -1853,6 +1970,71 @@ C:\Users\soroe\Documents\A-App\data\ 内のZIP、解凍フォルダ、素材、P
       - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `9304462`）
       - GitHub Pagesデプロイ完了（`npm run deploy` 成功、最新JS: `index-B4ridlP8.js`）
       - 親リポジトリ submodule link 更新完了
+
+  - **AI Studio更新データのGitHub反映およびPWA標準基盤の統合 (2026-10-20 11:40)**:
+    - **上部スライドアップ方式（Slide-up Drawer）への刷新**:
+      - 狭小ブラウザ枠でも重要操作（クリップボード読み上げ、再生、一時停止、全停止、タブ切替）を見失わない画面下部固定バー（pinned-bottom-bar）を常時固定配置。
+      - 設定やテキスト入力を開く際、中央のアバターステージへ向かって下から上へスムーズにせり出す（Slide-up Drawer）構造へ改修。
+    - **テキスト入力エリアの自在伸縮・リサイズ機能**:
+      - ドロワー最上部に掴みバー（リサイズハンドル）を新設し、上下ドラッグで30%〜94%の無段階高さ調節が可能に。
+      - 右上のワンタッチ切替ボタンで「標準（52%）」と「最大化（92%）」を一発切替可能。
+      - ドロワーの高さ拡大にテキスト入力枠が縦100%連動追従し、長文貼り付けや編集が極めて快適化。
+      - 入力枠下部に「クリア」「閉じて再生」ボタンを常時配置。
+    - **ストイックなインダストリアルデザイン統一**:
+      - カラーアイコンやアバタースロットの絵文字を完全廃止し、幾何学的でストイックなLucide Icons・モノトーン階調・1pxソリッドボーダーへ統一。
+    - **PWA＆オフライン稼働基盤の配備**:
+      - manifest.webmanifest（スタンドアローン対応、相対パス基準）および sw.js（即時適用skipWaiting＆キャッシュ自動更新）を正式配備。
+      - GitHub Pages環境（/SOLID-TTS-CLIPBOARD-READER/）でも確実にService Workerが機能するよう相対参照を精密調整。
+    - **成果物**:
+      - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `ae582d8`）
+      - GitHub Pagesデプロイ完了（`npm run deploy` 成功、最新JS: `index-DOG2qHwt.js`、CSS: `index-BgOj160E.css`）
+      - 親リポジトリ submodule link 更新完了（コミット: `fff017f`）
+
+  - **各ボイス初期値テーブル登録・自動適用＆ワンタッチリセット機能 (2026-10-20 12:42)**:
+    - **各ボイス固有の最適基準値テーブルの登録**:
+      - Microsoft Ichiro: 2.0x / 1.0x / 100%（スロット1標準ボイス）
+      - Microsoft Haruka: 1.9x / 1.1x / 85%（スロット2標準ボイス）
+      - Microsoft Sayaka: 1.9x / 1.1x / 85%（スロット3対応）
+      - Microsoft Ayumi: 2.3x / 1.4x / 85%（スロット3対応）
+      - Google 日本語: 1.2x / 1.1x / 85%（Chrome / Android環境等）
+      - その他のボイス: 1.2x / 1.0x / 85%（安全基準値）
+    - **ボイス選択時の初期値自動適用＆スロット自動保存**:
+      - プルダウンからボイスを選択した際、上記テーブル固有の初期値（話速・ピッチ・音量）をスライダーへ即時自動反映し、該当スロット（1〜3）の設定として即座に永続保存。
+      - スライダー手動微調整時はその値をリアルタイム保存。
+      - スロット切替時も、各スロットに保存されたボイスと個別設定（未設定時は各スロット標準ボイス・初期値）を再生エンジンへ瞬時同期。
+    - **インダストリアル調「初期値にリセット」ボタンの実装**:
+      - 音声詳細設定スライダー直下に、ストイックな工業用計器デザインのリセットボタン（RotateCcwアイコン付き）を新設。
+      - 右側に現在選択中ボイスの規定初期値（例: 初期値: 1.9x / 1.1x / 85%）を等幅フォントで常時控えめに表示。
+      - リセット押下時は該当ボイスの基準値へ一瞬で復元し、スロット設定も更新。「初期値にリセットしました」のフィードバックを表示。
+    - **成果物**:
+      - GitHub個別リポジトリ: `https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git`（コミット: `0fb38d1`）
+      - GitHub Pagesデプロイ完了（`npm run deploy` 成功、最新JS: `index-PZFlHZDe.js`、CSS: `index-BgOj160E.css`）
+      - 親リポジトリ submodule link 更新完了（コミット: `20ff6ce`）
+
+  - **読上テキスト履歴のデータ構造永続化（最大10件）＆リスト展開ドロワー機能実装 (2026-10-21 02:20)**:
+    - **読上テキスト履歴のデータ構造と永続化（最大10件管理）**:
+      - データ型定義: id, 	ext, 	imestamp, charCount, source（clipboard / manual）
+      - 「クリップボードを読み上げる」ボタン実行時および手動入力再生時に自動で履歴スタックへ記録。
+      - 同一テキスト再読込時は重複を排除し最新日時として先頭へ更新。常に直近10件を localStorage（solid-tts-history-v1）へ永続保存。
+    - **リスト展開ドロワー（上部スライドアップ方式）**:
+      - 画面最下部のトグルボタン行を3分割化し、中央に「読上履歴 (件数)」ボタンを配置。下からスムーズに展開。
+      - 上部バーの上下ドラッグによる自在リサイズ（高さ30%〜94%無段階）および「上に広げる（最大化 92%）」に対応。
+      - テキスト入力ドロワー内にも「履歴から呼出 (件数)」ボタンを併設し、入力作業中からも瞬時アクセス可能。
+    - **履歴リストの多彩なアクション**:
+      - 「もう一度読む（Play）」: テキスト入力欄に即時反映しワンクリックで再読み上げ開始。
+      - 「入力欄にセット（Edit）」: テキストを読み上げ欄にセットしてドロワーを閉じる。
+      - 「コピー（Copy）」: クリップボードへ再コピー（コピー完了フィードバック付き）。
+      - 「個別削除（Trash）」: 不要な履歴のピンポイント削除。
+      - 「全消去」: ツールバーから履歴10件を一括クリア。
+    - **インダストリアル・デザインポリシーの徹底**:
+      - BUFFER 10 の銘板風バッジ、インデックス（#1〜#10）、種別（CLIPBOARD / MANUAL）、文字数、タイムスタンプを等幅フォントで整然配置。
+      - 各テーマ（ライト、ダーク、モノトーン、ブラウン、パステルピンク）の色変数（CSS Variables）に完全連動。
+      - 前回の各ボイス初期値テーブルおよびワンタッチリセット機能との完全両立を維持（先祖返りゼロ）。
+    - **成果物**:
+      - GitHub個別リポジトリ: https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git（コミット: 51abc5）
+      - GitHub Pagesデプロイ完了（
+pm run deploy 成功、最新JS: index-DYCkUka5.js、CSS: index-C3IgXLTn.css）
+      - 親リポジトリ submodule link 更新完了（コミット: 1ba61e9）
 
 
 
