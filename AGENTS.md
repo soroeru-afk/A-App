@@ -175,6 +175,10 @@ AI Studioでのプロンプト改修や別端末での再構築の際、過去�
    - `App.tsx` 内の `useEffect` において、`theme` 変更時に `document.documentElement.setAttribute('data-theme', theme)` と同時に、ブラウザ/PWA最上部ヘッダーの `<meta name="theme-color">`（`#0a0d12` black / `#0d0404` red / `#0d131f` dark / `#e2e8f0` light）を即時書換・動的同期するロジックを100%保持すること。
    - `Header.tsx` のコンテナクラスには必ず SOLID K-NAVIGATOR 互換の `border-border-main bg-panel-bg` を使用し、無効な旧独自クラス（`border-header-border bg-header-bg` 等）へ先祖返りさせないこと。
    - `src/index.css` のテーマ変数は SOLID K-NAVIGATOR と 1:1 精密一致したパレットで維持すること。
+
+2. **【同一オリジンPWA相互衝突・上書き絶対防止規定】**:
+   - 同一GitHub Pages（`soroeru-afk.github.io`）配下で運用する全Web PWAは、Web App Manifest内の `id` を必ずアプリ固有の固定ID（例: `solid-bookmark-link-manager-app`, `solid-tts-clipboard-reader-app`）に設定すること。相対指定（`id: "./"`）はChromeによる他アプリのstart_url上書き誤認事故を招くため厳禁とする。
+   - デスクトップショートカットは、Chrome内部の不安定なLevelDB App ID依存ではなく、直接URL指定起動（`chrome.exe --app="https://soroeru-afk.github.io/<アプリ名>/"`）を標準とすること。
 ---
 
 ## 9. A-App/data フォルダ標準整理規格（1号機・2号機共通プロトコル）
