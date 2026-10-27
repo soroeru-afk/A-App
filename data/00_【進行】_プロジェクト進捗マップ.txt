@@ -1802,6 +1802,26 @@ px tsc --noEmit（型チェック0エラー）の完全通過、ならびにPlay
         - 自動バックアップ読み込み時に手元の最新編集データ（LocalStorage）が巻き戻されないよう、タイムスタンプ比較ガード（mergeMixerData / applyOverallImport）を完全実装。
         - テーマ変更時のヘッダー <meta name="theme-color"> 動的同期、セーブ完了トースト通知、PWAキャッシュ名（v1.1.0）の更新を実施し、本番ビルドおよびGitHub独立リポジトリへのプッシュを完了。
 
+  【完了】進捗 (2026-10-27 09:15)
+    [x] 新テーマ「PINK」のカラー設計（イメージビュアー準拠）およびテーマセレクター（トグル＋プルダウン）完全実装：
+        1. 【新テーマ「PINK」のインダストリアルカラー設計】
+           - 「SOLID DESKTOP IMAGE VIEWER」のピンクテーマのトーンを正確に抽出した無骨でストイックなダークローズ配色。
+           - ベース背景 #140D12、パネル背景 #1A1017、入力行 #22151E / #2E1B29、枠線 #452136 / #78345A、テキスト #FCE7F3 / #BE6B8E、アクセント #DB2777、マーク色 #F472B6 を index.css に定義。
+           - themeColors.ts に PINK / RED を登録し、全7テーマ（NAVY, DARK, BLACK, PINK, LIGHT, MONO, RED）に対応。
+        2. 【テーマセレクター（トグル循環 ＋ 矢印プルダウンメニュー）の実装】
+           - ボタン左側（カラードット＋テーマ名）: クリックで順送りトグル循環切替（NAVY → DARK → BLACK → PINK → LIGHT → MONO → RED → NAVY...）。
+           - ボタン右側（∨ / ∧ 矢印）: クリックで「THEME SWITCH」ドロップダウンメニューが開閉。
+           - ドロップダウン内: カラードット、テーマ名（日本語モード時日本語併記）、選択中テーマのハイライト背景およびチェックマーク（✓）を表示し、一覧からワンタップ直接選択が可能。外側クリック（Outside Click）での自動クローズ対応。
+        3. 【カラー設定モーダル・多言語辞書の追従】
+           - ColorSettingsModal.tsx の設定対象テーマタブに「PINK」「RED」を追加し、全7テーマの個別カスタム・リセットに対応。
+           - i18n.ts に theme_pink（PINK / ピンク）を登録。
+        4. 【先祖返り絶対防衛・完全保護マージ】
+           - 昨晩自宅で整備された「個別比較インポートモーダル（PromptComparisonImportModal / PartComparisonImportModal）」、「カテゴリー選択プルダウンの並び順整合化（categoryUtils.ts）」、「タイムスタンプ保護マージ（mergeMixerData / applyOverallImport）」、「セーブトースト通知（showSaveToast）」を100%保持。
+           - ブラウザ/PWA最上部 <meta name="theme-color"> 動的同期（PINK時 #140d12 を含む）を保持。
+           - PWAキャッシュを v1.1.1 へバンプ。
+    [x] Vite本番ビルド検証（10.91s / 0エラー）成功、独立リポジトリ (SOLID-SQUARE-PROMPT-MIXER-) への GitHub (main) プッシュ完了 (commit 8940810)。
+    [x] 親リポジトリ (A-App) の gitlink 更新・プッシュ完了。
+
 ▼ SOLID MOVIE MAKER
 ------------------------------------------------------------------------
   【完了】進捗 (2026-10-02 08:46)
