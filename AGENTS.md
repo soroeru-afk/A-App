@@ -187,6 +187,9 @@ AI Studioでのプロンプト改修や別端末での再構築の際、過去�
      ② Tier 1: Jina Reader API（`https://r.jina.ai/${cleanUrl}` / `Accept: application/json`）による日本語・一般Webページ最速取得。
      ③ Tier 2: Microlink API フォールバック。
      ④ Tier 3: ローカル開発サーバー（`/api/fetch-title`）。
+     ⑤ **【Botガード判定＆主要ドメインスマート日本語補完】**:
+        - 株探やAmazon等のBot対策により「`Human Verification`」「`Robot Check`」「`Books, Apparel...`」等のゴミタイトルが返ってきた場合、`isGarbageTitle` で自動破棄（リジェクト）すること。
+        - 株探（`kabutan.jp` → `株探 (かぶたん) [銘柄: 7203]` / `株探 (かぶたん) - 株式情報`）、Amazon（`amazon.co.jp` → `Amazon.co.jp (アマゾン)` / 商品コード抽出）、Yahoo!ファイナンス、楽天市場、メルカリ等のドメイン知識に基づくスマートな日本語フォールバック（`getSmartFallbackTitle`）を100%維持すること。
    - ブラウザの二重貼り付けバグを防ぐため、`handleUrlPaste` での `e.preventDefault()`、`sanitizeUrl` による二重化URL修復、および `isFetching` による取得中スピナー表示（`<Loader2 ... />`）を100%消去せず維持すること。
 
 ---
