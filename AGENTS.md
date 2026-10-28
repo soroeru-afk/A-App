@@ -179,6 +179,16 @@ AI Studioでのプロンプト改修や別端末での再構築の際、過去�
 2. **【同一オリジンPWA相互衝突・上書き絶対防止規定】**:
    - 同一GitHub Pages（`soroeru-afk.github.io`）配下で運用する全Web PWAは、Web App Manifest内の `id` を必ずアプリ固有の固定ID（例: `solid-bookmark-link-manager-app`, `solid-tts-clipboard-reader-app`）に設定すること。相対指定（`id: "./"`）はChromeによる他アプリのstart_url上書き誤認事故を招くため厳禁とする。
    - デスクトップショートカットは、Chrome内部の不安定なLevelDB App ID依存ではなく、直接URL指定起動（`chrome.exe --app="https://soroeru-afk.github.io/<アプリ名>/"`）を標準とすること。
+
+3. **【SOLID BOOKMARK LINK MANAGER URLタイトル自動取得・二重貼り付け防止保護規定】**:
+   - AI Studioからの更新やマージの際、URLタイトル取得を不確実な外部プロキシチェーン（AllOriginsやcorsproxy等）に差し替えてはならない。
+   - 必ず `AddNotebookForm.tsx` および `src/utils/titleFetcher.ts` において、以下の【Antigravity直結方式】を100%保持すること：
+     ① YouTube専用公式 oEmbed API（`https://www.youtube.com/oembed?url=...`）による即時取得（0.2秒）。
+     ② Tier 1: Jina Reader API（`https://r.jina.ai/${cleanUrl}` / `Accept: application/json`）による日本語・一般Webページ最速取得。
+     ③ Tier 2: Microlink API フォールバック。
+     ④ Tier 3: ローカル開発サーバー（`/api/fetch-title`）。
+   - ブラウザの二重貼り付けバグを防ぐため、`handleUrlPaste` での `e.preventDefault()`、`sanitizeUrl` による二重化URL修復、および `isFetching` による取得中スピナー表示（`<Loader2 ... />`）を100%消去せず維持すること。
+
 ---
 
 ## 9. A-App/data フォルダ標準整理規格（1号機・2号機共通プロトコル）
