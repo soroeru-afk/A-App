@@ -97,6 +97,7 @@
         - 【防衛規定厳守】固有Manifest ID（solid-bookmark-link-manager-app）、base: './'、動的メタテーマカラー（<meta name="theme-color">）、専用アイコン保管庫（IconModal）を100%保持。
         - 【成果物】コミット: `d3ff47a`（親リポジトリリンク: `b09ee7c`、本番ビルド検証完了・GitHub Pages自動デプロイ完了・スクリプトハッシュ index-BcCcRB1l.js 一致確認済み）
         - 【URLタイトル自動取得・二重貼り付け防止の完全防衛（Antigravity直結方式へ一本化）】AI Studioの外部プロキシチェーンから、確実に稼働するAntigravity直結方式（YouTube専用oEmbed API + Tier 1 Jina Reader API + Tier 2 Microlink API）へ完全復元・統一。URL二重化防止サニタイズ（e.preventDefault() / sanitizeUrl）および取得中スピナー表示（Loader2）を完全維持。さらにAGENTS.mdの「個別アプリ先祖返り絶対防衛規定」へ【SOLID BOOKMARK LINK MANAGER URLタイトル自動取得・二重貼り付け防止保護規定】を永久追加し、今後のAI Studioマージ時にも確実に保護される規格を確立。コミット: `189c169`（親リンク: `c1a91b6`）。
+        - 【株探・Amazon等Botガード対抗＆スマート日本語ドメイン補完機能】株探（kabutan.jp）の「Human Verification」やAmazon（amazon.co.jp）の「Books, Apparel...」など、大手WebサイトがBot判定時に返すゴミタイトルを自動検知して破棄（リジェクト）する「isGarbageTitle」を実装。さらにドメイン知識に基づくスマート日本語フォールバック「getSmartFallbackTitle」を新設し、株探（銘柄コード自動抽出 `株探 (かぶたん) [銘柄: 7203]` / `株式情報`）、Amazon（`Amazon.co.jp (アマゾン)` / 商品コード抽出）、Yahoo!ファイナンス、メルカリ等のURLを貼り付けた際にも、確実に実用的な日本語タイトルが自動入力されるハイエンド仕様を確立。コミット: `04ef7a5`（親リンク: `cfd8fd7`）。
 ● トラブルシューティング / 稼働検証 (2026-10-22 根本完全解決):
 - 【事象】SOLID-TTS-CLIPBOARD-READERを起動した後にSOLID BOOKMARK LINK MANAGERを開くと、TTS画面が表示されてしまう現象の再発。
 - 【根本原因の特定】
