@@ -1966,6 +1966,10 @@ avicon.ico, pwa-icon.jpg を生成・適用）。
            - PWAキャッシュを v1.1.2 へバンプ。
     [x] Vite本番ビルド検証（8.68s / 0エラー）成功、独立リポジトリ (SOLID-SQUARE-PROMPT-MIXER-) への GitHub (main) プッシュ完了 (commit 26c5173)。
     [x] 親リポジトリ (A-App) の gitlink 更新・プッシュ完了 (commit 1b1a83e)。
+    [x] ヘッダー背景色とツール背景色の一体化 ＆ ウィンドウタイトル文字化け・ダブり解消（v1.1.3）：
+        - PEPERテーマにおいて、ヘッダー背景色（header）をツールのベース背景色（var(--bg-base) = #F2EFE6）に完全一致させ、PWA最上部タイトルバーからツール背景まで一体化。
+        - index.html の <title> をシンプルな「SOLID SQUARE PROMPT MIXER」に修正。余計な「■」や「V2」による文字化けおよびPWAでのタイトル二重合成表示（-  SOLID SQUARE PROMPT MIXER V2）を完全根絶。
+        - PWAキャッシュを v1.1.3 へ更新、本番ビルド検証（5.09s）およびGitHub両リポジトリへのプッシュ完了。
 
 ▼ SOLID MOVIE MAKER
 ------------------------------------------------------------------------
