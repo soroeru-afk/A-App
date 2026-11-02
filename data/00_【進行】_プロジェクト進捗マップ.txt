@@ -2034,6 +2034,23 @@ avicon.ico, pwa-icon.jpg を生成・適用）。
     [x] Vite本番ビルド検証（5.80s / 0エラー）成功、独立リポジトリ (SOLID-SQUARE-PROMPT-MIXER-) への GitHub (main) プッシュ完了 (commit 0dcdccd)。
     [x] 親リポジトリ (A-App) の gitlink 更新・プッシュ完了。
 
+  【完了】進捗 (2026-11-02 14:06)
+    [x] エディター構文ハイライト重なりバグ修復 ＆ 二層同期・選択時テキスト透明化（v1.1.9）：
+        1. 【前面 textarea の選択時テキスト透明化の完全保証（src/index.css）】
+           - エディター専用クラス .syntax-overlay-textarea を定義し、選択中（::selection）でも文字色を100%完全透明（color: transparent !important; -webkit-text-fill-color: transparent !important;）に維持。
+           - 選択時は半透明ハイライト矩形（Peper時は半透明オレンジ rgba(217, 84, 48, 0.3)、ダーク系等は半透明ブルー／レッド）のみを描画し、文字の二重描画（ゴースト・ブレ）を根本から根絶。
+        2. 【スタイル・フォント・寸法の完全一致同期（src/components/PreviewColumn.tsx）】
+           - sharedEditorStyles オブジェクトを新設し、背面ハイライト層と前面入力層で等幅フォント、フォントサイズ、行間、太さ、字間、単語間隔、タブ幅、改行折り返し規則（pre-wrap / break-word）、余白（p-4 pt-2）、枠線なし（border: 0）を共通適用。
+        3. 【スクロールバー非表示による文字折り返し幅の完全一致】
+           - 前面 textarea にも [&::-webkit-scrollbar]:hidden [scrollbar-width:none] および overflow-x-hidden を適用し、8pxのスクロールバー幅による行ズレや空白行への文字出現現象を完全解消。
+        4. 【背面レイヤーの選択除外（select-none）とテーマ文字色統一】
+           - 背面ハイライト層に select-none を付与し、未強調テキスト色を Peper 時 text-[#201D1A]、他テーマ時 text-text-main に統一。ポジティブ・ネガティブ両エディターに適用。
+        5. 【先祖返り完全防衛】
+           - タブ削除確認ダイアログ・位置維持（v1.1.8）、タイムスタンプ保護マージ、LocalStorage更新タイムスタンプ記録、セーブ完了トースト通知、全8テーマ対応の動的theme-color同期、シンプルなタイトル設定を100%保持。
+           - PWAキャッシュを v1.1.9 へ更新。
+    [x] Vite本番ビルド検証（6.04s / 0エラー）成功、独立リポジトリ (SOLID-SQUARE-PROMPT-MIXER-) への GitHub (main) プッシュ完了 (commit 0de431a)。
+    [x] 親リポジトリ (A-App) の gitlink 更新・プッシュ完了。
+
 ▼ SOLID MOVIE MAKER
 ------------------------------------------------------------------------
   【完了】進捗 (2026-10-02 08:46)
