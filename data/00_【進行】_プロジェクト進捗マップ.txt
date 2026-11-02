@@ -2005,6 +2005,21 @@ avicon.ico, pwa-icon.jpg を生成・適用）。
     [x] Vite本番ビルド検証（5.68s / 0エラー）成功、独立リポジトリ (SOLID-SQUARE-PROMPT-MIXER-) への GitHub (main) プッシュ完了 (commit 40d0475)。
     [x] 親リポジトリ (A-App) の gitlink 更新・プッシュ完了。
 
+  【完了】進捗 (2026-11-02 10:30)
+    [x] セクション見出しの文字・バッジ視認性改善 ＆ アクションボタン常時表示化（v1.1.7）：
+        1. 【全テーマ対応のコントラスト・視認性完全修正】
+           - 固定色指定（text-zinc-900）を廃止し、テーマ変数（text-text-main / text-text-dim）に完全連動。
+           - ダーク系テーマ（Dark, Black, Navy, Red, Pink）では暗い帯に対して白・明るい文字でクッキリ表示。
+           - ペーパー・ライト・モノクロ系テーマ（Peper, Light, Mono）では濃いテキストで鮮明に表示。
+        2. 【○ CAT バッジおよびアクションボタンの意匠刷新】
+           - ○ CAT バッジの配色をテーマパネル色（bg-bg-panel / border-border-main / text-text-main）に統一。
+           - 「+ CAT」追加ボタンおよび「編集（鉛筆）」ボタンのホバー非表示（opacity-0 group-hover:opacity-100）を撤廃し、常時表示の角型ソリッドボタン（bg-bg-input border border-border-main text-text-main）として配置。
+        3. 【先祖返り完全防衛】
+           - タイムスタンプ保護マージ、LocalStorage更新タイムスタンプ記録、セーブ完了トースト通知、全8テーマ対応の動的theme-color同期、シンプルなタイトル設定を100%保持。
+           - PWAキャッシュを v1.1.7 へ更新。
+    [x] Vite本番ビルド検証（5.32s / 0エラー）成功、独立リポジトリ (SOLID-SQUARE-PROMPT-MIXER-) への GitHub (main) プッシュ完了 (commit ab9e1e5)。
+    [x] 親リポジトリ (A-App) の gitlink 更新・プッシュ完了。
+
 ▼ SOLID MOVIE MAKER
 ------------------------------------------------------------------------
   【完了】進捗 (2026-10-02 08:46)
