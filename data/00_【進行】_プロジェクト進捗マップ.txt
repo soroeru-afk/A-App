@@ -2810,6 +2810,23 @@ pm run deploy 成功、最新JS: index-4_7MVHRO.js、CSS: index-iIiafuhL.css）
       - GitHub Pagesデプロイ完了（
 pm run deploy 成功、最新JS: index-DXB6YnuU.js、CSS: index-iIiafuhL.css）
       - 親リポジトリ submodule link 更新完了（コミット: 7ec1287）
+  - **サーバーレス化・純粋な静的Vite PWA構成復元＆ブラウザ完結型URL解析配備 (2026-11-15 20:53)**:
+    - **サーバーレス化・純粋な静的Vite＋PWA構成への復元**:
+      - ローカル常駐サーバー（server.ts）を撤去し、package.json からサーバー専用パッケージ（express / jsdom / iconv-lite / dotenv / tsx / @types/express / @types/jsdom）を整理・削除。
+      - npm run build で出力される dist/ のみで完全動作し、バックグラウンドでのローカルサーバー常駐が一切不要。インストールしたPWAアイコンやWeb上からそのままダイレクト起動可能。
+    - **ブラウザ完結型のURL解析モジュール（src/utils/clientUrlExtractor.ts）の新設**:
+      - ブラウザ標準の DOMParser と @mozilla/readability をクライアント側で直接駆動。
+      - r.jina.ai 利用時も Markdown モードは使わず「X-Respond-With: html」ヘッダーで生のHTMLを取得し、ブラウザ内Readability＋ノイズタグ除去（header, nav, footer, aside, figure, figcaption, rt/rp, 販促リンク等）を施すことで、Yahoo等のメニュー・全リンク混入を完全防止。
+      - allorigins / codetabs への自動フォールバック、および TextDecoder による UTF-8 / Shift_JIS / EUC-JP / ISO-2022-JP 自動文字コード判別を完備。
+      - 複数ページ自動連結（最大5ページ）および pageBreaks（2ページ目 等の区切り線データ）生成をクライアント側で完全踏襲。
+    - **Service Worker（public/sw.js）キャッシュ更新**:
+      - キャッシュ名を solid-tts-cache-v2 に更新し、HTML中継先などのクロスオリジン通信をバイパスする安全対策を追加。
+    - **成果物**:
+      - GitHub個別リポジトリ: https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git（コミット: 432d2ef）
+      - GitHub Pagesデプロイ完了（
+pm run deploy 成功、最新JS: index-Cjce_bVS.js、CSS: index-iIiafuhL.css）
+      - 親リポジトリ submodule link 更新完了（コミット: 35abba8）
+
 
 
 
