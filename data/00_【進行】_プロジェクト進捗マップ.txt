@@ -2842,6 +2842,18 @@ pm run deploy 成功、最新JS: index-DXB6YnuU.js、CSS: index-iIiafuhL.css）
       - GitHub Pagesデプロイ完了（
 pm run deploy 成功、最新JS: index-Cjce_bVS.js、CSS: index-iIiafuhL.css）
       - 親リポジトリ submodule link 更新完了（コミット: 35abba8）
+  - **Bot対策サイト即時判定＆音声案内（待ち時間・警告なし、読上履歴除外） (2026-11-16 20:50)**:
+    - **Bot対策サイトの即時判定と音声案内（待ち時間・画面警告なし）**:
+      - 遅延の原因となっていた外部中継先フォールバックを廃止し、即時応答する単一取得（r.jina.ai生HTML）へ集約。
+      - 株探等の Human Verification や Bot対策ページ（Cloudflare, AWS WAF, 403 Forbidden等）を即座に検知。
+      - 画面上に邪魔な注意事項やエラーモーダルを出さず、テキスト欄へ即座に案内文（「このサイトはBot対策（人間確認）によりURLから直接取得できません。記事をコピーして「クリップボードを読み上げる」をご利用ください。」）をセットして自動音声読み上げ。
+      - 当該案内文は読上履歴（localStorage）へ保存されないよう安全除外（if (!data.isBotBlocked)）。
+    - **成果物**:
+      - GitHub個別リポジトリ: https://github.com/soroeru-afk/SOLID-TTS-CLIPBOARD-READER.git（コミット: 1e5c251）
+      - GitHub Pagesデプロイ完了（
+pm run deploy 成功、最新JS: index-WzWuq5zY.js、CSS: index-iIiafuhL.css）
+      - 親リポジトリ submodule link 更新完了（コミット: 2c354c0）
+
 
 
 
