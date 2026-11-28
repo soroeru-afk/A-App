@@ -895,6 +895,17 @@
 
 ▼ 00. SOLID DESKTOP IMAGE VIEWER (デスクトップ・イメージビューアー)
 ------------------------------------------------------------------------
+【進行】 (2026-11-28 11:42)
+[x] 新テーマ3種（WHITE / COOL GRAY / GRAY）追加＆テーマ並び順統一（PAPERをMOCHA直下へ移動）:
+1. 【新テーマ3種の追加と配色・UI完全連動 (src/index.css / src/App.tsx / src/components/TopHeader.tsx)】
+   - WHITE（ホワイト）: グレーを排した純白基調に、くっきりした枠線・高コントラスト文字を採用。
+   - COOL GRAY（クールグレー）: 青み寄りスレートグレー基調。パンくず・Search Scope・サイドバーの選択ハイライトも薄いブルー系グレーへ統一。
+   - GRAY（グレー）: 無彩色ニュートラルグレー基調（パネルは白維持）。
+   - 上記3テーマではタイトル横ロゴマークを「白背景＋枠線＋濃色アイコン」に統一し、フルスクリーン・右下ジョグコントローラー等も完全連動。
+2. 【テーマ一覧の並び順統一＆仕様書同期】
+   - PAPER を MOCHA の直下へ移動し、ヘッダープルダウン・左クリック循環・[COLOR]タブの順序を全13種で統一。
+   - AGENTS.md および theme-color 動的同期も新テーマ3種に対応。
+
 【進行】 (2026-11-26 10:20)
 [x] 一括リネーム（階層・所属整理＆自然順ソート）対応:
 1. 【カテゴリー階層・所属ごとのグループ整理表示】
@@ -3171,3 +3182,14 @@ ar(--theme-albumArt-bg, var(--theme-bg)) へ連動接続。
     - UserSetting.json へ 1号機の2ペインレイアウト・プレイリスト設定（Banner 表示、IsGroupBy: true、IsCurrentBookFilterEnabled: true、右パネル幅678）を安全にマージ反映完了（元ファイルは .bak_ としてバックアップ保存済み）。
     - 【重要補足 (20:57)】2号機のドキュメント実体は OneDrive 同期により `C:\Users\soroe\OneDrive\ドキュメント\NeeLaboratory\NeeView\Playlists\Default.nvpls` であることを特定し、同パスへ最新プレイリスト19項目（5,479B）を再反映して表示正常化を確認完了。
     - 【2026-11-26 追記】自宅PCの最新バックアップ（2026-11-25更新の Bookmark.json / Default.nvpls / NeeView44.1-20261125.nvzip）から未登録差分をマージ反映完了（ブックマーク計16件、プレイリスト計35件）。
+
+- 2026/11/26:
+  - 【SOLID AUDIO MUSIC PLAYER (v2.0.66)】:
+    - PWA（フルスクリーン・スタンドアロン）環境における CAT: プルダウン暗転・フリーズ解消:
+      - GPU合成（DirectComposition）破綻防止: プルダウン本体をサイドバー階層から分離し、document.body 直下へ createPortal（position: fixed, zIndex: 9500）で描画。
+      - CSSレイヤー安定化: 第3列の isolation: 'isolate' / transform: 'translateZ(0)' 適用、親の overflow-hidden および第3列 transition-all 撤去。画面サイズに応じた列幅自動比例縮小を実装。
+      - 2段階 ErrorBoundary の新設: メニュー専用 CascadeMenuErrorBoundary（App.tsx）およびアプリ全体 AppErrorBoundary（main.tsx / SYSTEM RENDER RECOVERY画面）を構築。
+      - React 19 状態遷移の安定化: CAT: クリック処理を純粋な条件分岐に整理。
+      - 保存値サニタイズ & バグ修正: selectedCategoryFilter / cascadeColWidths / cascadeHeight / cascadeFrostLevel の null/NaN ガード、handleLocateCurrentTrack の null 代入バグ解消（'__ALL__' 化）、HTML ネスト修正。
+      - 先祖返り絶対防衛規定の完全遵守（ウィンドウサイズ復元、動的theme-color同期、MINIモード幅660px、CARDSのCD操作コンソール、T-BLACKテーマを100%保持）。
+    - 本番ビルド（npm run build）検証完了、個別リポジトリ（origin/main）および親リポジトリ（A-App gitlink）へプッシュ完了。GitHub Actions デプロイ完了確認済み。
